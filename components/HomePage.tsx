@@ -3,9 +3,8 @@
 import { useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import { useCart } from '../context/CartContext';
-import LanguageSelector from './LanguageSelector';
+import Header from './Header';
 import CartDrawer from './CartDrawer';
-import Link from 'next/link';
 
 const ORIGINS: Record<string, { flag: string; label: string }> = {
   DJ: { flag: '🇩🇯', label: 'Djibouti' },
@@ -28,7 +27,7 @@ export default function HomePage({ products, categories, promos, producers }: {
   producers: any[];
 }) {
   const { ui, productTranslations, categoryTranslations, promoTranslations, currentLang } = useLanguage();
-  const { addItem, count } = useCart();
+  const { addItem } = useCart();
   const [activeCategory, setActiveCategory] = useState('all');
   const [activeType, setActiveType] = useState('all');
   const [activeOrigin, setActiveOrigin] = useState('all');
@@ -93,46 +92,8 @@ export default function HomePage({ products, categories, promos, producers }: {
   return (
     <div className="min-h-screen bg-[#f8faf0]">
 
-      {/* Cart Drawer */}
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
-
-      {/* Header */}
-      <header className="bg-white border-b border-[#dde8b0] sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">🌿</span>
-            <div>
-              <h1 className="text-xl font-bold text-[#526500]">Racine Bio</h1>
-              <p className="text-xs text-gray-400">{t('footer', 'Le marché bio de Djibouti')}</p>
-            </div>
-          </div>
-          <nav className="hidden md:flex items-center gap-8">
-            <a href="#produits" className="text-sm font-medium text-gray-600 hover:text-[#7d9800]">{t('products', 'Produits')}</a>
-            <a href="#producteurs" className="text-sm font-medium text-gray-600 hover:text-[#7d9800]">{t('producers', 'Producteurs')}</a>
-            <a href="#promos" className="text-sm font-medium text-gray-600 hover:text-[#7d9800]">{t('promos', 'Promos')}</a>
-          </nav>
-          <div className="flex items-center gap-3">
-            <LanguageSelector />
-            <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-[#7d9800] transition hidden md:block">
-              {t('login', 'Se connecter')}
-            </Link>
-            <Link href="/login" className="hidden md:block bg-[#a8c800] text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-[#7d9800] transition">
-              {t('register', "S'inscrire")}
-            </Link>
-            <button
-              onClick={() => setCartOpen(true)}
-              className="relative p-2"
-            >
-              <span className="text-2xl">🛒</span>
-              {count > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
-                  {count > 9 ? '9+' : count}
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
-      </header>
+      <Header onCartOpen={() => setCartOpen(true)} />
 
       {/* Hero */}
       <section className="bg-gradient-to-br from-[#2a4f08] to-[#5a9a18] text-white py-20 px-6">
