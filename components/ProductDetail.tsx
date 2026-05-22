@@ -7,12 +7,8 @@ import Header from './Header';
 import CartDrawer from './CartDrawer';
 import Link from 'next/link';
 
-const ORIGINS: Record<string, { flag: string; label: string }> = {
-  DJ: { flag: '🇩🇯', label: 'Djibouti' },
-  ET: { flag: '🇪🇹', label: 'Éthiopie' },
-  SO: { flag: '🇸🇴', label: 'Somalie' },
-  YE: { flag: '🇾🇪', label: 'Yémen' },
-  FR: { flag: '🇫🇷', label: 'France' },
+const ORIGIN_FLAGS: Record<string, string> = {
+  DJ: '🇩🇯', ET: '🇪🇹', SO: '🇸🇴', YE: '🇾🇪', FR: '🇫🇷',
 };
 
 export default function ProductDetail({ product, allProducts }: { product: any; allProducts: any[] }) {
@@ -23,21 +19,22 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
 
   const t = (key: string, fallback: string) => ui[key] || fallback;
 
+  const getOrigin = (code: string) => ({
+    flag: ORIGIN_FLAGS[code] || '🌍',
+    label: t(`origin.${code}`, code),
+  });
+
   const getProductName = (p: any) => {
-    if (currentLang !== 'fr' && productTranslations[p.id]?.name) {
-      return productTranslations[p.id].name;
-    }
+    if (currentLang !== 'fr' && productTranslations[p.id]?.name) return productTranslations[p.id].name;
     return p.name;
   };
 
   const getProductDesc = (p: any) => {
-    if (currentLang !== 'fr' && productTranslations[p.id]?.description) {
-      return productTranslations[p.id].description;
-    }
+    if (currentLang !== 'fr' && productTranslations[p.id]?.description) return productTranslations[p.id].description;
     return p.description;
   };
 
-  const origin = ORIGINS[product.origin_country] || { flag: '🌍', label: product.origin_country };
+  const origin = getOrigin(product.origin_country);
   const isBio = product.product_type === 'bio';
 
   const relatedProducts = allProducts
@@ -45,9 +42,7 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
     .slice(0, 4);
 
   const handleAddToCart = () => {
-    for (let i = 0; i < quantity; i++) {
-      addItem(product);
-    }
+    for (let i = 0; i < quantity; i++) addItem(product);
     setCartOpen(true);
   };
 
@@ -60,7 +55,7 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
 
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">
-          <Link href="/" className="hover:text-[#7d9800]">Accueil</Link>
+          <Link href="/" className="hover:text-[#7d9800]">{t('product.breadcrumb_home', 'Accueil')}</Link>
           <span>›</span>
           <Link href="/#produits" className="hover:text-[#7d9800]">{t('products', 'Produits')}</Link>
           <span>›</span>
@@ -79,7 +74,7 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
                 <div className="w-full h-full flex items-center justify-center text-8xl opacity-20">📷</div>
               )}
               <div className={`absolute top-4 left-4 text-xs font-bold px-3 py-1 rounded-full ${isBio ? 'bg-[#eef5b0] text-[#526500]' : 'bg-orange-100 text-orange-700'}`}>
-                {isBio ? '🌿 Bio' : '🥕 Conventionnel'}
+                {isBio ? `🌿 ${t('product.type_bio', 'Bio')}` : `🥕 ${t('product.type_conv', 'Conventionnel')}`}
               </div>
               <div className="absolute top-4 right-4 bg-white/90 rounded-full px-3 py-1 text-sm">
                 {origin.flag} {origin.label}
@@ -95,7 +90,6 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
                 <p className="text-gray-600 text-sm leading-relaxed mb-6">{getProductDesc(product)}</p>
               )}
 
-              {/* Prix */}
               <div className="mb-6">
                 {(product.old_price || product.oldPrice) && (
                   <p className="text-sm text-red-400 line-through">{Number(product.old_price || product.oldPrice).toLocaleString()} Fdj</p>
@@ -108,7 +102,7 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
 
               {/* Quantité */}
               <div className="flex items-center gap-4 mb-6">
-                <span className="text-sm font-medium text-gray-600">Quantité :</span>
+                <span className="text-sm font-medium text-gray-600">{t('product.quantity', 'Quantité :')}</span>
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
@@ -122,33 +116,38 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
                 </div>
               </div>
 
-              {/* Total */}
+              {/* Total ligne */}
               <div className="bg-[#f8faf0] rounded-2xl p-4 mb-6">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Total</span>
+                  <span className="text-sm text-gray-600">{t('product.total', 'Total')}</span>
                   <span className="text-xl font-bold text-[#526500]">
                     {(Number(product.price) * quantity).toLocaleString()} Fdj
                   </span>
                 </div>
               </div>
 
-              {/* Bouton */}
               <button
                 onClick={handleAddToCart}
                 className="w-full bg-[#a8c800] text-white py-4 rounded-2xl font-semibold text-lg hover:bg-[#7d9800] transition"
               >
-                🛒 Ajouter au panier
+                🛒 {t('product.add_to_cart', 'Ajouter au panier')}
               </button>
 
               {/* Badges */}
               <div className="flex flex-wrap gap-2 mt-4">
                 {product.is_local && (
-                  <span className="bg-[#e6f0ff] text-[#0066cc] text-xs px-3 py-1 rounded-full">🇩🇯 Produit local</span>
+                  <span className="bg-[#e6f0ff] text-[#0066cc] text-xs px-3 py-1 rounded-full">
+                    🇩🇯 {t('product.local_badge', 'Produit local')}
+                  </span>
                 )}
                 {isBio && (
-                  <span className="bg-[#f0f7e8] text-[#526500] text-xs px-3 py-1 rounded-full">🌿 Certifié Bio</span>
+                  <span className="bg-[#f0f7e8] text-[#526500] text-xs px-3 py-1 rounded-full">
+                    🌿 {t('product.bio_badge', 'Certifié Bio')}
+                  </span>
                 )}
-                <span className="bg-[#fff3e0] text-[#e65100] text-xs px-3 py-1 rounded-full">🚚 Livraison 48h</span>
+                <span className="bg-[#fff3e0] text-[#e65100] text-xs px-3 py-1 rounded-full">
+                  🚚 {t('product.delivery_badge', 'Livraison 48h')}
+                </span>
               </div>
             </div>
           </div>
@@ -157,7 +156,7 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
         {/* Produits similaires */}
         {relatedProducts.length > 0 && (
           <div>
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Produits similaires</h2>
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">{t('product.similar', 'Produits similaires')}</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {relatedProducts.map((p: any) => (
                 <Link key={p.id} href={`/product/${p.id}`} className="bg-white rounded-2xl overflow-hidden border border-[#dde8b0] hover:shadow-md transition">
@@ -180,4 +179,4 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
       </div>
     </div>
   );
-} 
+}

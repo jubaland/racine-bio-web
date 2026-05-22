@@ -24,9 +24,9 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
             {items.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center">
                 <p className="text-6xl mb-4 opacity-20">🛒</p>
-                <p className="text-gray-400 text-lg">Votre panier est vide</p>
+                <p className="text-gray-400 text-lg">{t('cart.empty', 'Votre panier est vide')}</p>
                 <button onClick={onClose} className="mt-6 text-sm text-[#7d9800] hover:underline">
-                  Continuer mes achats
+                  {t('cart.continue', 'Continuer mes achats')}
                 </button>
               </div>
             ) : (
@@ -43,12 +43,20 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-800 truncate">{item.name}</p>
                       <p className="text-xs text-gray-400">🌱 {item.farm}</p>
-                      <p className="text-sm font-bold text-[#7d9800] mt-1">{item.price.toLocaleString()} Fdj <span className="text-xs font-normal text-gray-400">{item.unit}</span></p>
+                      <p className="text-sm font-bold text-[#7d9800] mt-1">
+                        {item.price.toLocaleString()} Fdj <span className="text-xs font-normal text-gray-400">{item.unit}</span>
+                      </p>
                     </div>
                     <div className="flex items-center gap-2 flex-none">
-                      <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-7 h-7 rounded-full bg-white border border-[#dde8b0] flex items-center justify-center text-gray-600 hover:bg-[#f0f7e8] transition">−</button>
+                      <button
+                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                        className="w-7 h-7 rounded-full bg-white border border-[#dde8b0] flex items-center justify-center text-gray-600 hover:bg-[#f0f7e8] transition"
+                      >−</button>
                       <span className="text-sm font-semibold w-5 text-center">{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-7 h-7 rounded-full bg-[#a8c800] flex items-center justify-center text-white hover:bg-[#7d9800] transition">+</button>
+                      <button
+                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                        className="w-7 h-7 rounded-full bg-[#a8c800] flex items-center justify-center text-white hover:bg-[#7d9800] transition"
+                      >+</button>
                     </div>
                     <button onClick={() => removeItem(item.id)} className="text-gray-300 hover:text-red-400 transition flex-none">🗑</button>
                   </div>
@@ -59,14 +67,18 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
           {items.length > 0 && (
             <div className="px-6 py-4 border-t border-[#dde8b0] bg-white">
               <div className="flex items-center justify-between mb-4">
-                <span className="text-gray-600 font-medium">Total</span>
+                <span className="text-gray-600 font-medium">{t('cart.total', 'Total')}</span>
                 <span className="text-xl font-bold text-[#526500]">{total.toLocaleString()} Fdj</span>
               </div>
-              <Link href="/checkout" onClick={onClose} className="w-full block bg-[#a8c800] text-white py-4 rounded-2xl font-semibold text-lg hover:bg-[#7d9800] transition text-center mb-3">
-                ✅ Commander
+              <Link
+                href="/checkout"
+                onClick={onClose}
+                className="w-full block bg-[#a8c800] text-white py-4 rounded-2xl font-semibold text-lg hover:bg-[#7d9800] transition text-center mb-3"
+              >
+                ✅ {t('cart.checkout', 'Commander')}
               </Link>
               <button onClick={clearCart} className="w-full text-sm text-gray-400 hover:text-red-400 transition">
-                🗑 Vider le panier
+                🗑 {t('cart.clear', 'Vider le panier')}
               </button>
             </div>
           )}

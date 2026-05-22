@@ -7,18 +7,14 @@ import { useCart } from '../context/CartContext';
 import Header from './Header';
 import CartDrawer from './CartDrawer';
 
-const ORIGINS: Record<string, { flag: string; label: string }> = {
-  DJ: { flag: '🇩🇯', label: 'Djibouti' },
-  ET: { flag: '🇪🇹', label: 'Éthiopie' },
-  SO: { flag: '🇸🇴', label: 'Somalie' },
-  YE: { flag: '🇾🇪', label: 'Yémen' },
-  FR: { flag: '🇫🇷', label: 'France' },
+const ORIGIN_FLAGS: Record<string, string> = {
+  DJ: '🇩🇯', ET: '🇪🇹', SO: '🇸🇴', YE: '🇾🇪', FR: '🇫🇷',
 };
 
 const TYPE_FILTERS = [
-  { id: 'all', labelKey: 'all', emoji: '🛒' },
-  { id: 'bio', labelKey: 'bio', emoji: '🌿' },
-  { id: 'conventionnel', labelKey: 'conventionnel', emoji: '🥕' },
+  { id: 'all',           labelKey: 'filter.all',  label: 'Tout',          emoji: '🛒' },
+  { id: 'bio',           labelKey: 'filter.bio',  label: 'Bio',           emoji: '🌿' },
+  { id: 'conventionnel', labelKey: 'filter.conv', label: 'Conventionnel', emoji: '🥕' },
 ];
 
 export default function HomePage({ products, categories, promos, producers }: {
@@ -59,20 +55,13 @@ export default function HomePage({ products, categories, promos, producers }: {
   };
 
   const getAvailableOrigins = () => {
-    const ORIGIN_MAP: Record<string, { id: string; label: string; flag: string }> = {
-      DJ: { id: 'DJ', label: 'Djibouti', flag: '🇩🇯' },
-      ET: { id: 'ET', label: 'Éthiopie', flag: '🇪🇹' },
-      SO: { id: 'SO', label: 'Somalie', flag: '🇸🇴' },
-      YE: { id: 'YE', label: 'Yémen', flag: '🇾🇪' },
-      FR: { id: 'FR', label: 'France', flag: '🇫🇷' },
-    };
     const seen: Record<string, boolean> = {};
     const result = [{ id: 'all', label: t('allCountries', 'Tous pays'), flag: '🌍' }];
     products.forEach(p => {
       const code = p.origin_country;
-      if (code && !seen[code] && ORIGIN_MAP[code]) {
+      if (code && !seen[code] && ORIGIN_FLAGS[code]) {
         seen[code] = true;
-        result.push(ORIGIN_MAP[code]);
+        result.push({ id: code, flag: ORIGIN_FLAGS[code], label: t(`origin.${code}`, code) });
       }
     });
     return result;
@@ -240,7 +229,7 @@ export default function HomePage({ products, categories, promos, producers }: {
               className={`flex-none flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition border ${activeType === tf.id ? 'bg-[#e6f0ff] border-[#0066cc] text-[#0066cc]' : 'bg-white border-[#dde8b0] text-gray-600 hover:bg-[#f0f7e8]'}`}
             >
               <span>{tf.emoji}</span>
-              <span>{t(tf.labelKey, tf.labelKey)}</span>
+              <span>{t(tf.labelKey, tf.label)}</span>
             </button>
           ))}
         </div>
@@ -277,18 +266,18 @@ export default function HomePage({ products, categories, promos, producers }: {
         {filteredProducts.length === 0 ? (
           <div className="text-center py-20">
             <p className="text-5xl mb-4 opacity-30">🌿</p>
-            <p className="text-gray-400">Aucun produit trouvé</p>
+            <p className="text-gray-400">{t('home.no_products', 'Aucun produit trouvé')}</p>
             <button
               onClick={() => { setActiveType('all'); setActiveOrigin('all'); setActiveCategory('all'); setSearchQuery(''); }}
               className="mt-4 text-sm text-[#7d9800] hover:underline"
             >
-              Réinitialiser les filtres
+              {t('home.reset_filters', 'Réinitialiser les filtres')}
             </button>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {filteredProducts.map((product: any) => {
-              const origin = ORIGINS[product.origin_country] || { flag: '🌍', label: product.origin_country };
+              const origin = { flag: ORIGIN_FLAGS[product.origin_country] || '🌍', label: t(`origin.${product.origin_country}`, product.origin_country) };
               const isBio = product.product_type === 'bio';
               return (
                 <Link key={product.id} href={`/product/${product.id}`} className="bg-white rounded-2xl overflow-hidden border border-[#dde8b0] hover:shadow-lg transition group">
@@ -299,7 +288,7 @@ export default function HomePage({ products, categories, promos, producers }: {
                       <div className="w-full h-full flex items-center justify-center text-5xl opacity-20">📷</div>
                     )}
                     <div className={`absolute top-2 left-2 text-xs font-bold px-2 py-1 rounded-md ${isBio ? 'bg-[#eef5b0] text-[#526500]' : 'bg-orange-100 text-orange-700'}`}>
-                      {isBio ? '🌿 Bio' : '🥕 Conv.'}
+                      {isBio ? `🌿 ${t('product.type_bio', 'Bio')}` : `🥕 ${t('product.type_conv', 'Conv.')}`}
                     </div>
                     <div className="absolute top-2 right-2 bg-white/90 rounded-full px-2 py-1 text-xs">
                       {origin.flag}

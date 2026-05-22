@@ -7,16 +7,16 @@ import { supabase } from '../../lib/supabase';
 import Header from '../../components/Header';
 import Link from 'next/link';
 
-const PAYMENT_METHODS = [
-  { id: 'waafi', label: 'Waafi', emoji: '📱', desc: 'Paiement mobile Waafi' },
-  { id: 'dmoney', label: 'D-Money', emoji: '💳', desc: 'Paiement mobile D-Money' },
-  { id: 'cash', label: 'Espèces', emoji: '💵', desc: 'Paiement à la livraison' },
-];
-
 export default function CheckoutPage() {
   const { items, total, clearCart } = useCart();
   const { ui } = useLanguage();
   const t = (key: string, fallback: string) => ui[key] || fallback;
+
+  const PAYMENT_METHODS = [
+    { id: 'waafi',  label: t('checkout.waafi_label',  'Waafi'),    emoji: '📱', desc: t('checkout.waafi_desc',  'Paiement mobile Waafi') },
+    { id: 'dmoney', label: t('checkout.dmoney_label', 'D-Money'),  emoji: '💳', desc: t('checkout.dmoney_desc', 'Paiement mobile D-Money') },
+    { id: 'cash',   label: t('checkout.cash_label',   'Espèces'),  emoji: '💵', desc: t('checkout.cash_desc',   'Paiement à la livraison') },
+  ];
 
   const [step, setStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState('cash');
@@ -36,11 +36,11 @@ export default function CheckoutPage() {
         .from('orders')
         .insert({
           user_id: session?.user?.id || null,
-          total: total,
+          total,
           status: 'pending',
           payment_method: paymentMethod,
-          phone: phone,
-          address: address,
+          phone,
+          address,
           customer_name: name,
         })
         .select()
@@ -48,15 +48,14 @@ export default function CheckoutPage() {
 
       if (error) throw error;
 
-      // Ajouter les articles de la commande
-      const orderItems = items.map(item => ({
-        order_id: order.id,
-        product_id: item.id,
-        quantity: item.quantity,
-        price: item.price,
-      }));
-
-      await supabase.from('order_items').insert(orderItems);
+      await supabase.from('order_items').insert(
+        items.map(item => ({
+          order_id: order.id,
+          product_id: item.id,
+          quantity: item.quantity,
+          price: item.price,
+        }))
+      );
 
       setOrderId(order.id);
       clearCart();
@@ -75,9 +74,9 @@ export default function CheckoutPage() {
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <p className="text-6xl mb-4 opacity-20">🛒</p>
-            <p className="text-gray-400 text-lg">Votre panier est vide</p>
+            <p className="text-gray-400 text-lg">{t('checkout.empty_cart', 'Votre panier est vide')}</p>
             <Link href="/" className="mt-4 inline-block text-sm text-[#7d9800] hover:underline">
-              ← Retour à l'accueil
+              {t('checkout.back_home', "← Retour à l'accueil")}
             </Link>
           </div>
         </div>
@@ -92,19 +91,19 @@ export default function CheckoutPage() {
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center max-w-md mx-auto px-6">
             <p className="text-7xl mb-6">🎉</p>
-            <h2 className="text-2xl font-bold text-gray-800 mb-3">Commande confirmée !</h2>
-            <p className="text-gray-400 mb-2">Commande #{orderId}</p>
+            <h2 className="text-2xl font-bold text-gray-800 mb-3">{t('checkout.confirmed', 'Commande confirmée !')}</h2>
+            <p className="text-gray-400 mb-2">{t('checkout.order_label', 'Commande #')}{orderId}</p>
             <p className="text-gray-500 text-sm mb-8">
-              Merci pour votre commande. Vous serez contacté pour la livraison.
+              {t('checkout.thanks', 'Merci pour votre commande. Vous serez contacté pour la livraison.')}
             </p>
             <div className="bg-white rounded-2xl p-4 border border-[#dde8b0] mb-6">
               <div className="flex items-center justify-between">
-                <span className="text-gray-600">Mode de paiement</span>
+                <span className="text-gray-600">{t('checkout.payment_method_label', 'Mode de paiement')}</span>
                 <span className="font-medium">{PAYMENT_METHODS.find(p => p.id === paymentMethod)?.label}</span>
               </div>
             </div>
             <Link href="/" className="w-full block bg-[#a8c800] text-white py-4 rounded-2xl font-semibold text-lg hover:bg-[#7d9800] transition text-center">
-              🏠 Retour à l'accueil
+              {t('checkout.back_home_btn', "🏠 Retour à l'accueil")}
             </Link>
           </div>
         </div>
@@ -112,20 +111,23 @@ export default function CheckoutPage() {
     );
   }
 
+  const STEPS = [
+    { n: 1, label: t('checkout.step_recap',    'Récapitulatif') },
+    { n: 2, label: t('checkout.step_delivery', 'Livraison') },
+    { n: 3, label: t('checkout.step_payment',  'Paiement') },
+  ];
+
   return (
     <div className="min-h-screen bg-[#f8faf0]">
       <Header onCartOpen={() => {}} />
 
       <div className="max-w-3xl mx-auto px-6 py-8">
-        <h1 className="text-2xl font-bold text-gray-800 mb-6">💳 Finaliser la commande</h1>
+        <h1 className="text-2xl font-bold text-gray-800 mb-6">
+          💳 {t('checkout.title', 'Finaliser la commande')}
+        </h1>
 
-        {/* Steps */}
         <div className="flex items-center gap-4 mb-8">
-          {[
-            { n: 1, label: 'Récapitulatif' },
-            { n: 2, label: 'Livraison' },
-            { n: 3, label: 'Paiement' },
-          ].map((s, i) => (
+          {STEPS.map((s, i) => (
             <div key={s.n} className="flex items-center gap-2">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= s.n ? 'bg-[#a8c800] text-white' : 'bg-white border border-[#dde8b0] text-gray-400'}`}>
                 {s.n}
@@ -140,7 +142,9 @@ export default function CheckoutPage() {
         {step === 1 && (
           <div>
             <div className="bg-white rounded-3xl p-6 border border-[#dde8b0] shadow-sm mb-4">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">🛒 Votre commande</h2>
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                🛒 {t('checkout.your_order', 'Votre commande')}
+              </h2>
               <div className="space-y-3">
                 {items.map(item => (
                   <div key={item.id} className="flex items-center gap-4">
@@ -160,7 +164,7 @@ export default function CheckoutPage() {
                 ))}
               </div>
               <div className="border-t border-[#dde8b0] mt-4 pt-4 flex items-center justify-between">
-                <span className="font-semibold text-gray-800">Total</span>
+                <span className="font-semibold text-gray-800">{t('checkout.total', 'Total')}</span>
                 <span className="text-xl font-bold text-[#526500]">{total.toLocaleString()} Fdj</span>
               </div>
             </div>
@@ -168,7 +172,7 @@ export default function CheckoutPage() {
               onClick={() => setStep(2)}
               className="w-full bg-[#a8c800] text-white py-4 rounded-2xl font-semibold text-lg hover:bg-[#7d9800] transition"
             >
-              Continuer → Livraison
+              {t('checkout.continue_delivery', 'Continuer → Livraison')}
             </button>
           </div>
         )}
@@ -177,34 +181,42 @@ export default function CheckoutPage() {
         {step === 2 && (
           <div>
             <div className="bg-white rounded-3xl p-6 border border-[#dde8b0] shadow-sm mb-4">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">🚚 Informations de livraison</h2>
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                🚚 {t('checkout.delivery_info', 'Informations de livraison')}
+              </h2>
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-600 mb-1 block">Nom complet *</label>
+                  <label className="text-sm font-medium text-gray-600 mb-1 block">
+                    {t('checkout.full_name', 'Nom complet *')}
+                  </label>
                   <input
                     type="text"
                     value={name}
                     onChange={e => setName(e.target.value)}
-                    placeholder="Ex: Ahmed Hassan"
+                    placeholder={t('checkout.name_placeholder', 'Ex: Ahmed Hassan')}
                     className="w-full border border-[#dde8b0] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] bg-[#f8faf0]"
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-600 mb-1 block">Téléphone *</label>
+                  <label className="text-sm font-medium text-gray-600 mb-1 block">
+                    {t('checkout.phone', 'Téléphone *')}
+                  </label>
                   <input
                     type="tel"
                     value={phone}
                     onChange={e => setPhone(e.target.value)}
-                    placeholder="Ex: 77 XX XX XX"
+                    placeholder={t('checkout.phone_placeholder', 'Ex: 77 XX XX XX')}
                     className="w-full border border-[#dde8b0] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] bg-[#f8faf0]"
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-600 mb-1 block">Adresse de livraison *</label>
+                  <label className="text-sm font-medium text-gray-600 mb-1 block">
+                    {t('checkout.delivery_address', 'Adresse de livraison *')}
+                  </label>
                   <textarea
                     value={address}
                     onChange={e => setAddress(e.target.value)}
-                    placeholder="Ex: Quartier 4, Rue de la Paix, Djibouti-Ville"
+                    placeholder={t('checkout.address_placeholder', 'Ex: Quartier 4, Rue de la Paix, Djibouti-Ville')}
                     rows={3}
                     className="w-full border border-[#dde8b0] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] bg-[#f8faf0] resize-none"
                   />
@@ -216,14 +228,14 @@ export default function CheckoutPage() {
                 onClick={() => setStep(1)}
                 className="flex-1 bg-white text-gray-600 py-4 rounded-2xl font-semibold border border-[#dde8b0] hover:bg-[#f0f7e8] transition"
               >
-                ← Retour
+                {t('checkout.back', '← Retour')}
               </button>
               <button
                 onClick={() => setStep(3)}
                 disabled={!name || !phone || !address}
                 className="flex-1 bg-[#a8c800] text-white py-4 rounded-2xl font-semibold hover:bg-[#7d9800] transition disabled:opacity-50"
               >
-                Continuer → Paiement
+                {t('checkout.continue_payment', 'Continuer → Paiement')}
               </button>
             </div>
           </div>
@@ -233,13 +245,19 @@ export default function CheckoutPage() {
         {step === 3 && (
           <div>
             <div className="bg-white rounded-3xl p-6 border border-[#dde8b0] shadow-sm mb-4">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">💳 Mode de paiement</h2>
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                💳 {t('checkout.payment_title', 'Mode de paiement')}
+              </h2>
               <div className="space-y-3">
                 {PAYMENT_METHODS.map(method => (
                   <button
                     key={method.id}
                     onClick={() => setPaymentMethod(method.id)}
-                    className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition ${paymentMethod === method.id ? 'border-[#a8c800] bg-[#f0f7e8]' : 'border-[#dde8b0] bg-white hover:bg-[#f8faf0]'}`}
+                    className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition ${
+                      paymentMethod === method.id
+                        ? 'border-[#a8c800] bg-[#f0f7e8]'
+                        : 'border-[#dde8b0] bg-white hover:bg-[#f8faf0]'
+                    }`}
                   >
                     <span className="text-3xl">{method.emoji}</span>
                     <div className="text-left">
@@ -255,10 +273,15 @@ export default function CheckoutPage() {
 
               {(paymentMethod === 'waafi' || paymentMethod === 'dmoney') && (
                 <div className="mt-4">
-                  <label className="text-sm font-medium text-gray-600 mb-1 block">Numéro {paymentMethod === 'waafi' ? 'Waafi' : 'D-Money'}</label>
+                  <label className="text-sm font-medium text-gray-600 mb-1 block">
+                    {t('checkout.mobile_number', 'Numéro')}{' '}
+                    {paymentMethod === 'waafi'
+                      ? t('checkout.waafi_label', 'Waafi')
+                      : t('checkout.dmoney_label', 'D-Money')}
+                  </label>
                   <input
                     type="tel"
-                    placeholder="Ex: 77 XX XX XX"
+                    placeholder={t('checkout.phone_placeholder', 'Ex: 77 XX XX XX')}
                     className="w-full border border-[#dde8b0] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] bg-[#f8faf0]"
                   />
                 </div>
@@ -266,15 +289,15 @@ export default function CheckoutPage() {
 
               <div className="border-t border-[#dde8b0] mt-6 pt-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-gray-600">Sous-total</span>
+                  <span className="text-gray-600">{t('checkout.subtotal', 'Sous-total')}</span>
                   <span className="font-medium">{total.toLocaleString()} Fdj</span>
                 </div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-gray-600">Livraison</span>
-                  <span className="font-medium text-green-500">Gratuite</span>
+                  <span className="text-gray-600">{t('checkout.delivery_label', 'Livraison')}</span>
+                  <span className="font-medium text-green-500">{t('checkout.free', 'Gratuite')}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-gray-800">Total</span>
+                  <span className="font-bold text-gray-800">{t('checkout.total', 'Total')}</span>
                   <span className="text-xl font-bold text-[#526500]">{total.toLocaleString()} Fdj</span>
                 </div>
               </div>
@@ -285,14 +308,16 @@ export default function CheckoutPage() {
                 onClick={() => setStep(2)}
                 className="flex-1 bg-white text-gray-600 py-4 rounded-2xl font-semibold border border-[#dde8b0] hover:bg-[#f0f7e8] transition"
               >
-                ← Retour
+                {t('checkout.back', '← Retour')}
               </button>
               <button
                 onClick={handleOrder}
                 disabled={loading}
                 className="flex-1 bg-[#a8c800] text-white py-4 rounded-2xl font-semibold hover:bg-[#7d9800] transition disabled:opacity-50"
               >
-                {loading ? '⏳ Traitement...' : '✅ Confirmer la commande'}
+                {loading
+                  ? t('checkout.processing', '⏳ Traitement...')
+                  : t('checkout.confirm', '✅ Confirmer la commande')}
               </button>
             </div>
           </div>
@@ -300,4 +325,4 @@ export default function CheckoutPage() {
       </div>
     </div>
   );
-} 
+}

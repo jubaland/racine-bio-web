@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -10,6 +11,9 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const { ui } = useLanguage();
+  const t = (key: string, fallback: string) => ui[key] || fallback;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,7 +25,7 @@ export default function LoginPage() {
       if (isRegister) {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        setSuccess('Compte créé ! Vérifiez votre email pour confirmer.');
+        setSuccess(t('login.register_success', 'Compte créé ! Vérifiez votre email pour confirmer.'));
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -38,17 +42,15 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#f8faf0] flex items-center justify-center px-4">
       <div className="w-full max-w-md">
 
-        {/* Logo */}
         <div className="text-center mb-8">
           <span className="text-6xl">🌿</span>
           <h1 className="text-2xl font-bold text-[#526500] mt-3">Racine Bio</h1>
-          <p className="text-gray-400 text-sm mt-1">Le marché bio de Djibouti</p>
+          <p className="text-gray-400 text-sm mt-1">{t('footer', 'Le marché bio de Djibouti')}</p>
         </div>
 
-        {/* Card */}
         <div className="bg-white rounded-3xl p-8 border border-[#dde8b0] shadow-sm">
           <h2 className="text-xl font-semibold text-gray-800 mb-6 text-center">
-            {isRegister ? '✨ Créer un compte' : '👋 Connexion'}
+            {isRegister ? t('login.create_account', '✨ Créer un compte') : t('login.signin', '👋 Connexion')}
           </h2>
 
           {error && (
@@ -65,18 +67,18 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-gray-600 mb-1 block">Email</label>
+              <label className="text-sm font-medium text-gray-600 mb-1 block">{t('login.email', 'Email')}</label>
               <input
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="ton@email.com"
+                placeholder={t('login.email_placeholder', 'ton@email.com')}
                 required
                 className="w-full border border-[#dde8b0] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] bg-[#f8faf0]"
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-600 mb-1 block">Mot de passe</label>
+              <label className="text-sm font-medium text-gray-600 mb-1 block">{t('login.password', 'Mot de passe')}</label>
               <input
                 type="password"
                 value={password}
@@ -92,7 +94,11 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full bg-[#a8c800] text-white py-3 rounded-xl font-semibold text-sm hover:bg-[#7d9800] transition disabled:opacity-50"
             >
-              {loading ? '⏳ Chargement...' : isRegister ? '✅ Créer mon compte' : '🔑 Se connecter'}
+              {loading
+                ? t('login.loading', '⏳ Chargement...')
+                : isRegister
+                  ? t('login.create_btn', '✅ Créer mon compte')
+                  : t('login.signin_btn', '🔑 Se connecter')}
             </button>
           </form>
 
@@ -101,13 +107,17 @@ export default function LoginPage() {
               onClick={() => { setIsRegister(!isRegister); setError(''); setSuccess(''); }}
               className="text-sm text-[#7d9800] hover:underline"
             >
-              {isRegister ? 'Déjà un compte ? Se connecter' : 'Pas de compte ? S\'inscrire'}
+              {isRegister
+                ? t('login.already_account', 'Déjà un compte ? Se connecter')
+                : t('login.no_account', "Pas de compte ? S'inscrire")}
             </button>
           </div>
         </div>
 
         <div className="text-center mt-6">
-          <a href="/" className="text-sm text-gray-400 hover:text-gray-600">← Retour à l'accueil</a>
+          <a href="/" className="text-sm text-gray-400 hover:text-gray-600">
+            {t('login.back_home', "← Retour à l'accueil")}
+          </a>
         </div>
       </div>
     </div>
