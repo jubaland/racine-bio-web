@@ -3,13 +3,13 @@
 -- Exécuter dans Supabase Dashboard → SQL Editor
 
 DELETE FROM ui_translations
-WHERE lang IN ('en','zh','so','aa','am')
+WHERE language_code IN ('en','zh','so','aa','am')
   AND key LIKE ANY(ARRAY[
     'login.%','profile.%','checkout.%','cart.%','product.%',
     'home.%','filter.%','origin.%'
   ]);
 
-INSERT INTO ui_translations (lang, key, value) VALUES
+INSERT INTO ui_translations (language_code, key, value) VALUES
 
 -- ============================================================
 -- LOGIN
