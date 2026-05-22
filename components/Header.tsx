@@ -41,10 +41,17 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
         <div className="flex items-center gap-3">
           <LanguageSelector />
           {user ? (
-            <Link href="/profile" className="flex items-center gap-2 bg-[#f0f7e8] border border-[#dde8b0] px-3 py-2 rounded-full text-sm font-medium text-[#526500] hover:bg-[#dde8b0] transition">
-              <span>👤</span>
-              <span className="hidden md:block">{user.user_metadata?.full_name || user.email?.split('@')[0]}</span>
-            </Link>
+            <div className="flex items-center gap-2">
+              {user.user_metadata?.is_admin && (
+                <Link href="/admin" className="hidden md:flex items-center gap-1.5 bg-[#3a4800] text-[#c5d87a] px-3 py-2 rounded-full text-xs font-semibold hover:bg-[#526500] transition">
+                  <span>⚙️</span> Admin
+                </Link>
+              )}
+              <Link href="/profile" className="flex items-center gap-2 bg-[#f0f7e8] border border-[#dde8b0] px-3 py-2 rounded-full text-sm font-medium text-[#526500] hover:bg-[#dde8b0] transition">
+                <span>👤</span>
+                <span className="hidden md:block">{user.user_metadata?.full_name || user.email?.split('@')[0]}</span>
+              </Link>
+            </div>
           ) : (
             <>
               <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-[#7d9800] transition hidden md:block">
