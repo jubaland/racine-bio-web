@@ -2,6 +2,7 @@
 
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
+import Link from 'next/link';
 
 export default function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { items, removeItem, updateQuantity, total, clearCart } = useCart();
@@ -61,9 +62,9 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
                 <span className="text-gray-600 font-medium">Total</span>
                 <span className="text-xl font-bold text-[#526500]">{total.toLocaleString()} Fdj</span>
               </div>
-              <button className="w-full bg-[#a8c800] text-white py-4 rounded-2xl font-semibold text-lg hover:bg-[#7d9800] transition mb-3">
+              <Link href="/checkout" onClick={onClose} className="w-full block bg-[#a8c800] text-white py-4 rounded-2xl font-semibold text-lg hover:bg-[#7d9800] transition text-center mb-3">
                 ✅ Commander
-              </button>
+              </Link>
               <button onClick={clearCart} className="w-full text-sm text-gray-400 hover:text-red-400 transition">
                 🗑 Vider le panier
               </button>
