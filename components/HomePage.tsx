@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useLanguage } from '../context/LanguageContext';
 import { useCart } from '../context/CartContext';
 import Header from './Header';
@@ -122,7 +123,7 @@ export default function HomePage({ products, categories, promos, producers }: {
           </div>
           <div className="grid grid-cols-2 gap-4">
             {localProducts.slice(0, 4).map((p: any) => (
-              <div key={p.id} className="bg-white/10 rounded-2xl overflow-hidden backdrop-blur">
+              <Link key={p.id} href={`/product/${p.id}`} className="bg-white/10 rounded-2xl overflow-hidden backdrop-blur hover:bg-white/20 transition">
                 {p.image_url ? (
                   <img src={p.image_url} alt={getProductName(p)} className="w-full h-32 object-cover" />
                 ) : (
@@ -133,7 +134,7 @@ export default function HomePage({ products, categories, promos, producers }: {
                   <p className="text-xs text-white/60">{p.farm}</p>
                   <p className="text-sm font-bold text-[#c4e025] mt-1">{Number(p.price).toLocaleString()} Fdj</p>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -188,7 +189,7 @@ export default function HomePage({ products, categories, promos, producers }: {
           </div>
           <div className="flex gap-4 overflow-x-auto pb-4">
             {localProducts.map((p: any) => (
-              <div key={p.id} className="flex-none w-48 bg-white rounded-2xl overflow-hidden border border-[#dde8b0] hover:shadow-md transition">
+              <Link key={p.id} href={`/product/${p.id}`} className="flex-none w-48 bg-white rounded-2xl overflow-hidden border border-[#dde8b0] hover:shadow-md transition">
                 {p.image_url ? (
                   <img src={p.image_url} alt={getProductName(p)} className="w-full h-36 object-cover" />
                 ) : (
@@ -200,12 +201,12 @@ export default function HomePage({ products, categories, promos, producers }: {
                   <div className="flex items-center justify-between mt-2">
                     <p className="text-sm font-bold text-[#7d9800]">{Number(p.price).toLocaleString()} Fdj</p>
                     <button
-                      onClick={() => { addItem(p); setCartOpen(true); }}
+                      onClick={(e) => { e.preventDefault(); addItem(p); setCartOpen(true); }}
                       className="w-7 h-7 bg-[#a8c800] rounded-full flex items-center justify-center text-white font-bold hover:bg-[#7d9800] transition"
                     >+</button>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </section>
@@ -290,7 +291,7 @@ export default function HomePage({ products, categories, promos, producers }: {
               const origin = ORIGINS[product.origin_country] || { flag: '🌍', label: product.origin_country };
               const isBio = product.product_type === 'bio';
               return (
-                <div key={product.id} className="bg-white rounded-2xl overflow-hidden border border-[#dde8b0] hover:shadow-lg transition group cursor-pointer">
+                <Link key={product.id} href={`/product/${product.id}`} className="bg-white rounded-2xl overflow-hidden border border-[#dde8b0] hover:shadow-lg transition group">
                   <div className="relative h-44 bg-[#f0f7e8]">
                     {product.image_url ? (
                       <img src={product.image_url} alt={getProductName(product)} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
@@ -315,12 +316,12 @@ export default function HomePage({ products, categories, promos, producers }: {
                         <p className="text-sm font-bold text-[#7d9800]">{Number(product.price).toLocaleString()} Fdj <span className="text-xs font-normal text-gray-400">{product.unit}</span></p>
                       </div>
                       <button
-                        onClick={() => { addItem(product); setCartOpen(true); }}
+                        onClick={(e) => { e.preventDefault(); addItem(product); setCartOpen(true); }}
                         className="w-8 h-8 bg-[#a8c800] rounded-full flex items-center justify-center text-white text-lg font-bold hover:bg-[#7d9800] transition"
                       >+</button>
                     </div>
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>
