@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import Link from 'next/link';
+import { useLanguage } from '../../context/LanguageContext';
 import AdminDashboard from '../../components/admin/AdminDashboard';
 import AdminProducts from '../../components/admin/AdminProducts';
 import AdminCategories from '../../components/admin/AdminCategories';
@@ -14,23 +15,26 @@ import AdminUsers from '../../components/admin/AdminUsers';
 
 type Section = 'dashboard' | 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'requests' | 'users';
 
-const NAV_ITEMS: { id: Section; emoji: string; label: string }[] = [
-  { id: 'dashboard', emoji: '📊', label: 'Tableau de bord' },
-  { id: 'products', emoji: '🥬', label: 'Produits' },
-  { id: 'categories', emoji: '📂', label: 'Catégories' },
-  { id: 'promos', emoji: '🏷️', label: 'Promotions' },
-  { id: 'producers', emoji: '👨‍🌾', label: 'Producteurs' },
-  { id: 'orders', emoji: '📦', label: 'Commandes' },
-  { id: 'requests', emoji: '📋', label: 'Demandes producteurs' },
-  { id: 'users', emoji: '👥', label: 'Utilisateurs' },
-];
-
 export default function AdminPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
   const [activeSection, setActiveSection] = useState<Section>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const { ui } = useLanguage();
+  const t = (k: string, f: string) => ui[k] || f;
+
+  const NAV_ITEMS: { id: Section; emoji: string; label: string }[] = [
+    { id: 'dashboard', emoji: '📊', label: t('admin.nav_dashboard', 'Tableau de bord') },
+    { id: 'products', emoji: '🥬', label: t('admin.nav_products', 'Produits') },
+    { id: 'categories', emoji: '📂', label: t('admin.nav_categories', 'Catégories') },
+    { id: 'promos', emoji: '🏷️', label: t('admin.nav_promos', 'Promotions') },
+    { id: 'producers', emoji: '👨‍🌾', label: t('admin.nav_producers', 'Producteurs') },
+    { id: 'orders', emoji: '📦', label: t('admin.nav_orders', 'Commandes') },
+    { id: 'requests', emoji: '📋', label: t('admin.nav_requests', 'Demandes producteurs') },
+    { id: 'users', emoji: '👥', label: t('admin.nav_users', 'Utilisateurs') },
+  ];
 
   useEffect(() => {
     const init = async () => {
@@ -75,7 +79,7 @@ export default function AdminPage() {
       <div className="min-h-screen bg-[#f8faf0] flex items-center justify-center">
         <div className="text-center">
           <p className="text-5xl mb-4 animate-pulse">🌿</p>
-          <p className="text-gray-400">Vérification des accès...</p>
+          <p className="text-gray-400">{t('admin.verifying', 'Vérification des accès...')}</p>
         </div>
       </div>
     );
@@ -86,18 +90,18 @@ export default function AdminPage() {
       <div className="min-h-screen bg-[#f8faf0] flex items-center justify-center px-4">
         <div className="text-center max-w-sm">
           <p className="text-5xl mb-4">🔒</p>
-          <h1 className="text-xl font-bold text-gray-800 mb-2">Accès refusé</h1>
+          <h1 className="text-xl font-bold text-gray-800 mb-2">{t('admin.access_denied', 'Accès refusé')}</h1>
           <p className="text-gray-400 text-sm mb-6">
-            Vous n&apos;avez pas les droits administrateur. Pour obtenir l&apos;accès, définissez{' '}
-            <code className="bg-[#f0f7e8] px-1 rounded text-[#526500]">is_admin: true</code>{' '}
-            dans vos métadonnées utilisateur via le Dashboard Supabase.
+            {t('admin.access_denied_msg', "Vous n'avez pas les droits administrateur. Pour obtenir l'accès, définissez")}
+            {' '}<code className="bg-[#f0f7e8] px-1 rounded text-[#526500]">is_admin: true</code>{' '}
+            {t('admin.access_denied_meta', 'dans vos métadonnées utilisateur via le Dashboard Supabase.')}
           </p>
           <div className="flex gap-3 justify-center">
             <Link href="/" className="px-5 py-2.5 border border-[#dde8b0] rounded-xl text-sm text-gray-600 hover:bg-white transition">
-              ← Retour au site
+              ← {t('admin.back_to_site', 'Retour au site')}
             </Link>
             <button onClick={handleSignOut} className="px-5 py-2.5 bg-[#a8c800] text-white rounded-xl text-sm font-semibold hover:bg-[#7d9800] transition">
-              Se déconnecter
+              {t('admin.logout', 'Se déconnecter')}
             </button>
           </div>
         </div>
@@ -125,7 +129,9 @@ export default function AdminPage() {
             <span className="text-3xl">🌿</span>
             <div>
               <p className="font-bold text-white group-hover:text-[#c5d87a] transition">Racine Bio</p>
-              <p className="text-[#8aaa00] text-xs font-medium tracking-wider uppercase">Administration</p>
+              <p className="text-[#8aaa00] text-xs font-medium tracking-wider uppercase">
+                {t('admin.administration', 'Administration')}
+              </p>
             </div>
           </Link>
         </div>
@@ -159,13 +165,13 @@ export default function AdminPage() {
             href="/"
             className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-[#9ab800] hover:bg-[#526500] hover:text-white transition"
           >
-            <span>←</span> Retour au site
+            <span>←</span> {t('admin.back_to_site', 'Retour au site')}
           </Link>
           <button
             onClick={handleSignOut}
             className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-[#9ab800] hover:bg-red-900/30 hover:text-red-300 transition"
           >
-            <span>🚪</span> Se déconnecter
+            <span>🚪</span> {t('admin.logout', 'Se déconnecter')}
           </button>
         </div>
       </aside>

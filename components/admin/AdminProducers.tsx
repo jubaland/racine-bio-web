@@ -2,16 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useLanguage } from '../../context/LanguageContext';
 import Modal, { ConfirmDelete, FormField, inputClass } from './Modal';
 
-interface Producer {
-  id: number;
-  name: string;
-  emoji: string;
-  region: string;
-  rating: number;
-}
-
+interface Producer { id: number; name: string; emoji: string; region: string; rating: number; }
 const EMPTY = { name: '', emoji: '👨‍🌾', region: '', rating: '4.5' };
 
 export default function AdminProducers() {
@@ -25,6 +19,9 @@ export default function AdminProducers() {
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
 
+  const { ui } = useLanguage();
+  const t = (k: string, f: string) => ui[k] || f;
+
   const fetchAll = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase.from('producers').select('*').order('rating', { ascending: false });
@@ -35,7 +32,6 @@ export default function AdminProducers() {
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const openAdd = () => { setEditingId(null); setForm(EMPTY); setError(''); setShowModal(true); };
-
   const openEdit = (p: Producer) => {
     setEditingId(p.id);
     setForm({ name: p.name, emoji: p.emoji, region: p.region, rating: String(p.rating) });
@@ -44,7 +40,7 @@ export default function AdminProducers() {
   };
 
   const handleSave = async () => {
-    if (!form.name) { setError('Le nom est requis.'); return; }
+    if (!form.name) { setError(t('admin.error_producers', 'Le nom est requis.')); return; }
     setSaving(true);
     setError('');
     const payload = { name: form.name.trim(), emoji: form.emoji.trim(), region: form.region.trim(), rating: parseFloat(form.rating) || 0 };
@@ -82,26 +78,26 @@ export default function AdminProducers() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">👨‍🌾 Producteurs</h1>
-        <button onClick={openAdd} className="bg-[#a8c800] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#7d9800] transition">+ Ajouter</button>
+        <h1 className="text-2xl font-bold text-gray-800">👨‍🌾 {t('admin.nav_producers', 'Producteurs')}</h1>
+        <button onClick={openAdd} className="bg-[#a8c800] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#7d9800] transition">{t('admin.add', '+ Ajouter')}</button>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center h-48"><p className="text-gray-400">Chargement...</p></div>
+        <div className="flex items-center justify-center h-48"><p className="text-gray-400">{t('admin.loading', 'Chargement...')}</p></div>
       ) : (
         <div className="bg-white rounded-2xl border border-[#dde8b0] overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-[#f8faf0] border-b border-[#dde8b0]">
               <tr>
-                <th className="text-left px-4 py-3 text-gray-500 font-medium">Producteur</th>
-                <th className="text-left px-4 py-3 text-gray-500 font-medium">Région</th>
-                <th className="text-left px-4 py-3 text-gray-500 font-medium">Note</th>
-                <th className="text-right px-4 py-3 text-gray-500 font-medium">Actions</th>
+                <th className="text-left px-4 py-3 text-gray-500 font-medium">{t('admin.col_producer', 'Producteur')}</th>
+                <th className="text-left px-4 py-3 text-gray-500 font-medium">{t('admin.col_region', 'Région')}</th>
+                <th className="text-left px-4 py-3 text-gray-500 font-medium">{t('admin.col_rating', 'Note')}</th>
+                <th className="text-right px-4 py-3 text-gray-500 font-medium">{t('admin.actions', 'Actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {producers.length === 0 ? (
-                <tr><td colSpan={4} className="text-center py-12 text-gray-400">Aucun producteur</td></tr>
+                <tr><td colSpan={4} className="text-center py-12 text-gray-400">{t('admin.no_producers', 'Aucun producteur')}</td></tr>
               ) : producers.map(p => (
                 <tr key={p.id} className="hover:bg-[#f8faf0] transition">
                   <td className="px-4 py-3">
@@ -113,41 +109,44 @@ export default function AdminProducers() {
                   <td className="px-4 py-3 text-gray-500">{p.region || '—'}</td>
                   <td className="px-4 py-3"><Stars rating={p.rating} /></td>
                   <td className="px-4 py-3 text-right">
-                    <button onClick={() => openEdit(p)} className="text-[#7d9800] hover:text-[#526500] text-xs font-medium mr-3">Modifier</button>
-                    <button onClick={() => setDeleteId(p.id)} className="text-red-400 hover:text-red-600 text-xs font-medium">Supprimer</button>
+                    <button onClick={() => openEdit(p)} className="text-[#7d9800] hover:text-[#526500] text-xs font-medium mr-3">{t('admin.edit', 'Modifier')}</button>
+                    <button onClick={() => setDeleteId(p.id)} className="text-red-400 hover:text-red-600 text-xs font-medium">{t('admin.delete', 'Supprimer')}</button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <div className="px-4 py-3 border-t border-gray-50 text-xs text-gray-400">{producers.length} producteur{producers.length !== 1 ? 's' : ''}</div>
+          <div className="px-4 py-3 border-t border-gray-50 text-xs text-gray-400">{producers.length} {t('admin.nav_producers', 'producteurs').toLowerCase()}</div>
         </div>
       )}
 
       {showModal && (
-        <Modal title={editingId ? 'Modifier le producteur' : 'Ajouter un producteur'} onClose={() => setShowModal(false)}>
+        <Modal
+          title={editingId ? t('admin.producers_edit_title', 'Modifier le producteur') : t('admin.producers_add_title', 'Ajouter un producteur')}
+          onClose={() => setShowModal(false)}
+        >
           <div className="space-y-4">
             {error && <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl">{error}</div>}
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2">
-                <FormField label="Nom du producteur *">
+                <FormField label={t('admin.field_producer_name', 'Nom du producteur *')}>
                   <input value={form.name} onChange={e => set('name', e.target.value)} className={inputClass} placeholder="Abdi Hassan" />
                 </FormField>
               </div>
-              <FormField label="Emoji">
+              <FormField label={t('admin.col_emoji', 'Emoji')}>
                 <input value={form.emoji} onChange={e => set('emoji', e.target.value)} className={inputClass} placeholder="👨‍🌾" />
               </FormField>
             </div>
-            <FormField label="Région">
+            <FormField label={t('admin.col_region', 'Région')}>
               <input value={form.region} onChange={e => set('region', e.target.value)} className={inputClass} placeholder="Ali Sabieh" />
             </FormField>
-            <FormField label="Note (0–5)">
+            <FormField label={t('admin.field_rating', 'Note (0–5)')}>
               <input type="number" min="0" max="5" step="0.1" value={form.rating} onChange={e => set('rating', e.target.value)} className={inputClass} placeholder="4.5" />
             </FormField>
             <div className="flex gap-3 pt-2">
-              <button onClick={() => setShowModal(false)} className="flex-1 py-3 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 transition">Annuler</button>
+              <button onClick={() => setShowModal(false)} className="flex-1 py-3 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 transition">{t('admin.cancel', 'Annuler')}</button>
               <button onClick={handleSave} disabled={saving} className="flex-1 py-3 bg-[#a8c800] text-white rounded-xl text-sm font-semibold hover:bg-[#7d9800] transition disabled:opacity-50">
-                {saving ? 'Enregistrement...' : editingId ? 'Modifier' : 'Ajouter'}
+                {saving ? t('admin.saving', 'Enregistrement...') : editingId ? t('admin.edit', 'Modifier') : t('admin.add', 'Ajouter')}
               </button>
             </div>
           </div>
