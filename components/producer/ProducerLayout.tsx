@@ -115,15 +115,15 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-6 py-8 flex gap-6">
-        <aside className="w-52 flex-shrink-0">
-          <div className="bg-white rounded-2xl border border-[#d2e095] p-3 mb-4">
-            <nav className="space-y-1">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-8 flex flex-col md:flex-row gap-4 md:gap-6">
+        <aside className="md:w-52 md:flex-shrink-0">
+          <div className="bg-white rounded-2xl border border-[#d2e095] p-3 mb-0 md:mb-4">
+            <nav className="flex md:flex-col gap-1 md:space-y-1 overflow-x-auto">
               {navItems.map(item => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
+                  className={`flex items-center gap-2 md:gap-3 px-3 py-2 md:py-2.5 rounded-xl text-sm font-medium transition whitespace-nowrap flex-shrink-0 ${
                     pathname === item.href
                       ? 'bg-[#a8c800] text-white shadow-sm'
                       : 'text-gray-600 hover:bg-[#ecf4d5] hover:text-[#526500]'
@@ -135,7 +135,7 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
               ))}
             </nav>
           </div>
-          <div className="bg-[#ecf4d5] rounded-2xl p-4 text-center border border-[#d2e095]">
+          <div className="hidden md:block bg-[#ecf4d5] rounded-2xl p-4 text-center border border-[#d2e095]">
             <p className="text-3xl mb-2">👨‍🌾</p>
             <p className="text-xs font-bold text-[#526500]">{producer.farm_name}</p>
             {producer.region && (
