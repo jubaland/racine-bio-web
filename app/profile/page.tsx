@@ -98,7 +98,7 @@ export default function ProfilePage() {
             <span className="text-3xl">🌿</span>
             <div>
               <h1 className="text-xl font-bold text-[#526500]">Hornafresh</h1>
-              <p className="text-xs text-gray-400">{t('footer', 'Le marché bio de Djibouti')}</p>
+              <p className="text-xs text-gray-400">{t('footer', 'Le marché frais, bio, local et régional de Djibouti')}</p>
             </div>
           </Link>
           <Link href="/" className="text-sm text-gray-600 hover:text-[#7d9800]">

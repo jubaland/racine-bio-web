@@ -553,7 +553,7 @@ export default function HomePage({ products, categories, promos, producers }: {
           <div className="flex items-center gap-2">
             <span className="text-2xl">🌿</span>
             <span className="font-bold text-[#526500]">Hornafresh</span>
-            <span className="text-gray-400 text-sm">— {t('footer', 'Le marché bio de Djibouti')}</span>
+            <span className="text-gray-400 text-sm">— {t('footer', 'Le marché frais, bio, local et régional de Djibouti')}</span>
           </div>
           <p className="text-sm text-gray-400">© 2026 Hornafresh. {t('rights', 'Tous droits réservés.')}</p>
         </div>
