@@ -44,8 +44,8 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
           {user ? (
             <div className="flex items-center gap-2">
               {user.user_metadata?.is_admin && (
-                <Link href="/admin" className="hidden md:flex items-center gap-1.5 bg-[#3a4800] text-[#c5d87a] px-3 py-2 rounded-full text-xs font-semibold hover:bg-[#526500] transition">
-                  <span>⚙️</span> Admin
+                <Link href="/admin" className="flex items-center gap-1.5 bg-[#3a4800] text-[#c5d87a] px-3 py-2 rounded-full text-xs font-semibold hover:bg-[#526500] transition">
+                  <span>⚙️</span><span className="hidden md:block">Admin</span>
                 </Link>
               )}
               <Link href="/profile" className="flex items-center gap-2 bg-[#ecf4d5] border border-[#d2e095] px-3 py-2 rounded-full text-sm font-medium text-[#526500] hover:bg-[#d2e095] transition">
