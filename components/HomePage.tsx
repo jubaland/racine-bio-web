@@ -109,9 +109,9 @@ export default function HomePage({ products, categories, promos, producers }: {
               >
                 🛒 {t('orderNow', 'Commander maintenant')}
               </a>
-              <a href="#produits" className="border border-white/40 text-white px-5 md:px-6 py-3 rounded-full font-medium hover:bg-white/10 transition text-sm md:text-base">
-                {t('learnMore', 'En savoir plus')}
-              </a>
+              <Link href="/about" className="border border-white/40 text-white px-5 md:px-6 py-3 rounded-full font-medium hover:bg-white/10 transition text-sm md:text-base">
+                {t('learnMore', 'Qui sommes-nous ?')}
+              </Link>
             </div>
           </div>
           <div className="hidden md:flex flex-col gap-4">
