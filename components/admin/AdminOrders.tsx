@@ -49,11 +49,11 @@ export default function AdminOrders() {
   const t = (k: string, f: string) => ui[k] || f;
 
   const STATUS_META = {
-    pending:    { label: '⏳ ' + t('admin.status_pending',    'En attente'), cls: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
-    processing: { label: '🚚 ' + t('admin.status_processing', 'En cours'),   cls: 'bg-blue-100 text-blue-800 border-blue-200' },
-    shipping:   { label: '📦 ' + t('admin.status_shipping',   'Expédié'),    cls: 'bg-purple-100 text-purple-800 border-purple-200' },
-    delivered:  { label: '✅ ' + t('admin.status_delivered',  'Livré'),       cls: 'bg-green-100 text-green-800 border-green-200' },
-    cancelled:  { label: '❌ ' + t('admin.status_cancelled',  'Annulé'),      cls: 'bg-red-100 text-red-700 border-red-200' },
+    pending:    { label: t('admin.status_pending',    '⏳ En attente'), cls: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+    processing: { label: t('admin.status_processing', '🚚 En cours'),   cls: 'bg-blue-100 text-blue-800 border-blue-200' },
+    shipping:   { label: t('admin.status_shipping',   '📦 Expédié'),    cls: 'bg-purple-100 text-purple-800 border-purple-200' },
+    delivered:  { label: t('admin.status_delivered',  '✅ Livré'),       cls: 'bg-green-100 text-green-800 border-green-200' },
+    cancelled:  { label: t('admin.status_cancelled',  '❌ Annulé'),      cls: 'bg-red-100 text-red-700 border-red-200' },
   };
   const meta = (s: string) =>
     STATUS_META[s as keyof typeof STATUS_META] ?? { label: s, cls: 'bg-gray-100 text-gray-600 border-gray-200' };
