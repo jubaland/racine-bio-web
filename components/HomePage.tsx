@@ -114,21 +114,43 @@ export default function HomePage({ products, categories, promos, producers }: {
               </a>
             </div>
           </div>
-          <div className="hidden md:grid grid-cols-2 gap-4">
-            {localProducts.slice(0, 4).map((p: any) => (
-              <Link key={p.id} href={`/product/${p.id}`} className="bg-white/10 rounded-2xl overflow-hidden backdrop-blur hover:bg-white/20 transition">
-                {p.image_url ? (
-                  <img src={p.image_url} alt={getProductName(p)} className="w-full h-32 object-cover" />
-                ) : (
-                  <div className="w-full h-32 flex items-center justify-center text-5xl bg-white/10">📷</div>
-                )}
-                <div className="p-3">
-                  <p className="text-sm font-medium">{getProductName(p)}</p>
-                  <p className="text-xs text-white/60">{p.farm}</p>
-                  <p className="text-sm font-bold text-[#f5d020] mt-1">{Number(p.price).toLocaleString()} Fdj</p>
+          <div className="hidden md:flex flex-col gap-4">
+            <div className="bg-white/10 backdrop-blur rounded-2xl p-6 border border-white/15 flex flex-col gap-5">
+              <p className="text-xs font-bold text-[#c8e050] uppercase tracking-widest">{t('hero.delivery_info', 'Infos pratiques')}</p>
+              {[
+                {
+                  emoji: '🚚',
+                  title: t('hero.delivery_zone', 'Zone de livraison'),
+                  desc: t('hero.delivery_zone_desc', 'Djibouti-Ville et environs'),
+                },
+                {
+                  emoji: '⏱',
+                  title: t('hero.delivery_delay', 'Délai de livraison'),
+                  desc: t('hero.delivery_delay_desc', 'Sous 48h après confirmation'),
+                },
+                {
+                  emoji: '🆓',
+                  title: t('hero.delivery_free', 'Livraison gratuite'),
+                  desc: t('hero.delivery_free_desc', 'Sur toutes vos commandes'),
+                },
+              ].map(item => (
+                <div key={item.title} className="flex items-start gap-3">
+                  <span className="text-2xl leading-none mt-0.5">{item.emoji}</span>
+                  <div>
+                    <p className="text-sm font-semibold text-white">{item.title}</p>
+                    <p className="text-xs text-white/65 mt-0.5">{item.desc}</p>
+                  </div>
                 </div>
-              </Link>
-            ))}
+              ))}
+            </div>
+            <div className="bg-white/10 backdrop-blur rounded-2xl px-5 py-4 border border-white/15">
+              <p className="text-xs font-bold text-[#c8e050] uppercase tracking-widest mb-3">{t('hero.payment_title', 'Paiement accepté')}</p>
+              <div className="flex flex-wrap gap-2">
+                {['📱 Waafi', '💳 D-Money', '💵 Espèces'].map(m => (
+                  <span key={m} className="bg-white/15 text-white text-xs px-3 py-1.5 rounded-full font-medium">{m}</span>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
