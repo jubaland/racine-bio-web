@@ -73,7 +73,7 @@ export default function BecomeProducerPage() {
   };
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
-  const inputCls = 'w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] bg-white';
+  const inputCls = 'w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] bg-white';
 
   if (loading) {
     return (

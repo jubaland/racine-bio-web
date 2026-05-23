@@ -267,7 +267,7 @@ export default function HomePage({ products, categories, promos, producers }: {
             placeholder={t('search', 'Rechercher...')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-white border border-[#d2e095] rounded-xl text-sm focus:outline-none focus:border-[#a8c800]"
+            className="w-full pl-10 pr-4 py-3 bg-white border border-[#d2e095] rounded-xl text-sm text-gray-800 focus:outline-none focus:border-[#a8c800]"
           />
         </div>
 
@@ -276,7 +276,7 @@ export default function HomePage({ products, categories, promos, producers }: {
           <select
             value={activeCategory}
             onChange={e => setActiveCategory(e.target.value)}
-            className="flex-1 min-w-[140px] bg-white border border-[#d2e095] rounded-xl px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-[#a8c800] cursor-pointer"
+            className="flex-1 min-w-[140px] bg-white border border-[#d2e095] rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] cursor-pointer"
           >
             <option value="all">🌿 {t('filter.all_categories', 'Toutes les catégories')}</option>
             {categories.filter((cat: any) => (cat.slug || cat.id) !== 'all').map((cat: any) => (

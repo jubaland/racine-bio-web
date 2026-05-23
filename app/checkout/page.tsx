@@ -221,7 +221,7 @@ export default function CheckoutPage() {
                     value={name}
                     onChange={e => setName(e.target.value)}
                     placeholder={t('checkout.name_placeholder', 'Ex: Ahmed Hassan')}
-                    className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] bg-[#faf7e8]"
+                    className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] bg-[#faf7e8]"
                   />
                 </div>
                 <div>
@@ -233,7 +233,7 @@ export default function CheckoutPage() {
                     value={phone}
                     onChange={e => setPhone(e.target.value)}
                     placeholder={t('checkout.phone_placeholder', 'Ex: 77 XX XX XX')}
-                    className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] bg-[#faf7e8]"
+                    className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] bg-[#faf7e8]"
                   />
                 </div>
                 <div>
@@ -342,7 +342,7 @@ export default function CheckoutPage() {
                   <input
                     type="tel"
                     placeholder={t('checkout.phone_placeholder', 'Ex: 77 XX XX XX')}
-                    className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] bg-[#faf7e8]"
+                    className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] bg-[#faf7e8]"
                   />
                 </div>
               )}

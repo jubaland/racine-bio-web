@@ -212,7 +212,7 @@ export default function LoginPage() {
                   value={fullName}
                   onChange={e => setFullName(e.target.value)}
                   placeholder={t('login.name_placeholder', 'Ahmed Hassan')}
-                  className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] focus:ring-2 focus:ring-[#a8c800]/20 bg-[#faf7e8] transition"
+                  className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] focus:ring-2 focus:ring-[#a8c800]/20 bg-[#faf7e8] transition"
                 />
               </div>
             )}
@@ -227,7 +227,7 @@ export default function LoginPage() {
                 onChange={e => setEmail(e.target.value)}
                 placeholder={t('login.email_placeholder', 'ton@email.com')}
                 required
-                className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] focus:ring-2 focus:ring-[#a8c800]/20 bg-[#faf7e8] transition"
+                className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] focus:ring-2 focus:ring-[#a8c800]/20 bg-[#faf7e8] transition"
               />
             </div>
 
@@ -249,7 +249,7 @@ export default function LoginPage() {
                 placeholder="••••••••"
                 required
                 minLength={6}
-                className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] focus:ring-2 focus:ring-[#a8c800]/20 bg-[#faf7e8] transition"
+                className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] focus:ring-2 focus:ring-[#a8c800]/20 bg-[#faf7e8] transition"
               />
               {mode === 'register' && (
                 <p className="text-xs text-gray-400 mt-1">{t('login.password_hint', 'Minimum 6 caractères')}</p>
