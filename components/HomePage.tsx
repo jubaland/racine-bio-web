@@ -102,12 +102,12 @@ export default function HomePage({ products, categories, promos, producers }: {
               {t('heroSub', 'Bio, conventionnel, local — tous les produits frais livrés directement depuis les fermes djiboutiennes.')}
             </p>
             <div className="flex gap-4 flex-wrap">
-              <button
-                onClick={() => setCartOpen(true)}
+              <a
+                href="#produits"
                 className="bg-white text-[#526500] px-6 py-3 rounded-full font-semibold hover:bg-[#faf7e8] transition"
               >
                 🛒 {t('orderNow', 'Commander maintenant')}
-              </button>
+              </a>
               <a href="#produits" className="border border-white/40 text-white px-6 py-3 rounded-full font-medium hover:bg-white/10 transition">
                 {t('learnMore', 'En savoir plus')}
               </a>
