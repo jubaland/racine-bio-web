@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import { useCart } from '../context/CartContext';
+import { useFavorites } from '../context/FavoritesContext';
 import Header from './Header';
 import CartDrawer from './CartDrawer';
 import Link from 'next/link';
@@ -14,6 +15,7 @@ const ORIGIN_FLAGS: Record<string, string> = {
 export default function ProductDetail({ product, allProducts }: { product: any; allProducts: any[] }) {
   const { ui, productTranslations, currentLang } = useLanguage();
   const { addItem } = useCart();
+  const { isFavorite, addFavorite, removeFavorite } = useFavorites();
   const [cartOpen, setCartOpen] = useState(false);
   const [quantity, setQuantity] = useState(1);
 
@@ -126,12 +128,21 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
                 </div>
               </div>
 
-              <button
-                onClick={handleAddToCart}
-                className="w-full bg-[#a8c800] text-white py-4 rounded-2xl font-semibold text-lg hover:bg-[#7d9800] transition"
-              >
-                🛒 {t('product.add_to_cart', 'Ajouter au panier')}
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleAddToCart}
+                  className="flex-1 bg-[#a8c800] text-white py-4 rounded-2xl font-semibold text-lg hover:bg-[#7d9800] transition"
+                >
+                  🛒 {t('product.add_to_cart', 'Ajouter au panier')}
+                </button>
+                <button
+                  onClick={() => isFavorite(product.id) ? removeFavorite(product.id) : addFavorite(product)}
+                  className={`w-14 flex items-center justify-center rounded-2xl text-2xl border-2 transition ${isFavorite(product.id) ? 'bg-red-50 border-red-300 text-red-500' : 'bg-white border-[#dde8b0] hover:bg-red-50 hover:border-red-300'}`}
+                  title={isFavorite(product.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                >
+                  {isFavorite(product.id) ? '❤️' : '🤍'}
+                </button>
+              </div>
 
               {/* Badges */}
               <div className="flex flex-wrap gap-2 mt-4">

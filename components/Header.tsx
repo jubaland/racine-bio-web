@@ -5,12 +5,14 @@ import Link from 'next/link';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../context/LanguageContext';
 import { useCart } from '../context/CartContext';
+import { useFavorites } from '../context/FavoritesContext';
 import LanguageSelector from './LanguageSelector';
 
 export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
   const [user, setUser] = useState<any>(null);
   const { ui } = useLanguage();
   const { count } = useCart();
+  const { count: favCount } = useFavorites();
   const t = (key: string, fallback: string) => ui[key] || fallback;
 
   useEffect(() => {
@@ -40,6 +42,17 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
         </nav>
         <div className="flex items-center gap-3">
           <LanguageSelector />
+
+          {/* Favoris */}
+          <Link href="/favorites" className="relative p-2" title={t('favorites', 'Mes favoris')}>
+            <span className="text-2xl">❤️</span>
+            {favCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                {favCount > 9 ? '9+' : favCount}
+              </span>
+            )}
+          </Link>
+
           {user ? (
             <div className="flex items-center gap-2">
               {user.user_metadata?.is_admin && (
@@ -62,6 +75,8 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
               </Link>
             </>
           )}
+
+          {/* Panier */}
           <button onClick={onCartOpen} className="relative p-2">
             <span className="text-2xl">🛒</span>
             {count > 0 && (
@@ -74,4 +89,4 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
       </div>
     </header>
   );
-} 
+}

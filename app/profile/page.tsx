@@ -144,6 +144,31 @@ export default function ProfilePage() {
           )}
         </div>
 
+        {/* Espace producteur */}
+        <div className="bg-gradient-to-r from-[#f0f7e8] to-[#e8f5d0] rounded-3xl p-6 border border-[#dde8b0] shadow-sm mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span className="text-4xl">👨‍🌾</span>
+              <div>
+                <h3 className="font-semibold text-[#526500]">{t('profile.producer_space', 'Espace Producteur')}</h3>
+                <p className="text-sm text-gray-500">{t('profile.producer_space_desc', 'Gérez vos produits et commandes')}</p>
+              </div>
+            </div>
+            <Link
+              href="/producer/dashboard"
+              className="bg-[#a8c800] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#7d9800] transition"
+            >
+              {t('profile.go_producer', 'Accéder')} →
+            </Link>
+          </div>
+          <p className="text-xs text-gray-400 mt-3">
+            {t('profile.not_producer', 'Pas encore producteur ?')}{' '}
+            <Link href="/become-producer" className="text-[#7d9800] hover:underline">
+              {t('profile.become_producer_link', 'Faire une demande')}
+            </Link>
+          </p>
+        </div>
+
         <div className="bg-white rounded-3xl p-6 border border-[#dde8b0] shadow-sm">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">⚙️ {t('profile.settings', 'Paramètres')}</h3>
           <div className="space-y-3">

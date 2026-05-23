@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useLanguage } from '../context/LanguageContext';
 import { useCart } from '../context/CartContext';
+import { useFavorites } from '../context/FavoritesContext';
 import Header from './Header';
 import CartDrawer from './CartDrawer';
 
@@ -24,7 +25,8 @@ export default function HomePage({ products, categories, promos, producers }: {
   producers: any[];
 }) {
   const { ui, productTranslations, categoryTranslations, promoTranslations, currentLang } = useLanguage();
-  const { addItem, items } = useCart();
+  const { addItem } = useCart();
+  const { isFavorite, addFavorite, removeFavorite } = useFavorites();
   const [activeCategory, setActiveCategory] = useState('all');
   const [activeType, setActiveType] = useState('all');
   const [activeOrigin, setActiveOrigin] = useState('all');
@@ -79,14 +81,6 @@ export default function HomePage({ products, categories, promos, producers }: {
 
   const localProducts = products.filter(p => p.is_local);
 
-  const handleOrderNow = () => {
-    if (items.length > 0) {
-      setCartOpen(true);
-    } else {
-      document.getElementById('produits')?.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
   return (
     <div className="min-h-screen bg-[#f8faf0]">
 
@@ -108,7 +102,7 @@ export default function HomePage({ products, categories, promos, producers }: {
             </p>
             <div className="flex gap-4 flex-wrap">
               <button
-                onClick={handleOrderNow}
+                onClick={() => setCartOpen(true)}
                 className="bg-white text-[#526500] px-6 py-3 rounded-full font-semibold hover:bg-[#f8faf0] transition"
               >
                 🛒 {t('orderNow', 'Commander maintenant')}
@@ -163,12 +157,12 @@ export default function HomePage({ products, categories, promos, producers }: {
             {promos.map((promo: any) => {
               const promoData = getPromoData(promo);
               return (
-                <Link key={promo.id} href={`/product/${promo.product_id}`} className="rounded-2xl p-6 text-white relative overflow-hidden block hover:opacity-90 transition" style={{ backgroundColor: promo.color_start || '#2a4f08' }}>
+                <a key={promo.id} href="#produits" className="rounded-2xl p-6 text-white relative overflow-hidden cursor-pointer hover:opacity-90 transition" style={{ backgroundColor: promo.color_start || '#2a4f08' }}>
                   <div className="absolute -top-4 -right-4 text-8xl opacity-20">{promo.emoji}</div>
                   <span className="bg-white/25 text-xs font-semibold px-3 py-1 rounded-full inline-block mb-3">{promoData.badge}</span>
                   <h3 className="text-lg font-semibold mb-1">{promoData.title}</h3>
                   <p className="text-sm text-white/75">{promoData.sub}</p>
-                </Link>
+                </a>
               );
             })}
           </div>
@@ -198,7 +192,7 @@ export default function HomePage({ products, categories, promos, producers }: {
                   <div className="flex items-center justify-between mt-2">
                     <p className="text-sm font-bold text-[#7d9800]">{Number(p.price).toLocaleString()} Fdj</p>
                     <button
-                      onClick={(e) => { e.preventDefault(); addItem(p); setCartOpen(true); }}
+                      onClick={(e) => { e.stopPropagation(); e.preventDefault(); addItem(p); setCartOpen(true); }}
                       className="w-7 h-7 bg-[#a8c800] rounded-full flex items-center justify-center text-white font-bold hover:bg-[#7d9800] transition"
                     >+</button>
                   </div>
@@ -312,10 +306,17 @@ export default function HomePage({ products, categories, promos, producers }: {
                         )}
                         <p className="text-sm font-bold text-[#7d9800]">{Number(product.price).toLocaleString()} Fdj <span className="text-xs font-normal text-gray-400">{product.unit}</span></p>
                       </div>
-                      <button
-                        onClick={(e) => { e.preventDefault(); addItem(product); setCartOpen(true); }}
-                        className="w-8 h-8 bg-[#a8c800] rounded-full flex items-center justify-center text-white text-lg font-bold hover:bg-[#7d9800] transition"
-                      >+</button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); e.preventDefault(); isFavorite(product.id) ? removeFavorite(product.id) : addFavorite(product); }}
+                          className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-50 transition text-base"
+                          title={isFavorite(product.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                        >{isFavorite(product.id) ? '❤️' : '🤍'}</button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); e.preventDefault(); addItem(product); setCartOpen(true); }}
+                          className="w-8 h-8 bg-[#a8c800] rounded-full flex items-center justify-center text-white text-lg font-bold hover:bg-[#7d9800] transition"
+                        >+</button>
+                      </div>
                     </div>
                   </div>
                 </Link>
