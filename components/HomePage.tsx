@@ -89,31 +89,31 @@ export default function HomePage({ products, categories, promos, producers }: {
       <Header onCartOpen={() => setCartOpen(true)} />
 
       {/* Hero */}
-      <section className="bg-gradient-to-br from-[#1c3a05] via-[#2d6410] to-[#7a5800] text-white py-20 px-6">
-        <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-12 items-center">
+      <section className="bg-gradient-to-br from-[#1c3a05] via-[#2d6410] to-[#7a5800] text-white py-12 md:py-20 px-4 md:px-6">
+        <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-8 md:gap-12 items-center">
           <div>
-            <div className="inline-flex items-center gap-2 bg-white/20 rounded-full px-4 py-1 text-sm mb-6">
+            <div className="inline-flex items-center gap-2 bg-white/20 rounded-full px-4 py-1 text-sm mb-5 md:mb-6">
               🇩🇯 {t('heroTag', 'Produits frais de Djibouti et de la région')}
             </div>
-            <h2 className="text-5xl font-bold mb-6 leading-tight">
+            <h2 className="text-3xl md:text-5xl font-bold mb-4 md:mb-6 leading-tight">
               {t('tagline', 'Trouvez vos')} <span className="italic text-[#f5d020]">{t('tagline2', 'légumes')}</span> {t('tagline3', 'et fruits du jour')}
             </h2>
-            <p className="text-lg text-white/80 mb-8">
+            <p className="text-base md:text-lg text-white/80 mb-6 md:mb-8">
               {t('heroSub', 'Bio, conventionnel, local — tous les produits frais livrés directement depuis les fermes djiboutiennes.')}
             </p>
-            <div className="flex gap-4 flex-wrap">
+            <div className="flex gap-3 md:gap-4 flex-wrap">
               <a
                 href="#produits"
-                className="bg-white text-[#526500] px-6 py-3 rounded-full font-semibold hover:bg-[#faf7e8] transition"
+                className="bg-white text-[#526500] px-5 md:px-6 py-3 rounded-full font-semibold hover:bg-[#faf7e8] transition text-sm md:text-base"
               >
                 🛒 {t('orderNow', 'Commander maintenant')}
               </a>
-              <a href="#produits" className="border border-white/40 text-white px-6 py-3 rounded-full font-medium hover:bg-white/10 transition">
+              <a href="#produits" className="border border-white/40 text-white px-5 md:px-6 py-3 rounded-full font-medium hover:bg-white/10 transition text-sm md:text-base">
                 {t('learnMore', 'En savoir plus')}
               </a>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="hidden md:grid grid-cols-2 gap-4">
             {localProducts.slice(0, 4).map((p: any) => (
               <Link key={p.id} href={`/product/${p.id}`} className="bg-white/10 rounded-2xl overflow-hidden backdrop-blur hover:bg-white/20 transition">
                 {p.image_url ? (
@@ -134,7 +134,7 @@ export default function HomePage({ products, categories, promos, producers }: {
 
       {/* Stats */}
       <section className="bg-white border-b border-[#d2e095]">
-        <div className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
           {[
             { emoji: "🥬", label: t('freshProducts', 'Produits frais'), value: products.length + "+" },
             { emoji: "👨‍🌾", label: t('producers', 'Producteurs'), value: producers.length + "+" },
@@ -152,7 +152,7 @@ export default function HomePage({ products, categories, promos, producers }: {
 
       {/* Sélection du moment */}
       {featuredProducts.length > 0 && (
-        <section id="selection" className="max-w-7xl mx-auto px-6 py-12">
+        <section id="selection" className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-2xl font-semibold text-gray-800">⭐ {t('featuredTitle', 'Sélection du moment')}</h2>
@@ -209,7 +209,7 @@ export default function HomePage({ products, categories, promos, producers }: {
 
       {/* Produits locaux */}
       {localProducts.length > 0 && (
-        <section className="max-w-7xl mx-auto px-6 py-8">
+        <section className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-semibold text-gray-800">🇩🇯 {t('localProducts', 'Produits de Djibouti')}</h2>
             <button onClick={() => setActiveOrigin('DJ')} className="text-sm text-[#7d9800] hover:underline">
@@ -253,7 +253,7 @@ export default function HomePage({ products, categories, promos, producers }: {
       )}
 
       {/* Tous les produits */}
-      <section id="produits" className="max-w-7xl mx-auto px-6 py-8">
+      <section id="produits" className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-semibold text-gray-800">🛒 {t('allProducts', 'Tous les produits')}</h2>
           <span className="text-sm text-gray-400">{filteredProducts.length} {t('products', 'produits')}</span>
@@ -385,7 +385,7 @@ export default function HomePage({ products, categories, promos, producers }: {
 
       {/* Producteurs */}
       {producers.length > 0 && (
-        <section id="producteurs" className="max-w-7xl mx-auto px-6 py-12">
+        <section id="producteurs" className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12">
           <h2 className="text-2xl font-semibold text-gray-800 mb-6">👨‍🌾 {t('ourProducers', 'Nos producteurs')}</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {producers.map((p: any) => (
@@ -400,14 +400,14 @@ export default function HomePage({ products, categories, promos, producers }: {
       )}
 
       {/* Espace producteur */}
-      <section className="bg-gradient-to-br from-[#1c3a05] via-[#2d5c0a] to-[#1c3a05] py-16 px-6 text-white">
+      <section className="bg-gradient-to-br from-[#1c3a05] via-[#2d5c0a] to-[#1c3a05] py-12 md:py-16 px-4 md:px-6 text-white">
         <div className="max-w-5xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
+          <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
             <div>
               <span className="inline-block bg-white/20 text-white text-xs font-semibold px-3 py-1 rounded-full mb-4">
                 👨‍🌾 {t('producerSpaceTag', 'Espace Producteur')}
               </span>
-              <h2 className="text-3xl font-bold mb-4 leading-tight">
+              <h2 className="text-2xl md:text-3xl font-bold mb-4 leading-tight">
                 {t('producerSpaceTitle', 'Vous êtes producteur ?')}<br />
                 <span className="text-[#c8e050]">{t('producerSpaceTitle2', 'Rejoignez notre réseau')}</span>
               </h2>
@@ -440,7 +440,7 @@ export default function HomePage({ products, categories, promos, producers }: {
       </section>
 
       {/* Comment ça marche */}
-      <section className="bg-white border-t border-[#d2e095] py-16 px-6">
+      <section className="bg-white border-t border-[#d2e095] py-12 md:py-16 px-4 md:px-6">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-2xl font-bold text-gray-800">{t('howItWorksTitle', 'Comment ça marche ?')}</h2>
@@ -488,8 +488,8 @@ export default function HomePage({ products, categories, promos, producers }: {
       </section>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-[#d2e095] py-8 px-6">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+      <footer className="bg-white border-t border-[#d2e095] py-6 md:py-8 px-4 md:px-6">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 md:gap-4">
           <div className="flex items-center gap-2">
             <span className="text-2xl">🌿</span>
             <span className="font-bold text-[#526500]">Racine Bio</span>

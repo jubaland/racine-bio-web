@@ -139,26 +139,26 @@ export default function BecomeProducerPage() {
       <Header onCartOpen={() => setCartOpen(true)} />
 
       {/* Hero */}
-      <section className="bg-gradient-to-br from-[#1c3a05] via-[#2d6410] to-[#1c3a05] text-white py-20 px-6">
+      <section className="bg-gradient-to-br from-[#1c3a05] via-[#2d6410] to-[#1c3a05] text-white py-12 md:py-20 px-4 md:px-6">
         <div className="max-w-3xl mx-auto text-center">
-          <span className="inline-block bg-white/20 text-white text-xs font-semibold px-3 py-1 rounded-full mb-6">
+          <span className="inline-block bg-white/20 text-white text-xs font-semibold px-3 py-1 rounded-full mb-5 md:mb-6">
             👨‍🌾 {t('bp.hero_tag', 'Programme Producteurs Partenaires')}
           </span>
-          <h1 className="text-4xl font-bold mb-5 leading-tight">
+          <h1 className="text-2xl md:text-4xl font-bold mb-4 md:mb-5 leading-tight">
             {t('bp.hero_title1', 'Vendez mieux,')}<br />
             <span className="text-[#c8e050]">{t('bp.hero_title2', 'cultivez avec nous')}</span>
           </h1>
-          <p className="text-white/75 text-lg max-w-xl mx-auto mb-8 leading-relaxed">
+          <p className="text-white/75 text-base md:text-lg max-w-xl mx-auto mb-7 md:mb-8 leading-relaxed">
             {t('bp.hero_desc', "Racine Bio vous ouvre l'accès à un marché direct, mais aussi à des ressources concrètes pour développer votre activité agricole.")}
           </p>
-          <a href="#candidature" className="inline-block bg-[#c8e050] text-[#1c3a05] px-8 py-4 rounded-full font-bold text-lg hover:bg-[#d4f060] transition">
+          <a href="#candidature" className="inline-block bg-[#c8e050] text-[#1c3a05] px-6 md:px-8 py-3.5 md:py-4 rounded-full font-bold text-base md:text-lg hover:bg-[#d4f060] transition">
             📤 {t('bp.hero_cta', 'Déposer ma candidature')}
           </a>
         </div>
       </section>
 
       {/* Ce qu'on vous offre */}
-      <section className="max-w-5xl mx-auto px-6 py-16">
+      <section className="max-w-5xl mx-auto px-4 md:px-6 py-10 md:py-16">
         <div className="text-center mb-12">
           <h2 className="text-2xl font-bold text-gray-800">{t('bp.benefits_title', 'Ce que vous gagnez en rejoignant Racine Bio')}</h2>
           <p className="text-gray-400 mt-2">{t('bp.benefits_sub', "Bien plus qu'une plateforme de vente")}</p>
@@ -187,7 +187,7 @@ export default function BecomeProducerPage() {
       </section>
 
       {/* Comment rejoindre */}
-      <section className="max-w-4xl mx-auto px-6 py-16">
+      <section className="max-w-4xl mx-auto px-4 md:px-6 py-10 md:py-16">
         <div className="text-center mb-12">
           <h2 className="text-2xl font-bold text-gray-800">{t('bp.steps_title', 'Comment rejoindre le réseau ?')}</h2>
         </div>
@@ -211,15 +211,15 @@ export default function BecomeProducerPage() {
       </section>
 
       {/* Formulaire */}
-      <section id="candidature" className="max-w-2xl mx-auto px-6 pb-20">
-        <div className="bg-white rounded-3xl p-8 border border-[#d2e095] shadow-sm">
+      <section id="candidature" className="max-w-2xl mx-auto px-4 md:px-6 pb-16 md:pb-20">
+        <div className="bg-white rounded-3xl p-5 sm:p-8 border border-[#d2e095] shadow-sm">
           <h2 className="text-xl font-bold text-gray-800 mb-1">📝 {t('bp.form_title', 'Formulaire de candidature')}</h2>
           <p className="text-sm text-gray-400 mb-6">{t('bp.form_required', 'Tous les champs marqués * sont obligatoires.')}</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl">{error}</div>}
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-gray-600 mb-1.5 block">{t('bp.field_fullname', 'Nom complet')} *</label>
                 <input value={form.full_name} onChange={e => set('full_name', e.target.value)} className={inputCls} placeholder="Ahmed Ibrahim" required />
@@ -230,7 +230,7 @@ export default function BecomeProducerPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-gray-600 mb-1.5 block">{t('bp.field_phone', 'Téléphone')}</label>
                 <input value={form.phone} onChange={e => set('phone', e.target.value)} className={inputCls} placeholder="+253 77 00 00 00" />
@@ -241,7 +241,7 @@ export default function BecomeProducerPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-gray-600 mb-1.5 block">{t('bp.field_farm_name', 'Nom de la ferme')} *</label>
                 <input value={form.farm_name} onChange={e => set('farm_name', e.target.value)} className={inputCls} placeholder="Ferme Ibrahim" required />

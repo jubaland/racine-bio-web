@@ -25,7 +25,7 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
 
   return (
     <header className="bg-white border-b border-[#d2e095] sticky top-0 z-40">
-      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3">
           <span className="text-3xl">🌿</span>
           <div>

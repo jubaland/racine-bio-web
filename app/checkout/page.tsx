@@ -148,19 +148,19 @@ export default function CheckoutPage() {
     <div className="min-h-screen bg-[#faf7e8]">
       <Header onCartOpen={() => {}} />
 
-      <div className="max-w-3xl mx-auto px-6 py-8">
+      <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 md:py-8">
         <h1 className="text-2xl font-bold text-gray-800 mb-6">
           💳 {t('checkout.title', 'Finaliser la commande')}
         </h1>
 
-        <div className="flex items-center gap-4 mb-8">
+        <div className="flex items-center gap-2 md:gap-4 mb-8">
           {STEPS.map((s, i) => (
-            <div key={s.n} className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= s.n ? 'bg-[#a8c800] text-white' : 'bg-white border border-[#d2e095] text-gray-400'}`}>
+            <div key={s.n} className="flex items-center gap-1.5 md:gap-2">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-none ${step >= s.n ? 'bg-[#a8c800] text-white' : 'bg-white border border-[#d2e095] text-gray-400'}`}>
                 {s.n}
               </div>
-              <span className={`text-sm ${step >= s.n ? 'text-gray-800 font-medium' : 'text-gray-400'}`}>{s.label}</span>
-              {i < 2 && <span className="text-gray-300 ml-2">›</span>}
+              <span className={`text-xs md:text-sm hidden sm:inline ${step >= s.n ? 'text-gray-800 font-medium' : 'text-gray-400'}`}>{s.label}</span>
+              {i < 2 && <span className="text-gray-300 ml-1 md:ml-2">›</span>}
             </div>
           ))}
         </div>
