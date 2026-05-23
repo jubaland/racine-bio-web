@@ -114,7 +114,7 @@ export default function HomePage({ products, categories, promos, producers }: {
               </Link>
             </div>
           </div>
-          <div className="hidden md:flex flex-col gap-4">
+          <div className="flex flex-col gap-4">
             <div className="bg-white/10 backdrop-blur rounded-2xl p-6 border border-white/15 flex flex-col gap-5">
               <p className="text-xs font-bold text-[#c8e050] uppercase tracking-widest">{t('hero.delivery_info', 'Infos pratiques')}</p>
               {[

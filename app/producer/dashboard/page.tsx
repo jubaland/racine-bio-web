@@ -90,7 +90,7 @@ function DashboardContent({ producer }: { producer: any }) {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-3 gap-2 md:gap-4 mb-6">
         {[
           {
             emoji: '🥬',
@@ -114,12 +114,12 @@ function DashboardContent({ producer }: { producer: any }) {
             color: 'text-[#526500]',
           },
         ].map(stat => (
-          <div key={stat.label} className="bg-white rounded-2xl p-6 border border-[#d2e095] text-center hover:shadow-md transition">
-            <p className="text-3xl mb-2">{stat.emoji}</p>
-            <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-            <p className="text-sm text-gray-400 mt-1">{stat.label}</p>
+          <div key={stat.label} className="bg-white rounded-2xl p-3 md:p-6 border border-[#d2e095] text-center hover:shadow-md transition">
+            <p className="text-2xl md:text-3xl mb-1 md:mb-2">{stat.emoji}</p>
+            <p className={`text-lg md:text-2xl font-bold ${stat.color} truncate`}>{stat.value}</p>
+            <p className="text-xs md:text-sm text-gray-400 mt-0.5 md:mt-1 leading-tight">{stat.label}</p>
             {stat.link && (
-              <Link href={stat.link} className="text-xs text-[#7d9800] hover:underline mt-2 inline-block">
+              <Link href={stat.link} className="text-xs text-[#7d9800] hover:underline mt-1 md:mt-2 inline-block">
                 {t('producer.see_all', 'Voir tout')} →
               </Link>
             )}
@@ -128,25 +128,25 @@ function DashboardContent({ producer }: { producer: any }) {
       </div>
 
       {/* Quick actions */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-2 gap-3 md:gap-4 mb-6">
         <Link
           href="/producer/products"
-          className="bg-[#a8c800] text-white rounded-2xl p-5 flex items-center gap-4 hover:bg-[#7d9800] transition"
+          className="bg-[#a8c800] text-white rounded-2xl p-3 md:p-5 flex items-center gap-2 md:gap-4 hover:bg-[#7d9800] transition"
         >
-          <span className="text-3xl">🥬</span>
-          <div>
-            <p className="font-semibold">{t('producer.add_product', 'Ajouter un produit')}</p>
-            <p className="text-sm text-white/80">{t('producer.add_product_desc', 'Gérer votre catalogue')}</p>
+          <span className="text-2xl md:text-3xl flex-none">🥬</span>
+          <div className="min-w-0">
+            <p className="font-semibold text-sm md:text-base leading-tight">{t('producer.add_product', 'Ajouter un produit')}</p>
+            <p className="text-xs md:text-sm text-white/80 mt-0.5 hidden sm:block">{t('producer.add_product_desc', 'Gérer votre catalogue')}</p>
           </div>
         </Link>
         <Link
           href="/producer/orders"
-          className="bg-white border border-[#d2e095] rounded-2xl p-5 flex items-center gap-4 hover:shadow-md transition"
+          className="bg-white border border-[#d2e095] rounded-2xl p-3 md:p-5 flex items-center gap-2 md:gap-4 hover:shadow-md transition"
         >
-          <span className="text-3xl">📦</span>
-          <div>
-            <p className="font-semibold text-gray-800">{t('producer.view_orders', 'Voir les commandes')}</p>
-            <p className="text-sm text-gray-400">{t('producer.view_orders_desc', 'Suivre vos ventes')}</p>
+          <span className="text-2xl md:text-3xl flex-none">📦</span>
+          <div className="min-w-0">
+            <p className="font-semibold text-gray-800 text-sm md:text-base leading-tight">{t('producer.view_orders', 'Voir les commandes')}</p>
+            <p className="text-xs md:text-sm text-gray-400 mt-0.5 hidden sm:block">{t('producer.view_orders_desc', 'Suivre vos ventes')}</p>
           </div>
         </Link>
       </div>
@@ -175,18 +175,18 @@ function DashboardContent({ producer }: { producer: any }) {
             {recentOrders.map(order => {
               const info = statusInfo(order.status);
               return (
-                <div key={order.id} className="flex items-center justify-between p-4 bg-[#faf7e8] rounded-xl">
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">{order.customer_name || '—'}</p>
+                <div key={order.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 md:p-4 bg-[#faf7e8] rounded-xl">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">{order.customer_name || '—'}</p>
                     <p className="text-xs text-gray-400 mt-0.5">
                       {new Date(order.created_at).toLocaleDateString('fr-FR')}
                     </p>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <p className="text-sm font-bold text-[#526500]">
                       {Number(order.total).toLocaleString()} Fdj
                     </p>
-                    <span className={`text-xs px-2 py-1 rounded-full ${info.cls}`}>
+                    <span className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${info.cls}`}>
                       {info.label}
                     </span>
                   </div>
