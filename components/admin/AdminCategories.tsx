@@ -75,7 +75,8 @@ export default function AdminCategories() {
         <div className="flex items-center justify-center h-48"><p className="text-gray-400">{t('admin.loading', 'Chargement...')}</p></div>
       ) : (
         <div className="bg-white rounded-2xl border border-[#d2e095] overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
             <thead className="bg-[#faf7e8] border-b border-[#d2e095]">
               <tr>
                 <th className="text-left px-4 py-3 text-gray-500 font-medium">{t('admin.col_emoji', 'Emoji')}</th>
@@ -100,6 +101,7 @@ export default function AdminCategories() {
               ))}
             </tbody>
           </table>
+          </div>
           <div className="px-4 py-3 border-t border-gray-50 text-xs text-gray-400">{categories.length} {t('admin.nav_categories', 'catégories').toLowerCase()}</div>
         </div>
       )}
