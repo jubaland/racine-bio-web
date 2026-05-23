@@ -24,7 +24,7 @@ export default function HomePage({ products, categories, promos, producers }: {
   producers: any[];
 }) {
   const { ui, productTranslations, categoryTranslations, promoTranslations, currentLang } = useLanguage();
-  const { addItem } = useCart();
+  const { addItem, items } = useCart();
   const [activeCategory, setActiveCategory] = useState('all');
   const [activeType, setActiveType] = useState('all');
   const [activeOrigin, setActiveOrigin] = useState('all');
@@ -79,6 +79,14 @@ export default function HomePage({ products, categories, promos, producers }: {
 
   const localProducts = products.filter(p => p.is_local);
 
+  const handleOrderNow = () => {
+    if (items.length > 0) {
+      setCartOpen(true);
+    } else {
+      document.getElementById('produits')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f8faf0]">
 
@@ -100,7 +108,7 @@ export default function HomePage({ products, categories, promos, producers }: {
             </p>
             <div className="flex gap-4 flex-wrap">
               <button
-                onClick={() => setCartOpen(true)}
+                onClick={handleOrderNow}
                 className="bg-white text-[#526500] px-6 py-3 rounded-full font-semibold hover:bg-[#f8faf0] transition"
               >
                 🛒 {t('orderNow', 'Commander maintenant')}
@@ -155,12 +163,12 @@ export default function HomePage({ products, categories, promos, producers }: {
             {promos.map((promo: any) => {
               const promoData = getPromoData(promo);
               return (
-                <div key={promo.id} className="rounded-2xl p-6 text-white relative overflow-hidden" style={{ backgroundColor: promo.color_start || '#2a4f08' }}>
+                <Link key={promo.id} href={`/product/${promo.product_id}`} className="rounded-2xl p-6 text-white relative overflow-hidden block hover:opacity-90 transition" style={{ backgroundColor: promo.color_start || '#2a4f08' }}>
                   <div className="absolute -top-4 -right-4 text-8xl opacity-20">{promo.emoji}</div>
                   <span className="bg-white/25 text-xs font-semibold px-3 py-1 rounded-full inline-block mb-3">{promoData.badge}</span>
                   <h3 className="text-lg font-semibold mb-1">{promoData.title}</h3>
                   <p className="text-sm text-white/75">{promoData.sub}</p>
-                </div>
+                </Link>
               );
             })}
           </div>
