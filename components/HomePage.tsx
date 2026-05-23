@@ -31,6 +31,7 @@ export default function HomePage({ products, categories, promos, producers }: {
   const [activeType, setActiveType] = useState('all');
   const [activeOrigin, setActiveOrigin] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
 
   const t = (key: string, fallback: string) => ui[key] || fallback;
@@ -261,14 +262,51 @@ export default function HomePage({ products, categories, promos, producers }: {
 
         {/* Recherche */}
         <div className="relative mb-4">
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">🔍</span>
           <input
             type="text"
             placeholder={t('search', 'Rechercher...')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-white border border-[#d2e095] rounded-xl text-sm text-gray-800 focus:outline-none focus:border-[#a8c800]"
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+            className="w-full pl-10 pr-10 py-3 bg-white border border-[#d2e095] rounded-xl text-sm text-gray-800 focus:outline-none focus:border-[#a8c800]"
           />
+          {searchQuery && (
+            <button
+              onClick={() => { setSearchQuery(''); setShowSuggestions(false); }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg"
+            >✕</button>
+          )}
+          {showSuggestions && searchQuery.trim().length >= 1 && (() => {
+            const sugg = products.filter(p =>
+              p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              (p.farm && p.farm.toLowerCase().includes(searchQuery.toLowerCase()))
+            ).slice(0, 6);
+            return sugg.length > 0 ? (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#d2e095] rounded-xl shadow-xl z-30 overflow-hidden">
+                {sugg.map((p: any) => (
+                  <button
+                    key={p.id}
+                    onMouseDown={() => { setSearchQuery(getProductName(p)); setShowSuggestions(false); }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#faf7e8] transition border-b border-gray-50 last:border-0"
+                  >
+                    <div className="w-9 h-9 rounded-lg overflow-hidden flex-none bg-[#ecf4d5] flex items-center justify-center">
+                      {p.image_url
+                        ? <img src={p.image_url} alt={getProductName(p)} className="w-full h-full object-cover" />
+                        : <span className="text-lg">{p.emoji || '🥬'}</span>
+                      }
+                    </div>
+                    <div className="text-left flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">{getProductName(p)}</p>
+                      <p className="text-xs text-gray-400 truncate">🌱 {p.farm}</p>
+                    </div>
+                    <span className="text-xs text-[#a8c800] font-semibold flex-none">{Number(p.price).toLocaleString()} Fdj</span>
+                  </button>
+                ))}
+              </div>
+            ) : null;
+          })()}
         </div>
 
         {/* Filtres */}
