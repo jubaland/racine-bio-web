@@ -80,7 +80,7 @@ export default function LoginPage() {
         <Link href="/" className="flex items-center gap-3">
           <span className="text-4xl">🌿</span>
           <div>
-            <p className="text-xl font-bold">Racine Bio</p>
+            <p className="text-xl font-bold">Hornafresh</p>
             <p className="text-xs text-white/60">{t('footer', 'Le marché bio de Djibouti')}</p>
           </div>
         </Link>
@@ -111,7 +111,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="text-xs text-white/30">© 2025 Racine Bio · {t('rights', 'Tous droits réservés')}</p>
+        <p className="text-xs text-white/30">© 2025 Hornafresh · {t('rights', 'Tous droits réservés')}</p>
       </div>
 
       {/* Panneau droit — formulaire */}
@@ -120,7 +120,7 @@ export default function LoginPage() {
         {/* Logo mobile */}
         <div className="lg:hidden text-center mb-8">
           <span className="text-5xl">🌿</span>
-          <h1 className="text-xl font-bold text-[#526500] mt-2">Racine Bio</h1>
+          <h1 className="text-xl font-bold text-[#526500] mt-2">Hornafresh</h1>
           <p className="text-xs text-gray-400">{t('footer', 'Le marché bio de Djibouti')}</p>
         </div>
 

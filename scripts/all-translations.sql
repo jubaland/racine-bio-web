@@ -1,5 +1,5 @@
 -- =============================================================
--- Racine Bio — Traductions UI complètes
+-- Hornafresh — Traductions UI complètes
 -- Colonne correcte : language_code (pas lang)
 -- Langues : en, zh, so, aa, am  (fr = fallbacks codés dans le code)
 -- Exécuter dans Supabase Dashboard → SQL Editor
@@ -883,11 +883,11 @@ INSERT INTO ui_translations (language_code, key, value) VALUES
 ('aa','admin.access_denied','Seentummi dide'),
 ('am','admin.access_denied','መዳረሻ ተከልክሏል'),
 
-('en','admin.access_denied_msg','This page is reserved for Racine Bio administrators.'),
-('zh','admin.access_denied_msg','此页面仅供 Racine Bio 管理员访问。'),
-('so','admin.access_denied_msg','Boggan waxaa loogu talagalay maamulayaasha Racine Bio.'),
-('aa','admin.access_denied_msg','Fuulichi Racine Bio hooggantootaf qofa.'),
-('am','admin.access_denied_msg','ይህ ገፅ ለ Racine Bio አስተዳዳሪዎች ብቻ ነው።'),
+('en','admin.access_denied_msg','This page is reserved for Hornafresh administrators.'),
+('zh','admin.access_denied_msg','此页面仅供 Hornafresh 管理员访问。'),
+('so','admin.access_denied_msg','Boggan waxaa loogu talagalay maamulayaasha Hornafresh.'),
+('aa','admin.access_denied_msg','Fuulichi Hornafresh hooggantootaf qofa.'),
+('am','admin.access_denied_msg','ይህ ገፅ ለ Hornafresh አስተዳዳሪዎች ብቻ ነው።'),
 
 ('en','admin.back_to_site','← Back to site'),
 ('zh','admin.back_to_site','← 返回网站'),
@@ -1414,11 +1414,11 @@ INSERT INTO ui_translations (language_code, key, value) VALUES
 -- ============================================================
 -- ADMIN REQUESTS
 -- ============================================================
-('en','admin.access_denied_meta','Contact the Racine Bio admin to get access.'),
-('zh','admin.access_denied_meta','联系 Racine Bio 管理员以获得访问权限。'),
-('so','admin.access_denied_meta','La xiriir maamulaha Racine Bio si aad u hesho gelitaanka.'),
-('aa','admin.access_denied_meta','Seentummaaf Racine Bio hoogganaa qunnamii.'),
-('am','admin.access_denied_meta','መዳረሻ ለማግኘት የ Racine Bio አስተዳዳሪን ያናጋሩ።'),
+('en','admin.access_denied_meta','Contact the Hornafresh admin to get access.'),
+('zh','admin.access_denied_meta','联系 Hornafresh 管理员以获得访问权限。'),
+('so','admin.access_denied_meta','La xiriir maamulaha Hornafresh si aad u hesho gelitaanka.'),
+('aa','admin.access_denied_meta','Seentummaaf Hornafresh hoogganaa qunnamii.'),
+('am','admin.access_denied_meta','መዳረሻ ለማግኘት የ Hornafresh አስተዳዳሪን ያናጋሩ።'),
 
 -- ============================================================
 -- PRODUCER SPACE
@@ -1567,11 +1567,11 @@ INSERT INTO ui_translations (language_code, key, value) VALUES
 ('aa','producer.access_denied','Seentummi oomishitootaaf qofa'),
 ('am','producer.access_denied','ለአምራቾች ብቻ የተጠበቀ'),
 
-('en','producer.access_denied_msg','This space is reserved for producers approved by Racine Bio.'),
-('zh','producer.access_denied_msg','此空间仅供 Racine Bio 批准的生产者使用。'),
-('so','producer.access_denied_msg','Goobtan waxaa loogu talagalay beeraleyda Racine Bio ansixisay.'),
-('aa','producer.access_denied_msg','Bakki kun Racine Bio hayyamteen oomishitootaaf qofa.'),
-('am','producer.access_denied_msg','ይህ ቦታ በ Racine Bio የተፈቀዱ አምራቾች ብቻ ነው።'),
+('en','producer.access_denied_msg','This space is reserved for producers approved by Hornafresh.'),
+('zh','producer.access_denied_msg','此空间仅供 Hornafresh 批准的生产者使用。'),
+('so','producer.access_denied_msg','Goobtan waxaa loogu talagalay beeraleyda Hornafresh ansixisay.'),
+('aa','producer.access_denied_msg','Bakki kun Hornafresh hayyamteen oomishitootaaf qofa.'),
+('am','producer.access_denied_msg','ይህ ቦታ በ Hornafresh የተፈቀዱ አምራቾች ብቻ ነው።'),
 
 ('en','producer.become_cta','Become a producer'),
 ('zh','producer.become_cta','成为生产者'),
@@ -1630,11 +1630,11 @@ INSERT INTO ui_translations (language_code, key, value) VALUES
 ('aa','producer.request_sent_msg','Gaaffii kee argame. Dhumate siin bilbiluuf jirra.'),
 ('am','producer.request_sent_msg','ጥያቄዎ ተቀብሏል። በቅርቡ እናናግርዎታለን።'),
 
-('en','producer.become_title','Become a Racine Bio producer'),
-('zh','producer.become_title','成为 Racine Bio 的生产者'),
-('so','producer.become_title','Ku noqo beerale Racine Bio'),
-('aa','producer.become_title','Racine Bio oomishitoota ta''i'),
-('am','producer.become_title','የ Racine Bio አምራቾች ሁን'),
+('en','producer.become_title','Become a Hornafresh producer'),
+('zh','producer.become_title','成为 Hornafresh 的生产者'),
+('so','producer.become_title','Ku noqo beerale Hornafresh'),
+('aa','producer.become_title','Hornafresh oomishitoota ta''i'),
+('am','producer.become_title','የ Hornafresh አምራቾች ሁን'),
 
 ('en','producer.become_subtitle','Join our network of local producers and sell your products online.'),
 ('zh','producer.become_subtitle','加入我们的本地生产者网络，在线销售您的产品。'),
@@ -1896,11 +1896,11 @@ INSERT INTO ui_translations (language_code, key, value) VALUES
 ('aa','producerSpaceTitle2','Shabakoyta kee gali'),
 ('am','producerSpaceTitle2','ወደ አውታረ መረባችን ይቀላቀሉ'),
 
-('en','producerSpaceDesc','Racine Bio supports you beyond sales: seeds, agronomic advice, shared equipment and a community of engaged producers.'),
-('zh','producerSpaceDesc','Racine Bio不仅支持您的销售，还提供种子、农业建议、共享设备和积极的生产者社区。'),
-('so','producerSpaceDesc','Racine Bio waxay kaa caawisaa intii ka baxeysa iibka: abuurka, talooyinka beeraha, qaladaadka la wadaago iyo beeralayda iskaashada ah.'),
-('aa','producerSpaceDesc','Racine Bio kee gargaara garra giddini bakoyta kee: xiinoota, gorsha oomishii, qaala wadaagitta noo boodde oomishittoota'),
-('am','producerSpaceDesc','Racine Bio ከሽያጭ ባሻገር ይደግፍዎታል፡ ዘሮች፣ የግብርና ምክር፣ የጋራ መሳሪያዎች እና ቁርጠኛ አምራቾች ማህበረሰብ።'),
+('en','producerSpaceDesc','Hornafresh supports you beyond sales: seeds, agronomic advice, shared equipment and a community of engaged producers.'),
+('zh','producerSpaceDesc','Hornafresh不仅支持您的销售，还提供种子、农业建议、共享设备和积极的生产者社区。'),
+('so','producerSpaceDesc','Hornafresh waxay kaa caawisaa intii ka baxeysa iibka: abuurka, talooyinka beeraha, qaladaadka la wadaago iyo beeralayda iskaashada ah.'),
+('aa','producerSpaceDesc','Hornafresh kee gargaara garra giddini bakoyta kee: xiinoota, gorsha oomishii, qaala wadaagitta noo boodde oomishittoota'),
+('am','producerSpaceDesc','Hornafresh ከሽያጭ ባሻገር ይደግፍዎታል፡ ዘሮች፣ የግብርና ምክር፣ የጋራ መሳሪያዎች እና ቁርጠኛ አምራቾች ማህበረሰብ።'),
 
 ('en','producerSpaceCta','Discover the benefits'),
 ('zh','producerSpaceCta','了解优势'),
@@ -2040,11 +2040,11 @@ INSERT INTO ui_translations (language_code, key, value) VALUES
 ('aa','bp.hero_title2','noo walaalesso ol\'olu'),
 ('am','bp.hero_title2','ከኛ ጋር ያድጉ'),
 
-('en','bp.hero_desc','Racine Bio opens you access to a direct market, as well as concrete resources to develop your agricultural activity.'),
-('zh','bp.hero_desc','Racine Bio为您开放直接市场，同时提供发展农业活动的具体资源。'),
-('so','bp.hero_desc','Racine Bio waxay kuu furtaa suuq toos ah, iyo kheyraad xaqiiqda ah si aad u horumariso hawshaada beeraha.'),
-('aa','bp.hero_desc','Racine Bio suuqa tooskii kee furtaa, kadhaan kheyraad haqiiqii oomishii boosha kee horonsiisi.'),
-('am','bp.hero_desc','Racine Bio ቀጥተኛ ገበያ ያሳርፍልዎታል፣ እንዲሁም የግብርና እንቅስቃሴዎን ለማዳበር ተጨባጭ ሀብቶች።'),
+('en','bp.hero_desc','Hornafresh opens you access to a direct market, as well as concrete resources to develop your agricultural activity.'),
+('zh','bp.hero_desc','Hornafresh为您开放直接市场，同时提供发展农业活动的具体资源。'),
+('so','bp.hero_desc','Hornafresh waxay kuu furtaa suuq toos ah, iyo kheyraad xaqiiqda ah si aad u horumariso hawshaada beeraha.'),
+('aa','bp.hero_desc','Hornafresh suuqa tooskii kee furtaa, kadhaan kheyraad haqiiqii oomishii boosha kee horonsiisi.'),
+('am','bp.hero_desc','Hornafresh ቀጥተኛ ገበያ ያሳርፍልዎታል፣ እንዲሁም የግብርና እንቅስቃሴዎን ለማዳበር ተጨባጭ ሀብቶች።'),
 
 ('en','bp.hero_cta','Submit my application'),
 ('zh','bp.hero_cta','提交我的申请'),
@@ -2052,11 +2052,11 @@ INSERT INTO ui_translations (language_code, key, value) VALUES
 ('aa','bp.hero_cta','Codsiima koo dir'),
 ('am','bp.hero_cta','ማመልከቻዬን አስገባ'),
 
-('en','bp.benefits_title','What you gain by joining Racine Bio'),
-('zh','bp.benefits_title','加入Racine Bio的收益'),
-('so','bp.benefits_title','Maxaad ka helaysaa ku biirista Racine Bio'),
-('aa','bp.benefits_title','Racine Bio ku biirtaa maa faaydootaa'),
-('am','bp.benefits_title','Racine Bio ሲቀላቀሉ የሚያገኙት'),
+('en','bp.benefits_title','What you gain by joining Hornafresh'),
+('zh','bp.benefits_title','加入Hornafresh的收益'),
+('so','bp.benefits_title','Maxaad ka helaysaa ku biirista Hornafresh'),
+('aa','bp.benefits_title','Hornafresh ku biirtaa maa faaydootaa'),
+('am','bp.benefits_title','Hornafresh ሲቀላቀሉ የሚያገኙት'),
 
 ('en','bp.benefits_sub','Much more than a sales platform'),
 ('zh','bp.benefits_sub','远不止一个销售平台'),

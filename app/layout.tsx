@@ -8,7 +8,7 @@ import { FavoritesProvider } from '../context/FavoritesContext';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Racine Bio — Le marché bio de Djibouti',
+  title: 'Hornafresh — Le marché bio de Djibouti',
   description: 'Produits frais bio et locaux livrés à Djibouti',
 };
 

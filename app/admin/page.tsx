@@ -128,7 +128,7 @@ export default function AdminPage() {
           <Link href="/" className="flex items-center gap-3 group">
             <span className="text-3xl">🌿</span>
             <div>
-              <p className="font-bold text-white group-hover:text-[#c5d87a] transition">Racine Bio</p>
+              <p className="font-bold text-white group-hover:text-[#c5d87a] transition">Hornafresh</p>
               <p className="text-[#8aaa00] text-xs font-medium tracking-wider uppercase">
                 {t('admin.administration', 'Administration')}
               </p>

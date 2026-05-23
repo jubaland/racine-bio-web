@@ -149,7 +149,7 @@ export default function BecomeProducerPage() {
             <span className="text-[#c8e050]">{t('bp.hero_title2', 'cultivez avec nous')}</span>
           </h1>
           <p className="text-white/75 text-base md:text-lg max-w-xl mx-auto mb-7 md:mb-8 leading-relaxed">
-            {t('bp.hero_desc', "Racine Bio vous ouvre l'accès à un marché direct, mais aussi à des ressources concrètes pour développer votre activité agricole.")}
+            {t('bp.hero_desc', "Hornafresh vous ouvre l'accès à un marché direct, mais aussi à des ressources concrètes pour développer votre activité agricole.")}
           </p>
           <a href="#candidature" className="inline-block bg-[#c8e050] text-[#1c3a05] px-6 md:px-8 py-3.5 md:py-4 rounded-full font-bold text-base md:text-lg hover:bg-[#d4f060] transition">
             📤 {t('bp.hero_cta', 'Déposer ma candidature')}
@@ -160,7 +160,7 @@ export default function BecomeProducerPage() {
       {/* Ce qu'on vous offre */}
       <section className="max-w-5xl mx-auto px-4 md:px-6 py-10 md:py-16">
         <div className="text-center mb-12">
-          <h2 className="text-2xl font-bold text-gray-800">{t('bp.benefits_title', 'Ce que vous gagnez en rejoignant Racine Bio')}</h2>
+          <h2 className="text-2xl font-bold text-gray-800">{t('bp.benefits_title', 'Ce que vous gagnez en rejoignant Hornafresh')}</h2>
           <p className="text-gray-400 mt-2">{t('bp.benefits_sub', "Bien plus qu'une plateforme de vente")}</p>
         </div>
         <div className="grid md:grid-cols-3 gap-5">

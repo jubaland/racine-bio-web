@@ -1,4 +1,4 @@
--- Traductions des pages et composants principaux du site Racine Bio
+-- Traductions des pages et composants principaux du site Hornafresh
 -- Langues : en, zh, so, aa, am  (fr utilise les fallbacks codés, pas de lignes SQL nécessaires)
 -- Exécuter dans Supabase Dashboard → SQL Editor
 

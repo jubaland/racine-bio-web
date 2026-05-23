@@ -1,4 +1,4 @@
--- Script de traductions pour le panneau admin de Racine Bio
+-- Script de traductions pour le panneau admin de Hornafresh
 -- À exécuter dans Supabase Dashboard → SQL Editor
 -- Langues : en (English), zh (中文), so (Soomaali), aa (Qafar), am (አማርኛ)
 -- Le français (fr) est la langue par défaut (fallback) — aucune ligne nécessaire.

@@ -72,7 +72,7 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
             {t('producer.access_denied', 'Accès réservé aux producteurs')}
           </h1>
           <p className="text-gray-400 mb-6">
-            {t('producer.access_denied_msg', 'Cet espace est réservé aux producteurs approuvés par Racine Bio.')}
+            {t('producer.access_denied_msg', 'Cet espace est réservé aux producteurs approuvés par Hornafresh.')}
           </p>
           <div className="flex flex-col items-center gap-3">
             <Link
@@ -97,7 +97,7 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
           <Link href="/" className="flex items-center gap-3">
             <span className="text-3xl">🌿</span>
             <div>
-              <h1 className="text-xl font-bold text-[#526500]">Racine Bio</h1>
+              <h1 className="text-xl font-bold text-[#526500]">Hornafresh</h1>
               <p className="text-xs text-[#a8c800] font-semibold">
                 {t('producer.space_label', 'Espace Producteur')}
               </p>

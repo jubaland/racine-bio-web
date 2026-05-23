@@ -454,7 +454,7 @@ export default function HomePage({ products, categories, promos, producers }: {
                 <span className="text-[#c8e050]">{t('producerSpaceTitle2', 'Rejoignez notre réseau')}</span>
               </h2>
               <p className="text-white/75 text-base mb-6 leading-relaxed">
-                {t('producerSpaceDesc', 'Racine Bio vous accompagne au-delà de la vente : semences, conseil agronomique, matériel mutualisé et une communauté de producteurs engagés.')}
+                {t('producerSpaceDesc', 'Hornafresh vous accompagne au-delà de la vente : semences, conseil agronomique, matériel mutualisé et une communauté de producteurs engagés.')}
               </p>
               <Link
                 href="/become-producer"
@@ -552,10 +552,10 @@ export default function HomePage({ products, categories, promos, producers }: {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 md:gap-4">
           <div className="flex items-center gap-2">
             <span className="text-2xl">🌿</span>
-            <span className="font-bold text-[#526500]">Racine Bio</span>
+            <span className="font-bold text-[#526500]">Hornafresh</span>
             <span className="text-gray-400 text-sm">— {t('footer', 'Le marché bio de Djibouti')}</span>
           </div>
-          <p className="text-sm text-gray-400">© 2026 Racine Bio. {t('rights', 'Tous droits réservés.')}</p>
+          <p className="text-sm text-gray-400">© 2026 Hornafresh. {t('rights', 'Tous droits réservés.')}</p>
         </div>
       </footer>
     </div>

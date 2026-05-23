@@ -29,7 +29,7 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
         <Link href="/" className="flex items-center gap-3">
           <span className="text-3xl">🌿</span>
           <div>
-            <h1 className="text-xl font-bold text-[#526500]">Racine Bio</h1>
+            <h1 className="text-xl font-bold text-[#526500]">Hornafresh</h1>
             <p className="text-xs text-gray-400">{t('footer', 'Le marché bio de Djibouti')}</p>
           </div>
         </Link>
