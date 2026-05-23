@@ -3,6 +3,7 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  color-scheme: only light;
 }
 
 @theme inline {
@@ -19,7 +20,9 @@ body {
 }
 
 input, select, textarea {
-  color: #1f2937;
+  color: #1f2937 !important;
+  background-color: inherit;
+  -webkit-text-fill-color: #1f2937;
 }
 
 button {
