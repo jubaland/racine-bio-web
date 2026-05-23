@@ -155,24 +155,6 @@ export default function HomePage({ products, categories, promos, producers }: {
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="bg-white border-b border-[#d2e095]">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-          {[
-            { emoji: "🥬", label: t('freshProducts', 'Produits frais'), value: products.length + "+" },
-            { emoji: "👨‍🌾", label: t('producers', 'Producteurs'), value: producers.length + "+" },
-            { emoji: "🇩🇯", label: t('localProductsCount', 'Produits locaux'), value: localProducts.length + "+" },
-            { emoji: "🚚", label: t('fastDelivery', 'Livraison rapide'), value: "48h" },
-          ].map(stat => (
-            <div key={stat.label} className="text-center">
-              <div className="text-3xl mb-2">{stat.emoji}</div>
-              <div className="text-2xl font-bold text-[#526500]">{stat.value}</div>
-              <div className="text-sm text-gray-500">{stat.label}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* Sélection du moment */}
       {featuredProducts.length > 0 && (
         <section id="selection" className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12">
@@ -544,6 +526,24 @@ export default function HomePage({ products, categories, promos, producers }: {
               🌿 {t('howCta', 'Commencer mes achats')}
             </a>
           </div>
+        </div>
+      </section>
+
+      {/* Stats */}
+      <section className="bg-white border-t border-[#d2e095]">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+          {[
+            { emoji: "🥬", label: t('freshProducts', 'Produits frais'), value: products.length + "+" },
+            { emoji: "👨‍🌾", label: t('producers', 'Producteurs'), value: producers.length + "+" },
+            { emoji: "🇩🇯", label: t('localProductsCount', 'Produits locaux'), value: localProducts.length + "+" },
+            { emoji: "🚚", label: t('fastDelivery', 'Livraison rapide'), value: "48h" },
+          ].map(stat => (
+            <div key={stat.label} className="text-center">
+              <div className="text-3xl mb-2">{stat.emoji}</div>
+              <div className="text-2xl font-bold text-[#526500]">{stat.value}</div>
+              <div className="text-sm text-gray-500">{stat.label}</div>
+            </div>
+          ))}
         </div>
       </section>
 
