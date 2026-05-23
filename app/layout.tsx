@@ -8,7 +8,7 @@ import { FavoritesProvider } from '../context/FavoritesContext';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Hornafresh — Le marché frais, bio, local et régional de Djibouti',
+  title: 'Hornafresh — Le marché premium, frais, bio, local et régional de Djibouti',
   description: 'Produits frais bio et locaux livrés à Djibouti',
 };
 

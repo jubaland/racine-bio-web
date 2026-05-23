@@ -81,7 +81,7 @@ export default function LoginPage() {
           <span className="text-4xl">🌿</span>
           <div>
             <p className="text-xl font-bold">Hornafresh</p>
-            <p className="text-xs text-white/60">{t('footer', 'Le marché frais, bio, local et régional de Djibouti')}</p>
+            <p className="text-xs text-white/60">{t('footer', 'Le marché premium, frais, bio, local et régional de Djibouti')}</p>
           </div>
         </Link>
 
@@ -121,7 +121,7 @@ export default function LoginPage() {
         <div className="lg:hidden text-center mb-8">
           <span className="text-5xl">🌿</span>
           <h1 className="text-xl font-bold text-[#526500] mt-2">Hornafresh</h1>
-          <p className="text-xs text-gray-400">{t('footer', 'Le marché frais, bio, local et régional de Djibouti')}</p>
+          <p className="text-xs text-gray-400">{t('footer', 'Le marché premium, frais, bio, local et régional de Djibouti')}</p>
         </div>
 
         <div className="w-full max-w-md">
