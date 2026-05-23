@@ -530,7 +530,7 @@ export default function HomePage({ products, categories, promos, producers }: {
       </section>
 
       {/* Stats */}
-      <section className="bg-white border-t border-[#d2e095]">
+      <section className="bg-[#ecf4d5]">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
           {[
             { emoji: "🥬", label: t('freshProducts', 'Produits frais'), value: products.length + "+" },
