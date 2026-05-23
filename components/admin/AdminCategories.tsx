@@ -74,9 +74,9 @@ export default function AdminCategories() {
       {loading ? (
         <div className="flex items-center justify-center h-48"><p className="text-gray-400">{t('admin.loading', 'Chargement...')}</p></div>
       ) : (
-        <div className="bg-white rounded-2xl border border-[#dde8b0] overflow-hidden">
+        <div className="bg-white rounded-2xl border border-[#d2e095] overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-[#f8faf0] border-b border-[#dde8b0]">
+            <thead className="bg-[#faf7e8] border-b border-[#d2e095]">
               <tr>
                 <th className="text-left px-4 py-3 text-gray-500 font-medium">{t('admin.col_emoji', 'Emoji')}</th>
                 <th className="text-left px-4 py-3 text-gray-500 font-medium">{t('admin.col_label', 'Label')}</th>
@@ -88,7 +88,7 @@ export default function AdminCategories() {
               {categories.length === 0 ? (
                 <tr><td colSpan={4} className="text-center py-12 text-gray-400">{t('admin.no_categories', 'Aucune catégorie')}</td></tr>
               ) : categories.map(c => (
-                <tr key={c.id} className="hover:bg-[#f8faf0] transition">
+                <tr key={c.id} className="hover:bg-[#faf7e8] transition">
                   <td className="px-4 py-3 text-2xl">{c.emoji}</td>
                   <td className="px-4 py-3 font-medium text-gray-800">{c.label}</td>
                   <td className="px-4 py-3 text-gray-400 font-mono text-xs">{c.slug}</td>

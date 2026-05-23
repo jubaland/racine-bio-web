@@ -54,7 +54,7 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f8faf0] flex items-center justify-center">
+      <div className="min-h-screen bg-[#faf7e8] flex items-center justify-center">
         <div className="text-center">
           <p className="text-5xl mb-4 opacity-40">🌱</p>
           <p className="text-gray-400">{t('producer.loading', 'Chargement...')}</p>
@@ -65,7 +65,7 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
 
   if (!producer) {
     return (
-      <div className="min-h-screen bg-[#f8faf0] flex flex-col items-center justify-center px-6">
+      <div className="min-h-screen bg-[#faf7e8] flex flex-col items-center justify-center px-6">
         <div className="text-center max-w-md">
           <p className="text-6xl mb-4">🚫</p>
           <h1 className="text-2xl font-bold text-gray-800 mb-2">
@@ -91,8 +91,8 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8faf0]">
-      <header className="bg-white border-b border-[#dde8b0] sticky top-0 z-40">
+    <div className="min-h-screen bg-[#faf7e8]">
+      <header className="bg-white border-b border-[#d2e095] sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
             <span className="text-3xl">🌿</span>
@@ -108,7 +108,7 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
               <p className="text-sm font-semibold text-gray-700">{producer.full_name}</p>
               <p className="text-xs text-[#7d9800]">🌱 {producer.farm_name}</p>
             </div>
-            <Link href="/" className="text-sm text-gray-400 hover:text-[#7d9800] transition border border-[#dde8b0] px-3 py-1.5 rounded-full">
+            <Link href="/" className="text-sm text-gray-400 hover:text-[#7d9800] transition border border-[#d2e095] px-3 py-1.5 rounded-full">
               ← {t('producer.back_site', 'Site')}
             </Link>
           </div>
@@ -117,7 +117,7 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
 
       <div className="max-w-7xl mx-auto px-6 py-8 flex gap-6">
         <aside className="w-52 flex-shrink-0">
-          <div className="bg-white rounded-2xl border border-[#dde8b0] p-3 mb-4">
+          <div className="bg-white rounded-2xl border border-[#d2e095] p-3 mb-4">
             <nav className="space-y-1">
               {navItems.map(item => (
                 <Link
@@ -126,7 +126,7 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
                     pathname === item.href
                       ? 'bg-[#a8c800] text-white shadow-sm'
-                      : 'text-gray-600 hover:bg-[#f0f7e8] hover:text-[#526500]'
+                      : 'text-gray-600 hover:bg-[#ecf4d5] hover:text-[#526500]'
                   }`}
                 >
                   <span>{item.emoji}</span>
@@ -135,7 +135,7 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
               ))}
             </nav>
           </div>
-          <div className="bg-[#f0f7e8] rounded-2xl p-4 text-center border border-[#dde8b0]">
+          <div className="bg-[#ecf4d5] rounded-2xl p-4 text-center border border-[#d2e095]">
             <p className="text-3xl mb-2">👨‍🌾</p>
             <p className="text-xs font-bold text-[#526500]">{producer.farm_name}</p>
             {producer.region && (

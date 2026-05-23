@@ -5,11 +5,13 @@ import { supabase } from '../../lib/supabase';
 import { useLanguage } from '../../context/LanguageContext';
 import Modal, { ConfirmDelete, FormField, inputClass } from './Modal';
 
-interface Promo { id: number; emoji: string; badge: string; title: string; sub: string; color_start: string; active: boolean; }
-const EMPTY = { emoji: '🎉', badge: '', title: '', sub: '', color_start: '#a8c800', active: true };
+interface Promo { id: number; emoji: string; badge: string; title: string; sub: string; color_start: string; active: boolean; category?: string; }
+interface Category { id: string; slug: string; label: string; }
+const EMPTY = { emoji: '🎉', badge: '', title: '', sub: '', color_start: '#a8c800', active: true, category: '' };
 
 export default function AdminPromos() {
   const [promos, setPromos] = useState<Promo[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -24,8 +26,12 @@ export default function AdminPromos() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase.from('promos').select('*').order('id');
-    setPromos(data || []);
+    const [{ data: promosData }, { data: catsData }] = await Promise.all([
+      supabase.from('promos').select('*').order('id'),
+      supabase.from('categories').select('id, slug, label').order('label'),
+    ]);
+    setPromos(promosData || []);
+    setCategories(catsData || []);
     setLoading(false);
   }, []);
 
@@ -34,7 +40,7 @@ export default function AdminPromos() {
   const openAdd = () => { setEditingId(null); setForm(EMPTY); setError(''); setShowModal(true); };
   const openEdit = (p: Promo) => {
     setEditingId(p.id);
-    setForm({ emoji: p.emoji, badge: p.badge, title: p.title, sub: p.sub, color_start: p.color_start, active: p.active });
+    setForm({ emoji: p.emoji, badge: p.badge, title: p.title, sub: p.sub, color_start: p.color_start, active: p.active, category: p.category || '' });
     setError('');
     setShowModal(true);
   };
@@ -43,7 +49,7 @@ export default function AdminPromos() {
     if (!form.badge || !form.title) { setError(t('admin.error_promos', 'Badge et titre sont requis.')); return; }
     setSaving(true);
     setError('');
-    const payload = { emoji: form.emoji.trim(), badge: form.badge.trim(), title: form.title.trim(), sub: form.sub.trim(), color_start: form.color_start, active: form.active };
+    const payload = { emoji: form.emoji.trim(), badge: form.badge.trim(), title: form.title.trim(), sub: form.sub.trim(), color_start: form.color_start, active: form.active, category: form.category || null };
     const { error: err } = editingId
       ? await supabase.from('promos').update(payload).eq('id', editingId)
       : await supabase.from('promos').insert(payload);
@@ -81,10 +87,10 @@ export default function AdminPromos() {
       ) : (
         <div className="grid gap-4">
           {promos.length === 0 && (
-            <div className="text-center py-12 text-gray-400 bg-white rounded-2xl border border-[#dde8b0]">{t('admin.no_promos', 'Aucune promotion')}</div>
+            <div className="text-center py-12 text-gray-400 bg-white rounded-2xl border border-[#d2e095]">{t('admin.no_promos', 'Aucune promotion')}</div>
           )}
           {promos.map(p => (
-            <div key={p.id} className="bg-white rounded-2xl border border-[#dde8b0] p-5 flex items-center gap-4">
+            <div key={p.id} className="bg-white rounded-2xl border border-[#d2e095] p-5 flex items-center gap-4">
               <div className="w-14 h-14 rounded-xl flex items-center justify-center text-3xl flex-shrink-0"
                 style={{ background: `linear-gradient(135deg, ${p.color_start}20, ${p.color_start}40)` }}>
                 {p.emoji}
@@ -124,7 +130,7 @@ export default function AdminPromos() {
               </FormField>
               <FormField label={t('admin.field_color', 'Couleur principale')}>
                 <div className="flex gap-2">
-                  <input type="color" value={form.color_start} onChange={e => set('color_start', e.target.value)} className="h-10 w-14 rounded-lg border border-[#dde8b0] cursor-pointer" />
+                  <input type="color" value={form.color_start} onChange={e => set('color_start', e.target.value)} className="h-10 w-14 rounded-lg border border-[#d2e095] cursor-pointer" />
                   <input value={form.color_start} onChange={e => set('color_start', e.target.value)} className={inputClass + ' flex-1'} />
                 </div>
               </FormField>
@@ -137,6 +143,14 @@ export default function AdminPromos() {
             </FormField>
             <FormField label={t('admin.field_subtitle', 'Sous-titre')}>
               <input value={form.sub} onChange={e => set('sub', e.target.value)} className={inputClass} placeholder="Jusqu'au 31 décembre" />
+            </FormField>
+            <FormField label={t('admin.field_category', 'Catégorie liée (filtre au clic)')}>
+              <select value={form.category} onChange={e => set('category', e.target.value)} className={inputClass}>
+                <option value="">{t('admin.no_category_filter', '— Aucun filtre —')}</option>
+                {categories.map(c => (
+                  <option key={c.id} value={c.slug}>{c.label}</option>
+                ))}
+              </select>
             </FormField>
             <label className="flex items-center gap-3 cursor-pointer">
               <input type="checkbox" checked={form.active} onChange={e => set('active', e.target.checked)} className="w-4 h-4 accent-[#a8c800]" />

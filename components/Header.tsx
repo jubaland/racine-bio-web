@@ -5,14 +5,12 @@ import Link from 'next/link';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../context/LanguageContext';
 import { useCart } from '../context/CartContext';
-import { useFavorites } from '../context/FavoritesContext';
 import LanguageSelector from './LanguageSelector';
 
 export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
   const [user, setUser] = useState<any>(null);
   const { ui } = useLanguage();
   const { count } = useCart();
-  const { count: favCount } = useFavorites();
   const t = (key: string, fallback: string) => ui[key] || fallback;
 
   useEffect(() => {
@@ -26,7 +24,7 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
   }, []);
 
   return (
-    <header className="bg-white border-b border-[#dde8b0] sticky top-0 z-40">
+    <header className="bg-white border-b border-[#d2e095] sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3">
           <span className="text-3xl">🌿</span>
@@ -43,16 +41,6 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
         <div className="flex items-center gap-3">
           <LanguageSelector />
 
-          {/* Favoris */}
-          <Link href="/favorites" className="relative p-2" title={t('favorites', 'Mes favoris')}>
-            <span className="text-2xl">❤️</span>
-            {favCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
-                {favCount > 9 ? '9+' : favCount}
-              </span>
-            )}
-          </Link>
-
           {user ? (
             <div className="flex items-center gap-2">
               {user.user_metadata?.is_admin && (
@@ -60,7 +48,7 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
                   <span>⚙️</span> Admin
                 </Link>
               )}
-              <Link href="/profile" className="flex items-center gap-2 bg-[#f0f7e8] border border-[#dde8b0] px-3 py-2 rounded-full text-sm font-medium text-[#526500] hover:bg-[#dde8b0] transition">
+              <Link href="/profile" className="flex items-center gap-2 bg-[#ecf4d5] border border-[#d2e095] px-3 py-2 rounded-full text-sm font-medium text-[#526500] hover:bg-[#d2e095] transition">
                 <span>👤</span>
                 <span className="hidden md:block">{user.user_metadata?.full_name || user.email?.split('@')[0]}</span>
               </Link>
@@ -72,6 +60,10 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
               </Link>
               <Link href="/login" className="hidden md:block bg-[#a8c800] text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-[#7d9800] transition">
                 {t('register', "S'inscrire")}
+              </Link>
+              {/* Icône login visible sur mobile */}
+              <Link href="/login" className="md:hidden flex items-center justify-center w-9 h-9 rounded-full bg-[#ecf4d5] border border-[#d2e095] text-[#526500] hover:bg-[#d2e095] transition" title={t('login', 'Se connecter')}>
+                <span className="text-lg">👤</span>
               </Link>
             </>
           )}

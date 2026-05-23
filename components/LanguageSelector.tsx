@@ -12,7 +12,7 @@ export default function LanguageSelector() {
     <div className="relative">
       <button
         onClick={() => setShowDropdown(!showDropdown)}
-        className="flex items-center gap-2 bg-white border border-[#dde8b0] rounded-full px-3 py-2 text-sm hover:border-[#a8c800] transition"
+        className="flex items-center gap-2 bg-white border border-[#d2e095] rounded-full px-3 py-2 text-sm hover:border-[#a8c800] transition"
       >
         <span>{current.flag}</span>
         <span className="hidden md:block text-gray-600">{current.label}</span>
@@ -25,12 +25,12 @@ export default function LanguageSelector() {
             className="fixed inset-0 z-40"
             onClick={() => setShowDropdown(false)}
           />
-          <div className="absolute right-0 top-12 bg-white border border-[#dde8b0] rounded-2xl shadow-lg z-50 overflow-hidden w-44">
+          <div className="absolute right-0 top-12 bg-white border border-[#d2e095] rounded-2xl shadow-lg z-50 overflow-hidden w-44">
             {languages.map(lang => (
               <button
                 key={lang.code}
                 onClick={() => { setCurrentLang(lang.code); setShowDropdown(false); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-[#f0f7e8] transition ${currentLang === lang.code ? 'bg-[#f0f7e8] text-[#526500] font-semibold' : 'text-gray-600'}`}
+                className={`w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-[#ecf4d5] transition ${currentLang === lang.code ? 'bg-[#ecf4d5] text-[#526500] font-semibold' : 'text-gray-600'}`}
               >
                 <span>{lang.flag}</span>
                 <span>{lang.label}</span>

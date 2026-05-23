@@ -49,7 +49,7 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
   };
 
   return (
-    <div className="min-h-screen bg-[#f8faf0]">
+    <div className="min-h-screen bg-[#faf7e8]">
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
       <Header onCartOpen={() => setCartOpen(true)} />
 
@@ -65,17 +65,17 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
         </div>
 
         {/* Product */}
-        <div className="bg-white rounded-3xl overflow-hidden border border-[#dde8b0] shadow-sm mb-8">
+        <div className="bg-white rounded-3xl overflow-hidden border border-[#d2e095] shadow-sm mb-8">
           <div className="grid md:grid-cols-2 gap-0">
 
             {/* Image */}
-            <div className="relative h-80 md:h-auto bg-[#f0f7e8]">
+            <div className="relative h-80 md:h-auto bg-[#ecf4d5]">
               {product.image_url ? (
                 <img src={product.image_url} alt={getProductName(product)} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-8xl opacity-20">📷</div>
               )}
-              <div className={`absolute top-4 left-4 text-xs font-bold px-3 py-1 rounded-full ${isBio ? 'bg-[#eef5b0] text-[#526500]' : 'bg-orange-100 text-orange-700'}`}>
+              <div className={`absolute top-4 left-4 text-xs font-bold px-3 py-1 rounded-full ${isBio ? 'bg-[#edf5a0] text-[#526500]' : 'bg-orange-100 text-orange-700'}`}>
                 {isBio ? `🌿 ${t('product.type_bio', 'Bio')}` : `🥕 ${t('product.type_conv', 'Conventionnel')}`}
               </div>
               <div className="absolute top-4 right-4 bg-white/90 rounded-full px-3 py-1 text-sm">
@@ -108,7 +108,7 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-9 h-9 rounded-full bg-[#f0f7e8] border border-[#dde8b0] flex items-center justify-center text-gray-600 hover:bg-[#dde8b0] transition"
+                    className="w-9 h-9 rounded-full bg-[#ecf4d5] border border-[#d2e095] flex items-center justify-center text-gray-600 hover:bg-[#d2e095] transition"
                   >−</button>
                   <span className="text-lg font-semibold w-8 text-center">{quantity}</span>
                   <button
@@ -119,7 +119,7 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
               </div>
 
               {/* Total ligne */}
-              <div className="bg-[#f8faf0] rounded-2xl p-4 mb-6">
+              <div className="bg-[#faf7e8] rounded-2xl p-4 mb-6">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">{t('product.total', 'Total')}</span>
                   <span className="text-xl font-bold text-[#526500]">
@@ -137,7 +137,7 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
                 </button>
                 <button
                   onClick={() => isFavorite(product.id) ? removeFavorite(product.id) : addFavorite(product)}
-                  className={`w-14 flex items-center justify-center rounded-2xl text-2xl border-2 transition ${isFavorite(product.id) ? 'bg-red-50 border-red-300 text-red-500' : 'bg-white border-[#dde8b0] hover:bg-red-50 hover:border-red-300'}`}
+                  className={`w-14 flex items-center justify-center rounded-2xl text-2xl border-2 transition ${isFavorite(product.id) ? 'bg-red-50 border-red-300 text-red-500' : 'bg-white border-[#d2e095] hover:bg-red-50 hover:border-red-300'}`}
                   title={isFavorite(product.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
                 >
                   {isFavorite(product.id) ? '❤️' : '🤍'}
@@ -152,7 +152,7 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
                   </span>
                 )}
                 {isBio && (
-                  <span className="bg-[#f0f7e8] text-[#526500] text-xs px-3 py-1 rounded-full">
+                  <span className="bg-[#ecf4d5] text-[#526500] text-xs px-3 py-1 rounded-full">
                     🌿 {t('product.bio_badge', 'Certifié Bio')}
                   </span>
                 )}
@@ -170,8 +170,8 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
             <h2 className="text-xl font-semibold text-gray-800 mb-4">{t('product.similar', 'Produits similaires')}</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {relatedProducts.map((p: any) => (
-                <Link key={p.id} href={`/product/${p.id}`} className="bg-white rounded-2xl overflow-hidden border border-[#dde8b0] hover:shadow-md transition">
-                  <div className="h-32 bg-[#f0f7e8]">
+                <Link key={p.id} href={`/product/${p.id}`} className="bg-white rounded-2xl overflow-hidden border border-[#d2e095] hover:shadow-md transition">
+                  <div className="h-32 bg-[#ecf4d5]">
                     {p.image_url ? (
                       <img src={p.image_url} alt={getProductName(p)} className="w-full h-full object-cover" />
                     ) : (

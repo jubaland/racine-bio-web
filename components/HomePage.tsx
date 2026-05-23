@@ -80,22 +80,23 @@ export default function HomePage({ products, categories, promos, producers }: {
   });
 
   const localProducts = products.filter(p => p.is_local);
+  const featuredProducts = products.filter(p => p.is_featured);
 
   return (
-    <div className="min-h-screen bg-[#f8faf0]">
+    <div className="min-h-screen bg-[#faf7e8]">
 
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
       <Header onCartOpen={() => setCartOpen(true)} />
 
       {/* Hero */}
-      <section className="bg-gradient-to-br from-[#2a4f08] to-[#5a9a18] text-white py-20 px-6">
+      <section className="bg-gradient-to-br from-[#1c3a05] via-[#2d6410] to-[#7a5800] text-white py-20 px-6">
         <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-12 items-center">
           <div>
             <div className="inline-flex items-center gap-2 bg-white/20 rounded-full px-4 py-1 text-sm mb-6">
               🇩🇯 {t('heroTag', 'Produits frais de Djibouti et de la région')}
             </div>
             <h2 className="text-5xl font-bold mb-6 leading-tight">
-              {t('tagline', 'Trouvez vos')} <span className="italic text-[#c4e025]">{t('tagline2', 'légumes')}</span> {t('tagline3', 'et fruits du jour')}
+              {t('tagline', 'Trouvez vos')} <span className="italic text-[#f5d020]">{t('tagline2', 'légumes')}</span> {t('tagline3', 'et fruits du jour')}
             </h2>
             <p className="text-lg text-white/80 mb-8">
               {t('heroSub', 'Bio, conventionnel, local — tous les produits frais livrés directement depuis les fermes djiboutiennes.')}
@@ -103,7 +104,7 @@ export default function HomePage({ products, categories, promos, producers }: {
             <div className="flex gap-4 flex-wrap">
               <button
                 onClick={() => setCartOpen(true)}
-                className="bg-white text-[#526500] px-6 py-3 rounded-full font-semibold hover:bg-[#f8faf0] transition"
+                className="bg-white text-[#526500] px-6 py-3 rounded-full font-semibold hover:bg-[#faf7e8] transition"
               >
                 🛒 {t('orderNow', 'Commander maintenant')}
               </button>
@@ -123,7 +124,7 @@ export default function HomePage({ products, categories, promos, producers }: {
                 <div className="p-3">
                   <p className="text-sm font-medium">{getProductName(p)}</p>
                   <p className="text-xs text-white/60">{p.farm}</p>
-                  <p className="text-sm font-bold text-[#c4e025] mt-1">{Number(p.price).toLocaleString()} Fdj</p>
+                  <p className="text-sm font-bold text-[#f5d020] mt-1">{Number(p.price).toLocaleString()} Fdj</p>
                 </div>
               </Link>
             ))}
@@ -132,7 +133,7 @@ export default function HomePage({ products, categories, promos, producers }: {
       </section>
 
       {/* Stats */}
-      <section className="bg-white border-b border-[#dde8b0]">
+      <section className="bg-white border-b border-[#d2e095]">
         <div className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-2 md:grid-cols-4 gap-6">
           {[
             { emoji: "🥬", label: t('freshProducts', 'Produits frais'), value: products.length + "+" },
@@ -149,20 +150,57 @@ export default function HomePage({ products, categories, promos, producers }: {
         </div>
       </section>
 
-      {/* Promos */}
-      {promos.length > 0 && (
-        <section id="promos" className="max-w-7xl mx-auto px-6 py-12">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-6">🔥 {t('promos', 'Promos du moment')}</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            {promos.map((promo: any) => {
-              const promoData = getPromoData(promo);
+      {/* Sélection du moment */}
+      {featuredProducts.length > 0 && (
+        <section id="selection" className="max-w-7xl mx-auto px-6 py-12">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-semibold text-gray-800">⭐ {t('featuredTitle', 'Sélection du moment')}</h2>
+              <p className="text-sm text-gray-400 mt-0.5">{t('featuredSub', 'Produits choisis par notre équipe — anti-gaspi & bons plans')}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {featuredProducts.map((p: any) => {
+              const discount = p.old_price ? Math.round((1 - p.price / p.old_price) * 100) : null;
               return (
-                <a key={promo.id} href="#produits" className="rounded-2xl p-6 text-white relative overflow-hidden cursor-pointer hover:opacity-90 transition" style={{ backgroundColor: promo.color_start || '#2a4f08' }}>
-                  <div className="absolute -top-4 -right-4 text-8xl opacity-20">{promo.emoji}</div>
-                  <span className="bg-white/25 text-xs font-semibold px-3 py-1 rounded-full inline-block mb-3">{promoData.badge}</span>
-                  <h3 className="text-lg font-semibold mb-1">{promoData.title}</h3>
-                  <p className="text-sm text-white/75">{promoData.sub}</p>
-                </a>
+                <div key={p.id} className="bg-white rounded-2xl overflow-hidden border border-[#d2e095] hover:shadow-md transition flex flex-col">
+                  <Link href={`/product/${p.id}`} className="relative">
+                    {p.image_url ? (
+                      <img src={p.image_url} alt={getProductName(p)} className="w-full h-40 object-cover" />
+                    ) : (
+                      <div className="w-full h-40 bg-[#ecf4d5] flex items-center justify-center text-5xl opacity-30">
+                        {p.emoji || '📷'}
+                      </div>
+                    )}
+                    {p.featured_badge && (
+                      <span className="absolute top-2 left-2 bg-[#526500] text-white text-xs font-semibold px-2.5 py-1 rounded-full">
+                        {p.featured_badge}
+                      </span>
+                    )}
+                    {discount && (
+                      <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                        -{discount}%
+                      </span>
+                    )}
+                  </Link>
+                  <div className="p-3 flex flex-col flex-1">
+                    <p className="text-sm font-semibold text-gray-800 line-clamp-2 flex-1">{getProductName(p)}</p>
+                    <p className="text-xs text-gray-400 mt-1">🌱 {p.farm}</p>
+                    <div className="flex items-center justify-between mt-3">
+                      <div>
+                        <p className="text-base font-bold text-[#526500]">{Number(p.price).toLocaleString()} Fdj</p>
+                        {p.old_price && (
+                          <p className="text-xs text-gray-400 line-through">{Number(p.old_price).toLocaleString()} Fdj</p>
+                        )}
+                      </div>
+                      <button
+                        disabled={(p.stock_qty ?? 0) <= 0}
+                        onClick={() => { addItem(p); setCartOpen(true); }}
+                        className="w-8 h-8 bg-[#a8c800] rounded-full flex items-center justify-center text-white font-bold text-lg hover:bg-[#7d9800] transition disabled:opacity-30 disabled:cursor-not-allowed"
+                      >+</button>
+                    </div>
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -180,20 +218,31 @@ export default function HomePage({ products, categories, promos, producers }: {
           </div>
           <div className="flex gap-4 overflow-x-auto pb-4">
             {localProducts.map((p: any) => (
-              <Link key={p.id} href={`/product/${p.id}`} className="flex-none w-48 bg-white rounded-2xl overflow-hidden border border-[#dde8b0] hover:shadow-md transition">
-                {p.image_url ? (
-                  <img src={p.image_url} alt={getProductName(p)} className="w-full h-36 object-cover" />
-                ) : (
-                  <div className="w-full h-36 bg-[#f0f7e8] flex items-center justify-center text-4xl opacity-30">📷</div>
-                )}
+              <Link key={p.id} href={`/product/${p.id}`} className="flex-none w-48 bg-white rounded-2xl overflow-hidden border border-[#d2e095] hover:shadow-md transition">
+                <div className="relative">
+                  {p.image_url ? (
+                    <img src={p.image_url} alt={getProductName(p)} className="w-full h-36 object-cover" />
+                  ) : (
+                    <div className="w-full h-36 bg-[#ecf4d5] flex items-center justify-center text-4xl opacity-30">📷</div>
+                  )}
+                  {(p.stock_qty ?? 0) <= 0 && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                      <span className="bg-white text-gray-700 text-xs font-semibold px-2 py-1 rounded-full">Rupture</span>
+                    </div>
+                  )}
+                  {(p.stock_qty ?? 0) > 0 && (p.stock_qty ?? 0) <= 5 && (
+                    <span className="absolute top-1 right-1 bg-orange-500 text-white text-xs px-1.5 py-0.5 rounded-full">⚠️ {p.stock_qty} {p.unit}</span>
+                  )}
+                </div>
                 <div className="p-3">
                   <p className="text-sm font-medium text-gray-800">{getProductName(p)}</p>
                   <p className="text-xs text-gray-400 mt-1">🌱 {p.farm}</p>
                   <div className="flex items-center justify-between mt-2">
                     <p className="text-sm font-bold text-[#7d9800]">{Number(p.price).toLocaleString()} Fdj</p>
                     <button
+                      disabled={(p.stock_qty ?? 0) <= 0}
                       onClick={(e) => { e.stopPropagation(); e.preventDefault(); addItem(p); setCartOpen(true); }}
-                      className="w-7 h-7 bg-[#a8c800] rounded-full flex items-center justify-center text-white font-bold hover:bg-[#7d9800] transition"
+                      className="w-7 h-7 bg-[#a8c800] rounded-full flex items-center justify-center text-white font-bold hover:bg-[#7d9800] transition disabled:opacity-30 disabled:cursor-not-allowed"
                     >+</button>
                   </div>
                 </div>
@@ -218,50 +267,51 @@ export default function HomePage({ products, categories, promos, producers }: {
             placeholder={t('search', 'Rechercher...')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-white border border-[#dde8b0] rounded-xl text-sm focus:outline-none focus:border-[#a8c800]"
+            className="w-full pl-10 pr-4 py-3 bg-white border border-[#d2e095] rounded-xl text-sm focus:outline-none focus:border-[#a8c800]"
           />
         </div>
 
-        {/* Type filters */}
-        <div className="flex gap-3 overflow-x-auto pb-2 mb-3">
-          {TYPE_FILTERS.map(tf => (
-            <button
-              key={tf.id}
-              onClick={() => setActiveType(tf.id)}
-              className={`flex-none flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition border ${activeType === tf.id ? 'bg-[#e6f0ff] border-[#0066cc] text-[#0066cc]' : 'bg-white border-[#dde8b0] text-gray-600 hover:bg-[#f0f7e8]'}`}
-            >
-              <span>{tf.emoji}</span>
-              <span>{t(tf.labelKey, tf.label)}</span>
-            </button>
-          ))}
-        </div>
+        {/* Filtres */}
+        <div className="flex flex-wrap gap-3 mb-6">
+          <select
+            value={activeCategory}
+            onChange={e => setActiveCategory(e.target.value)}
+            className="flex-1 min-w-[140px] bg-white border border-[#d2e095] rounded-xl px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-[#a8c800] cursor-pointer"
+          >
+            <option value="all">🌿 {t('filter.all_categories', 'Toutes les catégories')}</option>
+            {categories.filter((cat: any) => (cat.slug || cat.id) !== 'all').map((cat: any) => (
+              <option key={cat.id} value={cat.slug || cat.id}>{cat.emoji} {getCategoryLabel(cat)}</option>
+            ))}
+          </select>
 
-        {/* Origin filters */}
-        <div className="flex gap-3 overflow-x-auto pb-2 mb-3">
-          {getAvailableOrigins().map(of => (
-            <button
-              key={of.id}
-              onClick={() => setActiveOrigin(of.id)}
-              className={`flex-none flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition border ${activeOrigin === of.id ? 'bg-[#e6f0ff] border-[#0066cc] text-[#0066cc]' : 'bg-white border-[#dde8b0] text-gray-600 hover:bg-[#f0f7e8]'}`}
-            >
-              <span>{of.flag}</span>
-              <span>{of.label}</span>
-            </button>
-          ))}
-        </div>
+          <select
+            value={activeType}
+            onChange={e => setActiveType(e.target.value)}
+            className="flex-1 min-w-[130px] bg-white border border-[#d2e095] rounded-xl px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-[#a8c800] cursor-pointer"
+          >
+            {TYPE_FILTERS.map(tf => (
+              <option key={tf.id} value={tf.id}>{tf.emoji} {t(tf.labelKey, tf.label)}</option>
+            ))}
+          </select>
 
-        {/* Category filters */}
-        <div className="flex gap-3 overflow-x-auto pb-4 mb-6">
-          {[{ id: 'all', label: t('all', 'Tout'), emoji: '🌿', slug: 'all' }, ...categories].map((cat: any) => (
+          <select
+            value={activeOrigin}
+            onChange={e => setActiveOrigin(e.target.value)}
+            className="flex-1 min-w-[130px] bg-white border border-[#d2e095] rounded-xl px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-[#a8c800] cursor-pointer"
+          >
+            {getAvailableOrigins().map(of => (
+              <option key={of.id} value={of.id}>{of.flag} {of.label}</option>
+            ))}
+          </select>
+
+          {(activeCategory !== 'all' || activeType !== 'all' || activeOrigin !== 'all' || searchQuery) && (
             <button
-              key={cat.id}
-              onClick={() => setActiveCategory(cat.slug || cat.id)}
-              className={`flex-none flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition border ${activeCategory === (cat.slug || cat.id) ? 'bg-[#e6f0ff] border-[#0066cc] text-[#0066cc]' : 'bg-white border-[#dde8b0] text-gray-600 hover:bg-[#f0f7e8]'}`}
+              onClick={() => { setActiveType('all'); setActiveOrigin('all'); setActiveCategory('all'); setSearchQuery(''); }}
+              className="px-4 py-2.5 text-sm text-red-400 hover:text-red-600 border border-red-200 rounded-xl bg-white hover:bg-red-50 transition"
             >
-              <span>{cat.emoji}</span>
-              <span>{getCategoryLabel(cat)}</span>
+              ✕ {t('home.reset_filters', 'Réinitialiser')}
             </button>
-          ))}
+          )}
         </div>
 
         {/* Grille produits */}
@@ -269,12 +319,6 @@ export default function HomePage({ products, categories, promos, producers }: {
           <div className="text-center py-20">
             <p className="text-5xl mb-4 opacity-30">🌿</p>
             <p className="text-gray-400">{t('home.no_products', 'Aucun produit trouvé')}</p>
-            <button
-              onClick={() => { setActiveType('all'); setActiveOrigin('all'); setActiveCategory('all'); setSearchQuery(''); }}
-              className="mt-4 text-sm text-[#7d9800] hover:underline"
-            >
-              {t('home.reset_filters', 'Réinitialiser les filtres')}
-            </button>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -282,17 +326,36 @@ export default function HomePage({ products, categories, promos, producers }: {
               const origin = { flag: ORIGIN_FLAGS[product.origin_country] || '🌍', label: t(`origin.${product.origin_country}`, product.origin_country) };
               const isBio = product.product_type === 'bio';
               return (
-                <Link key={product.id} href={`/product/${product.id}`} className="bg-white rounded-2xl overflow-hidden border border-[#dde8b0] hover:shadow-lg transition group">
-                  <div className="relative h-44 bg-[#f0f7e8]">
+                <Link key={product.id} href={`/product/${product.id}`} className="bg-white rounded-2xl overflow-hidden border border-[#d2e095] hover:shadow-lg transition group">
+                  <div className="relative h-44 bg-[#ecf4d5]">
                     {product.image_url ? (
-                      <img src={product.image_url} alt={getProductName(product)} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+                      <img src={product.image_url} alt={getProductName(product)} className={`w-full h-full object-cover group-hover:scale-105 transition duration-300 ${(product.stock_qty ?? 0) <= 0 ? 'opacity-50' : ''}`} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-5xl opacity-20">📷</div>
                     )}
-                    <div className={`absolute top-2 left-2 text-xs font-bold px-2 py-1 rounded-md ${isBio ? 'bg-[#eef5b0] text-[#526500]' : 'bg-orange-100 text-orange-700'}`}>
+                    {(product.stock_qty ?? 0) <= 0 && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                        <span className="bg-white text-gray-700 text-xs font-semibold px-3 py-1 rounded-full shadow">Rupture de stock</span>
+                      </div>
+                    )}
+                    {(product.stock_qty ?? 0) > 0 && (product.stock_qty ?? 0) <= 5 && (
+                      <div className="absolute bottom-2 left-2 bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">
+                        ⚠️ Plus que {product.stock_qty} {product.unit}
+                      </div>
+                    )}
+                    <div className={`absolute top-2 left-2 text-xs font-bold px-2 py-1 rounded-md ${isBio ? 'bg-[#edf5a0] text-[#526500]' : 'bg-orange-100 text-orange-700'}`}>
                       {isBio ? `🌿 ${t('product.type_bio', 'Bio')}` : `🥕 ${t('product.type_conv', 'Conv.')}`}
                     </div>
-                    <div className="absolute top-2 right-2 bg-white/90 rounded-full px-2 py-1 text-xs">
+                    {/* Bouton favori sur l'image */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); e.preventDefault(); isFavorite(product.id) ? removeFavorite(product.id) : addFavorite(product); }}
+                      className="absolute top-2 right-2 w-8 h-8 bg-[#a8c800] rounded-full flex items-center justify-center shadow hover:bg-[#7d9800] hover:scale-110 transition-all text-base"
+                      title={isFavorite(product.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                    >
+                      {isFavorite(product.id) ? '❤️' : '🤍'}
+                    </button>
+                    {/* Drapeau en bas à droite */}
+                    <div className="absolute bottom-2 right-2 bg-white/80 rounded-full px-2 py-0.5 text-xs backdrop-blur-sm">
                       {origin.flag}
                     </div>
                   </div>
@@ -306,17 +369,11 @@ export default function HomePage({ products, categories, promos, producers }: {
                         )}
                         <p className="text-sm font-bold text-[#7d9800]">{Number(product.price).toLocaleString()} Fdj <span className="text-xs font-normal text-gray-400">{product.unit}</span></p>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); e.preventDefault(); isFavorite(product.id) ? removeFavorite(product.id) : addFavorite(product); }}
-                          className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-50 transition text-base"
-                          title={isFavorite(product.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-                        >{isFavorite(product.id) ? '❤️' : '🤍'}</button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); e.preventDefault(); addItem(product); setCartOpen(true); }}
-                          className="w-8 h-8 bg-[#a8c800] rounded-full flex items-center justify-center text-white text-lg font-bold hover:bg-[#7d9800] transition"
-                        >+</button>
-                      </div>
+                      <button
+                        disabled={(product.stock_qty ?? 0) <= 0}
+                        onClick={(e) => { e.stopPropagation(); e.preventDefault(); addItem(product); setCartOpen(true); }}
+                        className="w-8 h-8 bg-[#a8c800] rounded-full flex items-center justify-center text-white text-lg font-bold hover:bg-[#7d9800] transition disabled:opacity-30 disabled:cursor-not-allowed"
+                      >+</button>
                     </div>
                   </div>
                 </Link>
@@ -332,30 +389,106 @@ export default function HomePage({ products, categories, promos, producers }: {
           <h2 className="text-2xl font-semibold text-gray-800 mb-6">👨‍🌾 {t('ourProducers', 'Nos producteurs')}</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {producers.map((p: any) => (
-              <div key={p.id} className="bg-white rounded-2xl p-6 text-center border border-[#dde8b0] hover:shadow-md transition">
+              <div key={p.id} className="bg-white rounded-2xl p-6 text-center border border-[#d2e095] hover:shadow-md transition">
                 <div className="text-4xl mb-3">{p.emoji}</div>
                 <h3 className="font-semibold text-gray-800 text-sm">{p.name}</h3>
                 <p className="text-xs text-gray-400 mt-1">{p.region}</p>
-                <p className="text-xs text-amber-500 mt-2">{'★'.repeat(Math.round(p.rating))} {p.rating}</p>
               </div>
             ))}
           </div>
         </section>
       )}
 
-      {/* CTA */}
-      <section className="bg-gradient-to-br from-[#2a4f08] to-[#5a9a18] text-white py-16 px-6">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-3xl font-bold mb-4">📱 {t('downloadApp', "Téléchargez l'application")}</h2>
-          <p className="text-white/80 mb-8">{t('downloadSub', 'Commandez vos produits frais depuis votre téléphone. Disponible sur Android.')}</p>
-          <button className="bg-white text-[#526500] px-8 py-4 rounded-full font-bold text-lg hover:bg-[#f8faf0] transition">
-            📥 {t('downloadPlayStore', 'Télécharger sur Play Store')}
-          </button>
+      {/* Espace producteur */}
+      <section className="bg-gradient-to-br from-[#1c3a05] via-[#2d5c0a] to-[#1c3a05] py-16 px-6 text-white">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div>
+              <span className="inline-block bg-white/20 text-white text-xs font-semibold px-3 py-1 rounded-full mb-4">
+                👨‍🌾 {t('producerSpaceTag', 'Espace Producteur')}
+              </span>
+              <h2 className="text-3xl font-bold mb-4 leading-tight">
+                {t('producerSpaceTitle', 'Vous êtes producteur ?')}<br />
+                <span className="text-[#c8e050]">{t('producerSpaceTitle2', 'Rejoignez notre réseau')}</span>
+              </h2>
+              <p className="text-white/75 text-base mb-6 leading-relaxed">
+                {t('producerSpaceDesc', 'Racine Bio vous accompagne au-delà de la vente : semences, conseil agronomique, matériel mutualisé et une communauté de producteurs engagés.')}
+              </p>
+              <Link
+                href="/become-producer"
+                className="inline-block bg-[#c8e050] text-[#1c3a05] px-7 py-3.5 rounded-full font-bold hover:bg-[#d4f060] transition"
+              >
+                {t('producerSpaceCta', 'Découvrir les avantages')} →
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { emoji: '🌱', title: t('ps.seeds', 'Semences bio'), desc: t('ps.seeds_desc', 'Accès à des semences certifiées à tarif préférentiel') },
+                { emoji: '🎓', title: t('ps.advice', 'Conseil agronomique'), desc: t('ps.advice_desc', 'Experts disponibles pour vous accompagner') },
+                { emoji: '🚜', title: t('ps.equipment', 'Matériel partagé'), desc: t('ps.equipment_desc', 'Location et prêt entre producteurs partenaires') },
+                { emoji: '💬', title: t('ps.community', 'Communauté'), desc: t('ps.community_desc', 'Échanges, entraide et retours d\'expérience') },
+              ].map(b => (
+                <div key={b.title} className="bg-white/10 backdrop-blur rounded-2xl p-4 hover:bg-white/15 transition">
+                  <span className="text-2xl">{b.emoji}</span>
+                  <p className="text-sm font-semibold mt-2 mb-1">{b.title}</p>
+                  <p className="text-xs text-white/60">{b.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Comment ça marche */}
+      <section className="bg-white border-t border-[#d2e095] py-16 px-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-2xl font-bold text-gray-800">{t('howItWorksTitle', 'Comment ça marche ?')}</h2>
+            <p className="text-gray-400 mt-2">{t('howItWorksSub', 'Commander vos produits frais en 3 étapes simples')}</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8 relative">
+            {/* Ligne de connexion (desktop) */}
+            <div className="hidden md:block absolute top-10 left-1/4 right-1/4 h-0.5 bg-[#d2e095]" />
+            {[
+              {
+                step: '1',
+                emoji: '🛒',
+                title: t('howStep1Title', 'Parcourez'),
+                desc: t('howStep1Desc', 'Explorez nos produits bio et locaux, filtrés par catégorie, origine ou type.'),
+              },
+              {
+                step: '2',
+                emoji: '📦',
+                title: t('howStep2Title', 'Commandez'),
+                desc: t('howStep2Desc', 'Ajoutez au panier, choisissez votre mode de paiement et confirmez en quelques clics.'),
+              },
+              {
+                step: '3',
+                emoji: '🚚',
+                title: t('howStep3Title', 'Recevez'),
+                desc: t('howStep3Desc', 'Vos produits frais sont livrés directement depuis les fermes jusqu\'à votre porte.'),
+              },
+            ].map(s => (
+              <div key={s.step} className="flex flex-col items-center text-center relative">
+                <div className="w-20 h-20 bg-[#ecf4d5] rounded-full flex items-center justify-center text-4xl mb-4 border-4 border-white shadow-sm z-10">
+                  {s.emoji}
+                </div>
+                <span className="text-xs font-bold text-[#a8c800] uppercase tracking-widest mb-1">{t('howStepLabel', 'Étape')} {s.step}</span>
+                <h3 className="text-lg font-bold text-gray-800 mb-2">{s.title}</h3>
+                <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
+              </div>
+            ))}
+          </div>
+          <div className="text-center mt-12">
+            <a href="#produits" className="inline-block bg-[#a8c800] text-white px-8 py-3.5 rounded-full font-semibold hover:bg-[#7d9800] transition">
+              🌿 {t('howCta', 'Commencer mes achats')}
+            </a>
+          </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-[#dde8b0] py-8 px-6">
+      <footer className="bg-white border-t border-[#d2e095] py-8 px-6">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <span className="text-2xl">🌿</span>

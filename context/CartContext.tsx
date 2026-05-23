@@ -10,6 +10,7 @@ interface CartItem {
   image_url: string | null;
   farm: string;
   quantity: number;
+  stock_qty: number;
 }
 
 interface CartContextType {
@@ -36,11 +37,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
 
   const addItem = (product: any) => {
+    const stock = Number(product.stock_qty ?? 0);
     setItems(prev => {
       const existing = prev.find(i => i.id === product.id);
       if (existing) {
+        if (existing.quantity >= stock) return prev; // stock épuisé
         return prev.map(i => i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i);
       }
+      if (stock <= 0) return prev; // hors stock
       return [...prev, {
         id: product.id,
         name: product.name,
@@ -49,6 +53,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         image_url: product.image_url,
         farm: product.farm,
         quantity: 1,
+        stock_qty: stock,
       }];
     });
   };
@@ -58,11 +63,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateQuantity = (id: number, quantity: number) => {
-    if (quantity <= 0) {
-      removeItem(id);
-      return;
-    }
-    setItems(prev => prev.map(i => i.id === id ? { ...i, quantity } : i));
+    if (quantity <= 0) { removeItem(id); return; }
+    setItems(prev => prev.map(i => {
+      if (i.id !== id) return i;
+      return { ...i, quantity: Math.min(quantity, i.stock_qty) };
+    }));
   };
 
   const clearCart = () => setItems([]);

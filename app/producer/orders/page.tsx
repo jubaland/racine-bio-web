@@ -108,7 +108,7 @@ function OrdersContent({ producer }: { producer: any }) {
               className={`px-3 py-1.5 rounded-xl text-xs font-medium transition ${
                 filterStatus === s.value
                   ? 'bg-[#526500] text-white'
-                  : 'bg-white border border-[#dde8b0] text-gray-600 hover:border-[#a8c800]'
+                  : 'bg-white border border-[#d2e095] text-gray-600 hover:border-[#a8c800]'
               }`}
             >
               {s.label}
@@ -124,7 +124,7 @@ function OrdersContent({ producer }: { producer: any }) {
       ) : (
         <div className="space-y-3">
           {orders.length === 0 && (
-            <div className="text-center py-16 bg-white rounded-2xl border border-[#dde8b0]">
+            <div className="text-center py-16 bg-white rounded-2xl border border-[#d2e095]">
               <p className="text-5xl mb-4 opacity-20">📦</p>
               <p className="text-gray-400">
                 {filterStatus
@@ -137,9 +137,9 @@ function OrdersContent({ producer }: { producer: any }) {
             const info = statusInfo(order.status);
             const isExpanded = expandedId === order.id;
             return (
-              <div key={order.id} className="bg-white rounded-2xl border border-[#dde8b0] overflow-hidden">
+              <div key={order.id} className="bg-white rounded-2xl border border-[#d2e095] overflow-hidden">
                 <div
-                  className="flex items-center gap-4 p-5 cursor-pointer hover:bg-[#f8faf0] transition"
+                  className="flex items-center gap-4 p-5 cursor-pointer hover:bg-[#faf7e8] transition"
                   onClick={() => toggleExpand(order.id)}
                 >
                   <div className="flex-1">
@@ -169,7 +169,7 @@ function OrdersContent({ producer }: { producer: any }) {
                 </div>
 
                 {isExpanded && (
-                  <div className="border-t border-[#dde8b0] px-5 py-4 bg-[#f8faf0]">
+                  <div className="border-t border-[#d2e095] px-5 py-4 bg-[#faf7e8]">
                     {!orderItems[order.id] ? (
                       <p className="text-sm text-gray-400">{t('producer.loading', 'Chargement...')}</p>
                     ) : orderItems[order.id].length === 0 ? (

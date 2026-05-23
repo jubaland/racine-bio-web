@@ -133,7 +133,7 @@ function ProductsContent({ producer }: { producer: any }) {
           <p className="text-gray-400">{t('producer.loading', 'Chargement...')}</p>
         </div>
       ) : products.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-[#dde8b0] text-center py-16">
+        <div className="bg-white rounded-2xl border border-[#d2e095] text-center py-16">
           <p className="text-5xl mb-4 opacity-20">🥬</p>
           <p className="text-gray-400 mb-5">
             {t('producer.no_products', "Vous n'avez pas encore de produits")}
@@ -146,10 +146,10 @@ function ProductsContent({ producer }: { producer: any }) {
           </button>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-[#dde8b0] overflow-hidden">
+        <div className="bg-white rounded-2xl border border-[#d2e095] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-[#f8faf0] border-b border-[#dde8b0]">
+              <thead className="bg-[#faf7e8] border-b border-[#d2e095]">
                 <tr>
                   <th className="text-left px-4 py-3 text-gray-500 font-medium">
                     {t('admin.col_product', 'Produit')}
@@ -170,13 +170,13 @@ function ProductsContent({ producer }: { producer: any }) {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {products.map(p => (
-                  <tr key={p.id} className="hover:bg-[#f8faf0] transition">
+                  <tr key={p.id} className="hover:bg-[#faf7e8] transition">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         {p.image_url ? (
                           <img src={p.image_url} alt={p.name} className="w-10 h-10 rounded-lg object-cover" />
                         ) : (
-                          <div className="w-10 h-10 rounded-lg bg-[#f0f7e8] flex items-center justify-center text-xl">🥬</div>
+                          <div className="w-10 h-10 rounded-lg bg-[#ecf4d5] flex items-center justify-center text-xl">🥬</div>
                         )}
                         <div>
                           <p className="font-medium text-gray-800">{p.name}</p>
@@ -191,7 +191,7 @@ function ProductsContent({ producer }: { producer: any }) {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <span className="px-2 py-1 bg-[#f0f7e8] text-[#526500] rounded-full text-xs">
+                      <span className="px-2 py-1 bg-[#ecf4d5] text-[#526500] rounded-full text-xs">
                         {p.category || '—'}
                       </span>
                     </td>

@@ -83,5 +83,5 @@ export function FormField({ label, children }: FormFieldProps) {
   );
 }
 
-export const inputClass = 'w-full border border-[#dde8b0] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#a8c800] bg-[#f8faf0]';
-export const selectClass = 'w-full border border-[#dde8b0] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#a8c800] bg-[#f8faf0]';
+export const inputClass = 'w-full border border-[#d2e095] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#a8c800] bg-[#faf7e8]';
+export const selectClass = 'w-full border border-[#d2e095] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#a8c800] bg-[#faf7e8]';

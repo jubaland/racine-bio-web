@@ -92,7 +92,7 @@ export default function AdminRequests() {
     return (
       <div>
         <h1 className="text-2xl font-bold text-gray-800 mb-6">📋 {t('admin.nav_requests', 'Demandes producteurs')}</h1>
-        <div className="bg-white rounded-2xl border border-[#dde8b0] p-8">
+        <div className="bg-white rounded-2xl border border-[#d2e095] p-8">
           <div className="max-w-lg mx-auto text-center">
             <p className="text-5xl mb-4">🗃️</p>
             <h2 className="text-lg font-bold text-gray-800 mb-2">{t('admin.table_not_configured', 'Table non configurée')}</h2>
@@ -116,7 +116,7 @@ export default function AdminRequests() {
                 <p className="text-xs text-gray-400 mt-3">
                   Supabase Dashboard → SQL Editor
                 </p>
-                <button onClick={fetchAll} className="mt-4 w-full py-2.5 border border-[#dde8b0] rounded-xl text-sm text-gray-600 hover:bg-[#f8faf0] transition">
+                <button onClick={fetchAll} className="mt-4 w-full py-2.5 border border-[#d2e095] rounded-xl text-sm text-gray-600 hover:bg-[#faf7e8] transition">
                   {t('admin.check_again', '🔄 Vérifier à nouveau')}
                 </button>
               </div>
@@ -141,7 +141,7 @@ export default function AdminRequests() {
         <div className="flex gap-2 flex-wrap">
           {statusFilters.map(s => (
             <button key={s.value} onClick={() => setFilterStatus(s.value)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition ${filterStatus === s.value ? 'bg-[#526500] text-white' : 'bg-white border border-[#dde8b0] text-gray-600 hover:border-[#a8c800]'}`}>
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition ${filterStatus === s.value ? 'bg-[#526500] text-white' : 'bg-white border border-[#d2e095] text-gray-600 hover:border-[#a8c800]'}`}>
               {s.label}
             </button>
           ))}
@@ -150,7 +150,7 @@ export default function AdminRequests() {
 
       <div className="grid gap-3">
         {requests.length === 0 && (
-          <div className="text-center py-12 text-gray-400 bg-white rounded-2xl border border-[#dde8b0]">
+          <div className="text-center py-12 text-gray-400 bg-white rounded-2xl border border-[#d2e095]">
             <p className="text-4xl mb-3 opacity-20">📋</p>
             {filterStatus ? t('admin.requests_none_status', 'Aucune demande avec ce statut') : t('admin.requests_none', 'Aucune demande')}
           </div>
@@ -158,9 +158,9 @@ export default function AdminRequests() {
         {requests.map(req => {
           const info = statusInfo(req.status);
           return (
-            <div key={req.id} className="bg-white rounded-2xl border border-[#dde8b0] p-5">
+            <div key={req.id} className="bg-white rounded-2xl border border-[#d2e095] p-5">
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-xl bg-[#f0f7e8] flex items-center justify-center text-2xl flex-shrink-0">👨‍🌾</div>
+                <div className="w-12 h-12 rounded-xl bg-[#ecf4d5] flex items-center justify-center text-2xl flex-shrink-0">👨‍🌾</div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <p className="font-semibold text-gray-800">{req.full_name}</p>
@@ -224,7 +224,7 @@ export default function AdminRequests() {
             </div>
             <div>
               <p className="text-xs text-gray-400 mb-1">{t('admin.field_products_desc', 'Produits / Description')}</p>
-              <p className="text-sm text-gray-700 bg-[#f8faf0] rounded-xl p-3">{selectedRequest.products_description || '—'}</p>
+              <p className="text-sm text-gray-700 bg-[#faf7e8] rounded-xl p-3">{selectedRequest.products_description || '—'}</p>
             </div>
             <div className="flex items-center justify-between">
               <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusInfo(selectedRequest.status).cls}`}>

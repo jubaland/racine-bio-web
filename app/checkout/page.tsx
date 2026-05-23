@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCart } from '../../context/CartContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
@@ -18,6 +18,10 @@ export default function CheckoutPage() {
     { id: 'cash',   label: t('checkout.cash_label',   'Espèces'),  emoji: '💵', desc: t('checkout.cash_desc',   'Paiement à la livraison') },
   ];
 
+  const [user, setUser] = useState<any>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [guestMode, setGuestMode] = useState(false);
+
   const [step, setStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [phone, setPhone] = useState('');
@@ -26,38 +30,61 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [orderId, setOrderId] = useState<number | null>(null);
+  const [stockError, setStockError] = useState<{ name: string; available: number; unit: string; requested: number }[] | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user || null);
+      setAuthChecked(true);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      setUser(session?.user || null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleOrder = async () => {
     setLoading(true);
+    setStockError(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
 
-      const { data: order, error } = await supabase
-        .from('orders')
-        .insert({
-          user_id: session?.user?.id || null,
-          total,
-          status: 'pending',
-          payment_method: paymentMethod,
-          phone,
-          address,
-          customer_name: name,
-        })
-        .select()
-        .single();
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order: {
+            user_id: session?.user?.id || null,
+            total,
+            status: 'pending',
+            payment_method: paymentMethod,
+            phone,
+            address,
+            customer_name: name,
+          },
+          items: items.map(item => ({
+            product_id:        item.id,
+            quantity:          item.quantity,
+            price:             item.price,
+            product_name:      item.name,
+            product_image_url: item.image_url ?? null,
+            product_unit:      item.unit,
+            product_farm:      item.farm ?? null,
+          })),
+        }),
+      });
 
-      if (error) throw error;
+      const json = await res.json();
 
-      await supabase.from('order_items').insert(
-        items.map(item => ({
-          order_id: order.id,
-          product_id: item.id,
-          quantity: item.quantity,
-          price: item.price,
-        }))
-      );
+      if (!res.ok) {
+        if (json.error === 'stock_insufficient') {
+          setStockError(json.items);
+          return;
+        }
+        throw new Error(json.error || 'Erreur serveur');
+      }
 
-      setOrderId(order.id);
+      setOrderId(json.order.id);
       clearCart();
       setSuccess(true);
     } catch (e) {
@@ -69,7 +96,7 @@ export default function CheckoutPage() {
 
   if (items.length === 0 && !success) {
     return (
-      <div className="min-h-screen bg-[#f8faf0]">
+      <div className="min-h-screen bg-[#faf7e8]">
         <Header onCartOpen={() => {}} />
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
@@ -86,7 +113,7 @@ export default function CheckoutPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-[#f8faf0]">
+      <div className="min-h-screen bg-[#faf7e8]">
         <Header onCartOpen={() => {}} />
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center max-w-md mx-auto px-6">
@@ -96,7 +123,7 @@ export default function CheckoutPage() {
             <p className="text-gray-500 text-sm mb-8">
               {t('checkout.thanks', 'Merci pour votre commande. Vous serez contacté pour la livraison.')}
             </p>
-            <div className="bg-white rounded-2xl p-4 border border-[#dde8b0] mb-6">
+            <div className="bg-white rounded-2xl p-4 border border-[#d2e095] mb-6">
               <div className="flex items-center justify-between">
                 <span className="text-gray-600">{t('checkout.payment_method_label', 'Mode de paiement')}</span>
                 <span className="font-medium">{PAYMENT_METHODS.find(p => p.id === paymentMethod)?.label}</span>
@@ -118,7 +145,7 @@ export default function CheckoutPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#f8faf0]">
+    <div className="min-h-screen bg-[#faf7e8]">
       <Header onCartOpen={() => {}} />
 
       <div className="max-w-3xl mx-auto px-6 py-8">
@@ -129,7 +156,7 @@ export default function CheckoutPage() {
         <div className="flex items-center gap-4 mb-8">
           {STEPS.map((s, i) => (
             <div key={s.n} className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= s.n ? 'bg-[#a8c800] text-white' : 'bg-white border border-[#dde8b0] text-gray-400'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= s.n ? 'bg-[#a8c800] text-white' : 'bg-white border border-[#d2e095] text-gray-400'}`}>
                 {s.n}
               </div>
               <span className={`text-sm ${step >= s.n ? 'text-gray-800 font-medium' : 'text-gray-400'}`}>{s.label}</span>
@@ -141,14 +168,14 @@ export default function CheckoutPage() {
         {/* Step 1 — Récapitulatif */}
         {step === 1 && (
           <div>
-            <div className="bg-white rounded-3xl p-6 border border-[#dde8b0] shadow-sm mb-4">
+            <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-4">
               <h2 className="text-lg font-semibold text-gray-800 mb-4">
                 🛒 {t('checkout.your_order', 'Votre commande')}
               </h2>
               <div className="space-y-3">
                 {items.map(item => (
                   <div key={item.id} className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-xl overflow-hidden bg-[#f0f7e8] flex-none">
+                    <div className="w-14 h-14 rounded-xl overflow-hidden bg-[#ecf4d5] flex-none">
                       {item.image_url ? (
                         <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
                       ) : (
@@ -163,7 +190,7 @@ export default function CheckoutPage() {
                   </div>
                 ))}
               </div>
-              <div className="border-t border-[#dde8b0] mt-4 pt-4 flex items-center justify-between">
+              <div className="border-t border-[#d2e095] mt-4 pt-4 flex items-center justify-between">
                 <span className="font-semibold text-gray-800">{t('checkout.total', 'Total')}</span>
                 <span className="text-xl font-bold text-[#526500]">{total.toLocaleString()} Fdj</span>
               </div>
@@ -180,7 +207,7 @@ export default function CheckoutPage() {
         {/* Step 2 — Livraison */}
         {step === 2 && (
           <div>
-            <div className="bg-white rounded-3xl p-6 border border-[#dde8b0] shadow-sm mb-4">
+            <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-4">
               <h2 className="text-lg font-semibold text-gray-800 mb-4">
                 🚚 {t('checkout.delivery_info', 'Informations de livraison')}
               </h2>
@@ -194,7 +221,7 @@ export default function CheckoutPage() {
                     value={name}
                     onChange={e => setName(e.target.value)}
                     placeholder={t('checkout.name_placeholder', 'Ex: Ahmed Hassan')}
-                    className="w-full border border-[#dde8b0] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] bg-[#f8faf0]"
+                    className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] bg-[#faf7e8]"
                   />
                 </div>
                 <div>
@@ -206,7 +233,7 @@ export default function CheckoutPage() {
                     value={phone}
                     onChange={e => setPhone(e.target.value)}
                     placeholder={t('checkout.phone_placeholder', 'Ex: 77 XX XX XX')}
-                    className="w-full border border-[#dde8b0] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] bg-[#f8faf0]"
+                    className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] bg-[#faf7e8]"
                   />
                 </div>
                 <div>
@@ -218,7 +245,7 @@ export default function CheckoutPage() {
                     onChange={e => setAddress(e.target.value)}
                     placeholder={t('checkout.address_placeholder', 'Ex: Quartier 4, Rue de la Paix, Djibouti-Ville')}
                     rows={3}
-                    className="w-full border border-[#dde8b0] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] bg-[#f8faf0] resize-none"
+                    className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] bg-[#faf7e8] resize-none"
                   />
                 </div>
               </div>
@@ -226,7 +253,7 @@ export default function CheckoutPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => setStep(1)}
-                className="flex-1 bg-white text-gray-600 py-4 rounded-2xl font-semibold border border-[#dde8b0] hover:bg-[#f0f7e8] transition"
+                className="flex-1 bg-white text-gray-600 py-4 rounded-2xl font-semibold border border-[#d2e095] hover:bg-[#ecf4d5] transition"
               >
                 {t('checkout.back', '← Retour')}
               </button>
@@ -241,10 +268,43 @@ export default function CheckoutPage() {
           </div>
         )}
 
+        {/* Step 3 — Garde auth */}
+        {step === 3 && authChecked && !user && !guestMode && (
+          <div className="bg-white rounded-3xl p-8 border border-[#d2e095] shadow-sm text-center">
+            <p className="text-5xl mb-4">🔐</p>
+            <h2 className="text-xl font-bold text-gray-800 mb-2">
+              {t('checkout.auth_gate_title', 'Identifiez-vous pour continuer')}
+            </h2>
+            <p className="text-sm text-gray-400 mb-8">
+              {t('checkout.auth_gate_sub', 'Connectez-vous pour suivre vos commandes, ou continuez sans compte.')}
+            </p>
+            <div className="flex flex-col gap-3">
+              <Link
+                href={`/login?redirect=/checkout`}
+                className="w-full bg-[#a8c800] text-white py-3.5 rounded-2xl font-semibold hover:bg-[#7d9800] transition"
+              >
+                {t('checkout.auth_signin', '🔑 Se connecter / S\'inscrire')}
+              </Link>
+              <button
+                onClick={() => setGuestMode(true)}
+                className="w-full bg-white border border-[#d2e095] text-gray-600 py-3.5 rounded-2xl font-semibold hover:bg-[#ecf4d5] transition"
+              >
+                {t('checkout.auth_guest', 'Continuer sans compte →')}
+              </button>
+              <button
+                onClick={() => setStep(2)}
+                className="text-sm text-gray-400 hover:text-gray-600 mt-1"
+              >
+                {t('checkout.back', '← Retour')}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Step 3 — Paiement */}
-        {step === 3 && (
+        {step === 3 && authChecked && (user || guestMode) && (
           <div>
-            <div className="bg-white rounded-3xl p-6 border border-[#dde8b0] shadow-sm mb-4">
+            <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-4">
               <h2 className="text-lg font-semibold text-gray-800 mb-4">
                 💳 {t('checkout.payment_title', 'Mode de paiement')}
               </h2>
@@ -255,8 +315,8 @@ export default function CheckoutPage() {
                     onClick={() => setPaymentMethod(method.id)}
                     className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition ${
                       paymentMethod === method.id
-                        ? 'border-[#a8c800] bg-[#f0f7e8]'
-                        : 'border-[#dde8b0] bg-white hover:bg-[#f8faf0]'
+                        ? 'border-[#a8c800] bg-[#ecf4d5]'
+                        : 'border-[#d2e095] bg-white hover:bg-[#faf7e8]'
                     }`}
                   >
                     <span className="text-3xl">{method.emoji}</span>
@@ -282,12 +342,12 @@ export default function CheckoutPage() {
                   <input
                     type="tel"
                     placeholder={t('checkout.phone_placeholder', 'Ex: 77 XX XX XX')}
-                    className="w-full border border-[#dde8b0] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] bg-[#f8faf0]"
+                    className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] bg-[#faf7e8]"
                   />
                 </div>
               )}
 
-              <div className="border-t border-[#dde8b0] mt-6 pt-4">
+              <div className="border-t border-[#d2e095] mt-6 pt-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-gray-600">{t('checkout.subtotal', 'Sous-total')}</span>
                   <span className="font-medium">{total.toLocaleString()} Fdj</span>
@@ -303,10 +363,24 @@ export default function CheckoutPage() {
               </div>
             </div>
 
+            {stockError && (
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-2">
+                <p className="text-red-700 font-semibold text-sm mb-2">⚠️ {t('checkout.stock_error', 'Stock insuffisant pour certains articles :')}</p>
+                <ul className="space-y-1">
+                  {stockError.map((item, i) => (
+                    <li key={i} className="text-sm text-red-600">
+                      <span className="font-medium">{item.name}</span> — demandé : {item.requested} {item.unit}, disponible : {item.available} {item.unit}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-red-400 mt-2">{t('checkout.stock_adjust', 'Ajustez les quantités dans votre panier.')}</p>
+              </div>
+            )}
+
             <div className="flex gap-3">
               <button
                 onClick={() => setStep(2)}
-                className="flex-1 bg-white text-gray-600 py-4 rounded-2xl font-semibold border border-[#dde8b0] hover:bg-[#f0f7e8] transition"
+                className="flex-1 bg-white text-gray-600 py-4 rounded-2xl font-semibold border border-[#d2e095] hover:bg-[#ecf4d5] transition"
               >
                 {t('checkout.back', '← Retour')}
               </button>

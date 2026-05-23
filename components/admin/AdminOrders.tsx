@@ -1,12 +1,25 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../../lib/supabase';
 import { useLanguage } from '../../context/LanguageContext';
+
+interface OrderItem {
+  id: string;
+  product_id: number;
+  quantity: number;
+  price: number;
+  // Colonnes snapshot (après migration SQL)
+  product_name?:      string | null;
+  product_image_url?: string | null;
+  product_unit?:      string | null;
+  product_farm?:      string | null;
+  // Fallback join products (avant migration)
+  products?: { name: string; unit: string; image_url: string | null; farm: string } | null;
+}
 
 interface Order {
   id: string;
-  user_id: string;
+  user_id: string | null;
   total: number;
   status: string;
   payment_method: string;
@@ -14,81 +27,76 @@ interface Order {
   address: string;
   customer_name: string;
   created_at: string;
+  order_items: OrderItem[];
 }
 
-interface OrderItem {
-  id: string;
-  product_id: number;
-  quantity: number;
-  price: number;
-}
+const STATUSES = ['pending', 'processing', 'shipping', 'delivered', 'cancelled'] as const;
+
+const PAYMENT_LABELS: Record<string, string> = {
+  waafi:  '📱 Waafi',
+  dmoney: '💳 D-Money',
+  cash:   '💵 Espèces',
+};
 
 export default function AdminOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [orderItems, setOrderItems] = useState<Record<string, OrderItem[]>>({});
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
 
-  const statusInfo = useCallback((s: string) => {
-    const map: Record<string, { label: string; cls: string }> = {
-      pending:    { label: t('admin.status_pending',    '⏳ En attente'), cls: 'bg-yellow-100 text-yellow-700' },
-      processing: { label: t('admin.status_processing', '🚚 En cours'),   cls: 'bg-blue-100 text-blue-700' },
-      delivered:  { label: t('admin.status_delivered',  '✅ Livré'),       cls: 'bg-green-100 text-green-700' },
-      cancelled:  { label: t('admin.status_cancelled',  '❌ Annulé'),      cls: 'bg-red-100 text-red-600' },
-    };
-    return map[s] || { label: s, cls: 'bg-gray-100 text-gray-600' };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ui]);
+  const STATUS_META = {
+    pending:    { label: '⏳ ' + t('admin.status_pending',    'En attente'), cls: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+    processing: { label: '🚚 ' + t('admin.status_processing', 'En cours'),   cls: 'bg-blue-100 text-blue-800 border-blue-200' },
+    shipping:   { label: '📦 ' + t('admin.status_shipping',   'Expédié'),    cls: 'bg-purple-100 text-purple-800 border-purple-200' },
+    delivered:  { label: '✅ ' + t('admin.status_delivered',  'Livré'),       cls: 'bg-green-100 text-green-800 border-green-200' },
+    cancelled:  { label: '❌ ' + t('admin.status_cancelled',  'Annulé'),      cls: 'bg-red-100 text-red-700 border-red-200' },
+  };
+  const meta = (s: string) =>
+    STATUS_META[s as keyof typeof STATUS_META] ?? { label: s, cls: 'bg-gray-100 text-gray-600 border-gray-200' };
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    let query = supabase.from('orders').select('*').order('created_at', { ascending: false });
-    if (filterStatus) query = query.eq('status', filterStatus);
-    const { data } = await query;
-    setOrders(data || []);
-    setLoading(false);
+    setFetchError(null);
+    try {
+      const res = await fetch('/api/orders');
+      const json = await res.json();
+      if (!res.ok) { setFetchError(json.error); return; }
+      let orders: Order[] = json.orders || [];
+      if (filterStatus) orders = orders.filter(o => o.status === filterStatus);
+      setOrders(orders);
+    } catch (e: any) {
+      setFetchError(e.message);
+    } finally {
+      setLoading(false);
+    }
   }, [filterStatus]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const loadItems = async (orderId: string) => {
-    if (orderItems[orderId]) return;
-    const { data } = await supabase
-      .from('order_items')
-      .select('*, products(name, unit)')
-      .eq('order_id', orderId);
-    setOrderItems(prev => ({ ...prev, [orderId]: data || [] }));
-  };
-
-  const toggleExpand = (id: string) => {
-    if (expandedId === id) { setExpandedId(null); return; }
-    setExpandedId(id);
-    loadItems(id);
-  };
-
-  const updateStatus = async (order: Order, status: string) => {
-    setUpdatingId(order.id);
-    await supabase.from('orders').update({ status }).eq('id', order.id);
+  const updateStatus = async (orderId: string, status: string) => {
+    setUpdatingId(orderId);
+    await fetch('/api/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: orderId, status }),
+    });
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
     setUpdatingId(null);
-    fetchAll();
   };
 
   const statusFilters = [
     { value: '', label: t('admin.all', 'Toutes') },
-    { value: 'pending',    label: t('admin.status_pending',    '⏳ En attente') },
-    { value: 'processing', label: t('admin.status_processing', '🚚 En cours') },
-    { value: 'delivered',  label: t('admin.status_delivered',  '✅ Livré') },
-    { value: 'cancelled',  label: t('admin.status_cancelled',  '❌ Annulé') },
+    ...STATUSES.map(s => ({ value: s, label: meta(s).label })),
   ];
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      {/* En-tête + filtres */}
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-gray-800">📦 {t('admin.nav_orders', 'Commandes')}</h1>
         <div className="flex gap-2 flex-wrap">
           {statusFilters.map(s => (
@@ -96,7 +104,9 @@ export default function AdminOrders() {
               key={s.value}
               onClick={() => setFilterStatus(s.value)}
               className={`px-3 py-1.5 rounded-xl text-xs font-medium transition ${
-                filterStatus === s.value ? 'bg-[#526500] text-white' : 'bg-white border border-[#dde8b0] text-gray-600 hover:border-[#a8c800]'
+                filterStatus === s.value
+                  ? 'bg-[#526500] text-white'
+                  : 'bg-white border border-[#d2e095] text-gray-600 hover:border-[#a8c800]'
               }`}
             >
               {s.label}
@@ -106,83 +116,144 @@ export default function AdminOrders() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center h-48"><p className="text-gray-400">{t('admin.loading', 'Chargement...')}</p></div>
+        <div className="flex items-center justify-center h-48">
+          <p className="text-gray-400">{t('admin.loading', 'Chargement...')}</p>
+        </div>
+      ) : fetchError ? (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-6">
+          <p className="text-red-600 font-semibold mb-1">⚠️ Erreur de chargement</p>
+          <p className="text-red-500 text-sm font-mono mb-4">{fetchError}</p>
+          <p className="text-sm text-gray-600 mb-2">
+            Si l'erreur mentionne <code className="bg-red-100 px-1 rounded">product_name</code>, tu dois d'abord exécuter la migration dans Supabase SQL Editor :
+          </p>
+          <pre className="bg-white border border-red-200 rounded-xl p-4 text-xs text-gray-700 overflow-x-auto">{`ALTER TABLE order_items
+  ADD COLUMN IF NOT EXISTS product_name      text,
+  ADD COLUMN IF NOT EXISTS product_image_url text,
+  ADD COLUMN IF NOT EXISTS product_unit      text,
+  ADD COLUMN IF NOT EXISTS product_farm      text;
+
+UPDATE order_items oi
+SET
+  product_name      = p.name,
+  product_image_url = p.image_url,
+  product_unit      = p.unit,
+  product_farm      = p.farm
+FROM products p
+WHERE oi.product_id = p.id
+  AND oi.product_name IS NULL;`}</pre>
+        </div>
+      ) : orders.length === 0 ? (
+        <div className="text-center py-12 text-gray-400 bg-white rounded-2xl border border-[#d2e095]">
+          {filterStatus
+            ? t('admin.orders_none_status', 'Aucune commande avec ce statut')
+            : t('admin.orders_none', 'Aucune commande')}
+        </div>
       ) : (
-        <div className="space-y-3">
-          {orders.length === 0 && (
-            <div className="text-center py-12 text-gray-400 bg-white rounded-2xl border border-[#dde8b0]">
-              {filterStatus ? t('admin.orders_none_status', 'Aucune commande avec ce statut') : t('admin.orders_none', 'Aucune commande')}
-            </div>
-          )}
+        <div className="space-y-6">
           {orders.map(order => {
-            const info = statusInfo(order.status);
-            const isExpanded = expandedId === order.id;
+            const m = meta(order.status);
+            const isUpdating = updatingId === order.id;
+            const items = order.order_items || [];
+
             return (
-              <div key={order.id} className="bg-white rounded-2xl border border-[#dde8b0] overflow-hidden">
-                <div
-                  className="flex items-center gap-4 p-4 cursor-pointer hover:bg-[#f8faf0] transition"
-                  onClick={() => toggleExpand(order.id)}
-                >
+              <div key={order.id} className="bg-white rounded-2xl border border-[#d2e095] shadow-sm overflow-hidden">
+
+                {/* ── En-tête commande ── */}
+                <div className="flex flex-wrap items-start gap-4 p-4 bg-[#f8fdf0] border-b border-[#d2e095]">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-mono text-xs text-gray-400">#{String(order.id)}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${info.cls}`}>{info.label}</span>
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="font-mono text-xs text-gray-400 bg-white border border-[#d2e095] px-2 py-0.5 rounded-lg">
+                        #{String(order.id).slice(0, 8).toUpperCase()}
+                      </span>
+                      <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${m.cls}`}>
+                        {m.label}
+                      </span>
                     </div>
-                    <p className="font-medium text-gray-800">{order.customer_name || '—'}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{order.phone} · {order.address}</p>
+                    <p className="font-bold text-gray-800">{order.customer_name || '—'}</p>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-500">
+                      {order.phone   && <span>📞 {order.phone}</span>}
+                      {order.address && <span>📍 {order.address}</span>}
+                      <span>{PAYMENT_LABELS[order.payment_method] || order.payment_method}</span>
+                      <span>🕐 {new Date(order.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                    </div>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="font-bold text-[#526500]">{Number(order.total).toLocaleString()} Fdj</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{order.payment_method}</p>
-                    <p className="text-xs text-gray-400">{new Date(order.created_at).toLocaleDateString('fr-FR')}</p>
+
+                  {/* Total + sélecteur statut */}
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <div className="text-right">
+                      <p className="text-xs text-gray-400">{items.length} article{items.length > 1 ? 's' : ''}</p>
+                      <p className="text-xl font-bold text-[#526500]">{Number(order.total).toLocaleString()} Fdj</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <select
+                        value={order.status}
+                        disabled={isUpdating}
+                        onChange={e => updateStatus(order.id, e.target.value)}
+                        className={`text-xs border rounded-xl px-2 py-1.5 font-semibold cursor-pointer focus:outline-none disabled:opacity-50 ${m.cls}`}
+                      >
+                        {STATUSES.map(s => (
+                          <option key={s} value={s}>{meta(s).label}</option>
+                        ))}
+                      </select>
+                      {isUpdating && <span className="text-xs text-gray-400">⏳</span>}
+                    </div>
                   </div>
-                  <span className="text-gray-400 text-lg">{isExpanded ? '▲' : '▼'}</span>
                 </div>
 
-                {isExpanded && (
-                  <div className="border-t border-[#f0f7e8] p-4 bg-[#f8faf0]">
-                    <div className="flex items-center gap-2 mb-4 flex-wrap">
-                      <span className="text-sm text-gray-600 font-medium">{t('admin.order_status_lbl', 'Statut :')}</span>
-                      {['pending', 'processing', 'delivered', 'cancelled'].map(s => (
-                        <button
-                          key={s}
-                          disabled={order.status === s || updatingId === order.id}
-                          onClick={() => updateStatus(order, s)}
-                          className={`px-3 py-1 rounded-xl text-xs font-medium transition ${
-                            order.status === s
-                              ? statusInfo(s).cls + ' ring-2 ring-offset-1 ring-current'
-                              : 'bg-white border border-gray-200 text-gray-500 hover:border-[#a8c800] disabled:opacity-40'
-                          }`}
-                        >
-                          {statusInfo(s).label}
-                        </button>
-                      ))}
-                    </div>
+                {/* ── Articles ── */}
+                {items.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-6">
+                    {t('admin.order_no_items', 'Aucun article enregistré')}
+                  </p>
+                ) : (
+                  <div className="divide-y divide-[#f0f7e0]">
+                    {items.map(item => {
+                      const subtotal = item.price * item.quantity;
+                      const name  = item.product_name  || item.products?.name  || `Produit #${item.product_id}`;
+                      const unit  = item.product_unit  || item.products?.unit  || 'u';
+                      const farm  = item.product_farm  || item.products?.farm  || null;
+                      const image = item.product_image_url ?? item.products?.image_url ?? null;
 
-                    <p className="text-sm font-semibold text-gray-700 mb-2">{t('admin.order_items', 'Articles commandés')}</p>
-                    {!orderItems[order.id] ? (
-                      <p className="text-gray-400 text-sm">{t('admin.loading', 'Chargement...')}</p>
-                    ) : orderItems[order.id].length === 0 ? (
-                      <p className="text-gray-400 text-sm">{t('admin.order_no_items', 'Aucun article')}</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {orderItems[order.id].map(item => (
-                          <div key={item.id} className="flex items-center justify-between bg-white rounded-xl px-4 py-2.5 border border-[#dde8b0]">
-                            <div>
-                              <span className="text-sm font-medium text-gray-800">
-                                {(item as any).products?.name || `#${item.product_id}`}
-                              </span>
-                              <span className="text-xs text-gray-400 ml-2">× {item.quantity} {(item as any).products?.unit || ''}</span>
-                            </div>
-                            <span className="text-sm font-semibold text-[#526500]">{Number(item.price * item.quantity).toLocaleString()} Fdj</span>
+                      return (
+                        <div key={item.id} className="flex gap-4 p-4 items-start">
+                          {/* Image */}
+                          <div className="w-16 h-16 rounded-xl overflow-hidden bg-[#ecf4d5] flex-shrink-0">
+                            {image ? (
+                              <img src={image} alt={name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-2xl opacity-20">📷</div>
+                            )}
                           </div>
-                        ))}
-                        <div className="flex justify-between pt-2 border-t border-[#dde8b0] mt-2">
-                          <span className="text-sm font-semibold text-gray-700">{t('admin.total', 'Total')}</span>
-                          <span className="text-sm font-bold text-[#526500]">{Number(order.total).toLocaleString()} Fdj</span>
+
+                          {/* Infos produit */}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-800 text-sm mb-0.5">{name}</p>
+                            {farm && <p className="text-xs text-gray-400">🌱 {farm}</p>}
+                          </div>
+
+                          {/* Prix × quantité = total */}
+                          <div className="text-right flex-shrink-0 space-y-0.5">
+                            <p className="text-xs text-gray-400">
+                              {Number(item.price).toLocaleString()} Fdj / {unit}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              × {item.quantity} {unit}
+                            </p>
+                            <p className="text-sm font-bold text-[#526500]">
+                              {Number(subtotal).toLocaleString()} Fdj
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* ── Pied : total ── */}
+                {items.length > 0 && (
+                  <div className="flex justify-between items-center px-4 py-3 bg-[#f8fdf0] border-t border-[#d2e095]">
+                    <span className="text-sm text-gray-600 font-medium">{t('admin.total', 'Total commande')}</span>
+                    <span className="text-lg font-bold text-[#526500]">{Number(order.total).toLocaleString()} Fdj</span>
                   </div>
                 )}
               </div>

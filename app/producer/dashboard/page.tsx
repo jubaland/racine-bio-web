@@ -114,7 +114,7 @@ function DashboardContent({ producer }: { producer: any }) {
             color: 'text-[#526500]',
           },
         ].map(stat => (
-          <div key={stat.label} className="bg-white rounded-2xl p-6 border border-[#dde8b0] text-center hover:shadow-md transition">
+          <div key={stat.label} className="bg-white rounded-2xl p-6 border border-[#d2e095] text-center hover:shadow-md transition">
             <p className="text-3xl mb-2">{stat.emoji}</p>
             <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
             <p className="text-sm text-gray-400 mt-1">{stat.label}</p>
@@ -141,7 +141,7 @@ function DashboardContent({ producer }: { producer: any }) {
         </Link>
         <Link
           href="/producer/orders"
-          className="bg-white border border-[#dde8b0] rounded-2xl p-5 flex items-center gap-4 hover:shadow-md transition"
+          className="bg-white border border-[#d2e095] rounded-2xl p-5 flex items-center gap-4 hover:shadow-md transition"
         >
           <span className="text-3xl">📦</span>
           <div>
@@ -152,7 +152,7 @@ function DashboardContent({ producer }: { producer: any }) {
       </div>
 
       {/* Recent orders */}
-      <div className="bg-white rounded-2xl border border-[#dde8b0] p-6">
+      <div className="bg-white rounded-2xl border border-[#d2e095] p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-800">
             📋 {t('producer.recent_orders', 'Commandes récentes')}
@@ -175,7 +175,7 @@ function DashboardContent({ producer }: { producer: any }) {
             {recentOrders.map(order => {
               const info = statusInfo(order.status);
               return (
-                <div key={order.id} className="flex items-center justify-between p-4 bg-[#f8faf0] rounded-xl">
+                <div key={order.id} className="flex items-center justify-between p-4 bg-[#faf7e8] rounded-xl">
                   <div>
                     <p className="text-sm font-medium text-gray-800">{order.customer_name || '—'}</p>
                     <p className="text-xs text-gray-400 mt-0.5">

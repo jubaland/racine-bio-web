@@ -76,7 +76,7 @@ export default function AdminPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f8faf0] flex items-center justify-center">
+      <div className="min-h-screen bg-[#faf7e8] flex items-center justify-center">
         <div className="text-center">
           <p className="text-5xl mb-4 animate-pulse">🌿</p>
           <p className="text-gray-400">{t('admin.verifying', 'Vérification des accès...')}</p>
@@ -87,17 +87,17 @@ export default function AdminPage() {
 
   if (accessDenied) {
     return (
-      <div className="min-h-screen bg-[#f8faf0] flex items-center justify-center px-4">
+      <div className="min-h-screen bg-[#faf7e8] flex items-center justify-center px-4">
         <div className="text-center max-w-sm">
           <p className="text-5xl mb-4">🔒</p>
           <h1 className="text-xl font-bold text-gray-800 mb-2">{t('admin.access_denied', 'Accès refusé')}</h1>
           <p className="text-gray-400 text-sm mb-6">
             {t('admin.access_denied_msg', "Vous n'avez pas les droits administrateur. Pour obtenir l'accès, définissez")}
-            {' '}<code className="bg-[#f0f7e8] px-1 rounded text-[#526500]">is_admin: true</code>{' '}
+            {' '}<code className="bg-[#ecf4d5] px-1 rounded text-[#526500]">is_admin: true</code>{' '}
             {t('admin.access_denied_meta', 'dans vos métadonnées utilisateur via le Dashboard Supabase.')}
           </p>
           <div className="flex gap-3 justify-center">
-            <Link href="/" className="px-5 py-2.5 border border-[#dde8b0] rounded-xl text-sm text-gray-600 hover:bg-white transition">
+            <Link href="/" className="px-5 py-2.5 border border-[#d2e095] rounded-xl text-sm text-gray-600 hover:bg-white transition">
               ← {t('admin.back_to_site', 'Retour au site')}
             </Link>
             <button onClick={handleSignOut} className="px-5 py-2.5 bg-[#a8c800] text-white rounded-xl text-sm font-semibold hover:bg-[#7d9800] transition">
@@ -179,7 +179,7 @@ export default function AdminPage() {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 min-h-screen">
         {/* Mobile topbar */}
-        <header className="lg:hidden sticky top-0 z-10 bg-white border-b border-[#dde8b0] px-4 py-3 flex items-center gap-3">
+        <header className="lg:hidden sticky top-0 z-10 bg-white border-b border-[#d2e095] px-4 py-3 flex items-center gap-3">
           <button
             onClick={() => setSidebarOpen(true)}
             className="w-8 h-8 flex flex-col items-center justify-center gap-1.5 text-[#526500]"

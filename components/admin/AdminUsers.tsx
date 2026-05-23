@@ -111,7 +111,7 @@ export default function AdminUsers() {
           placeholder={t('admin.users_search', '🔍 Rechercher par nom ou téléphone...')}
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full border border-[#dde8b0] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#a8c800] bg-[#f8faf0]"
+          className="w-full border border-[#d2e095] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#a8c800] bg-[#faf7e8]"
         />
       </div>
 
@@ -122,9 +122,9 @@ export default function AdminUsers() {
       {loading ? (
         <div className="flex items-center justify-center h-48"><p className="text-gray-400">{t('admin.loading', 'Chargement...')}</p></div>
       ) : (
-        <div className="bg-white rounded-2xl border border-[#dde8b0] overflow-hidden">
+        <div className="bg-white rounded-2xl border border-[#d2e095] overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-[#f8faf0] border-b border-[#dde8b0]">
+            <thead className="bg-[#faf7e8] border-b border-[#d2e095]">
               <tr>
                 <th className="text-left px-4 py-3 text-gray-500 font-medium">{t('admin.col_customer', 'Client')}</th>
                 <th className="text-left px-4 py-3 text-gray-500 font-medium">{t('admin.col_phone', 'Téléphone')}</th>
@@ -138,10 +138,10 @@ export default function AdminUsers() {
               {filtered.length === 0 ? (
                 <tr><td colSpan={6} className="text-center py-12 text-gray-400">{t('admin.no_customers', 'Aucun client trouvé')}</td></tr>
               ) : filtered.map(c => (
-                <tr key={c.user_id} className="hover:bg-[#f8faf0] transition">
+                <tr key={c.user_id} className="hover:bg-[#faf7e8] transition">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-[#f0f7e8] flex items-center justify-center text-lg">👤</div>
+                      <div className="w-9 h-9 rounded-full bg-[#ecf4d5] flex items-center justify-center text-lg">👤</div>
                       <div>
                         <p className="font-medium text-gray-800">{c.customer_name}</p>
                         <p className="text-xs text-gray-400 truncate max-w-[160px]">{c.address}</p>
@@ -150,7 +150,7 @@ export default function AdminUsers() {
                   </td>
                   <td className="px-4 py-3 text-gray-600">{c.phone}</td>
                   <td className="px-4 py-3">
-                    <span className="bg-[#f0f7e8] text-[#526500] px-2 py-1 rounded-full text-xs font-semibold">{c.order_count}</span>
+                    <span className="bg-[#ecf4d5] text-[#526500] px-2 py-1 rounded-full text-xs font-semibold">{c.order_count}</span>
                   </td>
                   <td className="px-4 py-3 font-semibold text-[#526500]">{c.total_spent.toLocaleString()} Fdj</td>
                   <td className="px-4 py-3 text-gray-400 text-xs">{new Date(c.last_order).toLocaleDateString('fr-FR')}</td>
@@ -169,7 +169,7 @@ export default function AdminUsers() {
       {selectedUser && (
         <Modal title={`${t('admin.order_history', 'Commandes')} — ${selectedUser.customer_name}`} onClose={() => setSelectedUser(null)}>
           <div className="space-y-4">
-            <div className="bg-[#f8faf0] rounded-xl p-4 grid grid-cols-2 gap-3 text-sm">
+            <div className="bg-[#faf7e8] rounded-xl p-4 grid grid-cols-2 gap-3 text-sm">
               <div>
                 <p className="text-xs text-gray-400">{t('admin.col_phone', 'Téléphone')}</p>
                 <p className="font-medium text-gray-800">{selectedUser.phone}</p>
@@ -194,7 +194,7 @@ export default function AdminUsers() {
                 {userOrders.map(order => {
                   const info = statusInfo(order.status);
                   return (
-                    <div key={order.id} className="flex items-center justify-between p-3 bg-[#f8faf0] rounded-xl">
+                    <div key={order.id} className="flex items-center justify-between p-3 bg-[#faf7e8] rounded-xl">
                       <div>
                         <p className="text-xs text-gray-400 font-mono">#{order.id.slice(-8)}</p>
                         <p className="text-xs text-gray-500 mt-0.5">{order.payment_method} · {new Date(order.created_at).toLocaleDateString('fr-FR')}</p>

@@ -16,7 +16,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
       )}
       <div className={`fixed top-0 right-0 h-full w-full max-w-md bg-white z-50 shadow-2xl transform transition-transform duration-300 ${open ? 'translate-x-0' : 'translate-x-full'}`}>
         <div className="flex flex-col h-full">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-[#dde8b0]">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[#d2e095]">
             <h2 className="text-lg font-semibold text-gray-800">🛒 {t('cart', 'Panier')}</h2>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">✕</button>
           </div>
@@ -32,8 +32,8 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
             ) : (
               <div className="space-y-4">
                 {items.map(item => (
-                  <div key={item.id} className="flex items-center gap-4 bg-[#f8faf0] rounded-2xl p-3">
-                    <div className="w-16 h-16 rounded-xl overflow-hidden bg-[#f0f7e8] flex-none">
+                  <div key={item.id} className="flex items-center gap-4 bg-[#faf7e8] rounded-2xl p-3">
+                    <div className="w-16 h-16 rounded-xl overflow-hidden bg-[#ecf4d5] flex-none">
                       {item.image_url ? (
                         <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
                       ) : (
@@ -47,16 +47,22 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
                         {item.price.toLocaleString()} Fdj <span className="text-xs font-normal text-gray-400">{item.unit}</span>
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 flex-none">
-                      <button
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        className="w-7 h-7 rounded-full bg-white border border-[#dde8b0] flex items-center justify-center text-gray-600 hover:bg-[#f0f7e8] transition"
-                      >−</button>
-                      <span className="text-sm font-semibold w-5 text-center">{item.quantity}</span>
-                      <button
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        className="w-7 h-7 rounded-full bg-[#a8c800] flex items-center justify-center text-white hover:bg-[#7d9800] transition"
-                      >+</button>
+                    <div className="flex flex-col items-end gap-1">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                          className="w-7 h-7 rounded-full bg-white border border-[#d2e095] flex items-center justify-center text-gray-600 hover:bg-[#ecf4d5] transition"
+                        >−</button>
+                        <span className="text-sm font-semibold w-5 text-center">{item.quantity}</span>
+                        <button
+                          disabled={item.quantity >= item.stock_qty}
+                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                          className="w-7 h-7 rounded-full bg-[#a8c800] flex items-center justify-center text-white hover:bg-[#7d9800] transition disabled:opacity-30 disabled:cursor-not-allowed"
+                        >+</button>
+                      </div>
+                      {item.quantity >= item.stock_qty && (
+                        <span className="text-xs text-orange-500">Max {item.stock_qty} {item.unit}</span>
+                      )}
                     </div>
                     <button onClick={() => removeItem(item.id)} className="text-gray-300 hover:text-red-400 transition flex-none">🗑</button>
                   </div>
@@ -65,7 +71,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
             )}
           </div>
           {items.length > 0 && (
-            <div className="px-6 py-4 border-t border-[#dde8b0] bg-white">
+            <div className="px-6 py-4 border-t border-[#d2e095] bg-white">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-gray-600 font-medium">{t('cart.total', 'Total')}</span>
                 <span className="text-xl font-bold text-[#526500]">{total.toLocaleString()} Fdj</span>

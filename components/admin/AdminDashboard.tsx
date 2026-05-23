@@ -83,7 +83,7 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      <div className="bg-white rounded-2xl border border-[#dde8b0] p-6">
+      <div className="bg-white rounded-2xl border border-[#d2e095] p-6">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">{t('admin.recent_orders', '📦 Commandes récentes')}</h2>
         {recentOrders.length === 0 ? (
           <p className="text-gray-400 text-center py-8">{t('admin.no_orders_recent', 'Aucune commande pour le moment')}</p>

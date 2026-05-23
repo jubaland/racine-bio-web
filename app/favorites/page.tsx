@@ -24,7 +24,7 @@ export default function FavoritesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8faf0]">
+    <div className="min-h-screen bg-[#faf7e8]">
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
       <Header onCartOpen={() => setCartOpen(true)} />
 
@@ -42,8 +42,8 @@ export default function FavoritesPage() {
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {favorites.map((product: any) => (
-              <div key={product.id} className="bg-white rounded-2xl overflow-hidden border border-[#dde8b0] hover:shadow-lg transition group">
-                <div className="relative h-44 bg-[#f0f7e8]">
+              <div key={product.id} className="bg-white rounded-2xl overflow-hidden border border-[#d2e095] hover:shadow-lg transition group">
+                <div className="relative h-44 bg-[#ecf4d5]">
                   <Link href={`/product/${product.id}`}>
                     {product.image_url ? (
                       <img src={product.image_url} alt={getProductName(product)} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
