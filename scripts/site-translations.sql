@@ -1,34 +1,36 @@
 -- Traductions des pages et composants principaux du site Racine Bio
--- Langues : en, zh, so, aa, am  (fr utilise les fallbacks codes, pas de lignes SQL necessaires)
--- Executer dans Supabase Dashboard -> SQL Editor
+-- Langues : en, zh, so, aa, am  (fr utilise les fallbacks codés, pas de lignes SQL nécessaires)
+-- Exécuter dans Supabase Dashboard → SQL Editor
 
 DELETE FROM ui_translations
-WHERE language_code IN ('en','zh','so','aa','am')
+WHERE lang IN ('en','zh','so','aa','am')
   AND key LIKE ANY(ARRAY[
     'login.%','profile.%','checkout.%','cart.%','product.%',
     'home.%','filter.%','origin.%'
   ]);
 
-INSERT INTO ui_translations (language_code, key, value) VALUES
-
+INSERT INTO ui_translations (lang, key, value) VALUES
+  
+-- ============================================================
 -- LOGIN
+-- ============================================================
 ('en','login.register_success','Account created! Check your email to confirm.'),
 ('zh','login.register_success','账户已创建！请检查您的电子邮件以确认。'),
 ('so','login.register_success','Xisaabta waa la sameeyey! Hubi email-kaaga si aad u xaqiijiso.'),
 ('aa','login.register_success','Akkaawuntichi tolame! Email keeti ilaali xaqiiqsumaanno.'),
 ('am','login.register_success','መለያ ተፈጠረ! ለማረጋገጥ ኢሜልዎን ያረጋግጡ።'),
 
-('en','login.create_account','Create an account'),
-('zh','login.create_account','创建账户'),
-('so','login.create_account','Samee akoon'),
-('aa','login.create_account','Akkaawunti toli'),
-('am','login.create_account','መለያ ፍጠር'),
+('en','login.create_account','✨ Create an account'),
+('zh','login.create_account','✨ 创建账户'),
+('so','login.create_account','✨ Samee akoon'),
+('aa','login.create_account','✨ Akkaawunti toli'),
+('am','login.create_account','✨ መለያ ፍጠር'),
 
-('en','login.signin','Login'),
-('zh','login.signin','登录'),
-('so','login.signin','Gal'),
-('aa','login.signin','Gali'),
-('am','login.signin','ግባ'),
+('en','login.signin','👋 Login'),
+('zh','login.signin','👋 登录'),
+('so','login.signin','👋 Gal'),
+('aa','login.signin','👋 Gali'),
+('am','login.signin','👋 ግባ'),
 
 ('en','login.email','Email'),
 ('zh','login.email','邮箱'),
@@ -48,54 +50,56 @@ INSERT INTO ui_translations (language_code, key, value) VALUES
 ('aa','login.password','Iccitii'),
 ('am','login.password','የሚስጥር ቁጥር'),
 
-('en','login.loading','Loading...'),
-('zh','login.loading','加载中...'),
-('so','login.loading','Rarida...'),
-('aa','login.loading','Naqna...'),
-('am','login.loading','በመጫን ላይ...'),
+('en','login.loading','⏳ Loading...'),
+('zh','login.loading','⏳ 加载中...'),
+('so','login.loading','⏳ Rarida...'),
+('aa','login.loading','⏳ Naqna...'),
+('am','login.loading','⏳ በመጫን ላይ...'),
 
-('en','login.create_btn','Create my account'),
-('zh','login.create_btn','创建我的账户'),
-('so','login.create_btn','Samee akoonkayga'),
-('aa','login.create_btn','Akkaawuntikoo toli'),
-('am','login.create_btn','መለያዬን ፍጠር'),
+('en','login.create_btn','✅ Create my account'),
+('zh','login.create_btn','✅ 创建我的账户'),
+('so','login.create_btn','✅ Samee akoonkayga'),
+('aa','login.create_btn','✅ Akkaawuntikoo toli'),
+('am','login.create_btn','✅ መለያዬን ፍጠር'),
 
-('en','login.signin_btn','Sign in'),
-('zh','login.signin_btn','登录'),
-('so','login.signin_btn','Gal'),
-('aa','login.signin_btn','Gali'),
-('am','login.signin_btn','ግባ'),
+('en','login.signin_btn','🔑 Sign in'),
+('zh','login.signin_btn','🔑 登录'),
+('so','login.signin_btn','🔑 Gal'),
+('aa','login.signin_btn','🔑 Gali'),
+('am','login.signin_btn','🔑 ግባ'),
 
 ('en','login.already_account','Already have an account? Sign in'),
 ('zh','login.already_account','已有账户？登录'),
 ('so','login.already_account','Akoon ma haysaa? Gal'),
 ('aa','login.already_account','Akkaawunti harra qabdaa? Gali'),
-('am','login.already_account','መለያ አለዎት? ግባ'),
+('am','login.already_account','መለያ አለዎt? ግባ'),
 
 ('en','login.no_account','No account? Sign up'),
 ('zh','login.no_account','没有账户？注册'),
 ('so','login.no_account','Akoon ma lihid? Is diiwaangeli'),
 ('aa','login.no_account','Akkaawunti hixinootto? Gartisi'),
-('am','login.no_account','መለያ የለዎትም? ተመዝገቡ'),
+('am','login.no_account','መለያ የለዎtm? ተመዝገቡ'),
 
-('en','login.back_home','Back to home'),
-('zh','login.back_home','返回首页'),
-('so','login.back_home','Ku laabo bogga hore'),
-('aa','login.back_home','Manna galti'),
-('am','login.back_home','ወደ ዋናው ገፅ ተመለስ'),
+('en','login.back_home','← Back to home'),
+('zh','login.back_home','← 返回首页'),
+('so','login.back_home','← Ku laabo bogga hore'),
+('aa','login.back_home','← Manna galti'),
+('am','login.back_home','← ወደ ዋናው ገፅ ተመለስ'),
 
+-- ============================================================
 -- PROFILE
+-- ============================================================
 ('en','profile.loading','Loading...'),
 ('zh','profile.loading','加载中...'),
 ('so','profile.loading','Rarida...'),
 ('aa','profile.loading','Naqna...'),
 ('am','profile.loading','በመጫን ላይ...'),
 
-('en','profile.back','Back'),
-('zh','profile.back','返回'),
-('so','profile.back','Laabo'),
-('aa','profile.back','Galti'),
-('am','profile.back','ተመለስ'),
+('en','profile.back','← Back'),
+('zh','profile.back','← 返回'),
+('so','profile.back','← Laabo'),
+('aa','profile.back','← Galti'),
+('am','profile.back','← ተመለስ'),
 
 ('en','profile.user_default','User'),
 ('zh','profile.user_default','用户'),
@@ -103,11 +107,11 @@ INSERT INTO ui_translations (language_code, key, value) VALUES
 ('aa','profile.user_default','Macaangali'),
 ('am','profile.user_default','ተጠቃሚ'),
 
-('en','profile.verified','Verified account'),
-('zh','profile.verified','已验证账户'),
-('so','profile.verified','Akoon la xaqiijiyey'),
-('aa','profile.verified','Akkaawunti xaqiiqame'),
-('am','profile.verified','የተረጋገጠ መለያ'),
+('en','profile.verified','✅ Verified account'),
+('zh','profile.verified','✅ 已验证账户'),
+('so','profile.verified','✅ Akoon la xaqiijiyey'),
+('aa','profile.verified','✅ Akkaawunti xaqiiqame'),
+('am','profile.verified','✅ የተረጋገጠ መለያ'),
 
 ('en','profile.stat_orders','Orders'),
 ('zh','profile.stat_orders','订单'),
@@ -124,7 +128,7 @@ INSERT INTO ui_translations (language_code, key, value) VALUES
 ('en','profile.stat_reviews','Reviews'),
 ('zh','profile.stat_reviews','评价'),
 ('so','profile.stat_reviews','Dooodooyinka'),
-('aa','profile.stat_reviews','Mablaooyye'),
+('aa','profile.stat_reviews','Mabla''ooyye'),
 ('am','profile.stat_reviews','ግምገማዎች'),
 
 ('en','profile.my_orders','My orders'),
@@ -175,18 +179,20 @@ INSERT INTO ui_translations (language_code, key, value) VALUES
 ('aa','profile.signout','Gadi'),
 ('am','profile.signout','ውጣ'),
 
+-- ============================================================
 -- CHECKOUT
+-- ============================================================
 ('en','checkout.empty_cart','Your cart is empty'),
 ('zh','checkout.empty_cart','您的购物车是空的'),
 ('so','checkout.empty_cart','Basket-kaagu waa madhan yahay'),
 ('aa','checkout.empty_cart','Kaaritaaki dooqu'),
 ('am','checkout.empty_cart','ቅርጫትዎ ባዶ ነው'),
 
-('en','checkout.back_home','Back to home'),
-('zh','checkout.back_home','返回首页'),
-('so','checkout.back_home','Ku laabo bogga hore'),
-('aa','checkout.back_home','Manna galti'),
-('am','checkout.back_home','ወደ ዋናው ገፅ ተመለስ'),
+('en','checkout.back_home','← Back to home'),
+('zh','checkout.back_home','← 返回首页'),
+('so','checkout.back_home','← Ku laabo bogga hore'),
+('aa','checkout.back_home','← Manna galti'),
+('am','checkout.back_home','← ወደ ዋናው ገፅ ተመለስ'),
 
 ('en','checkout.confirmed','Order confirmed!'),
 ('zh','checkout.confirmed','订单已确认！'),
@@ -203,7 +209,7 @@ INSERT INTO ui_translations (language_code, key, value) VALUES
 ('en','checkout.thanks','Thank you for your order. You will be contacted for delivery.'),
 ('zh','checkout.thanks','感谢您的订单。我们将联系您安排配送。'),
 ('so','checkout.thanks','Mahadsanid dalabashadaada. Lagula xiriiri doonaa si loo geeyo.'),
-('aa','checkout.thanks','Ajandooki hammanna. Geeshinaanno afaatinno.'),
+('aa','checkout.thanks','Ajandooki hammanna. Geeshi''naanno afaatinno.'),
 ('am','checkout.thanks','ለትዕዛዝዎ እናመሰግናለን። ለዴሊቨሪ ያገኙዎታል።'),
 
 ('en','checkout.payment_method_label','Payment method'),
@@ -212,11 +218,11 @@ INSERT INTO ui_translations (language_code, key, value) VALUES
 ('aa','checkout.payment_method_label','Kaffaltii gede'),
 ('am','checkout.payment_method_label','የክፍያ ዘዴ'),
 
-('en','checkout.back_home_btn','Back to home'),
-('zh','checkout.back_home_btn','返回首页'),
-('so','checkout.back_home_btn','Ku laabo bogga hore'),
-('aa','checkout.back_home_btn','Manna galti'),
-('am','checkout.back_home_btn','ወደ ዋናው ገፅ ተመለስ'),
+('en','checkout.back_home_btn','🏠 Back to home'),
+('zh','checkout.back_home_btn','🏠 返回首页'),
+('so','checkout.back_home_btn','🏠 Ku laabo bogga hore'),
+('aa','checkout.back_home_btn','🏠 Manna galti'),
+('am','checkout.back_home_btn','🏠 ወደ ዋናው ገፅ ተመለስ'),
 
 ('en','checkout.title','Complete your order'),
 ('zh','checkout.title','完成您的订单'),
@@ -254,11 +260,11 @@ INSERT INTO ui_translations (language_code, key, value) VALUES
 ('aa','checkout.total','Waxxi'),
 ('am','checkout.total','ጠቅላላ'),
 
-('en','checkout.continue_delivery','Continue to Delivery'),
-('zh','checkout.continue_delivery','继续 配送'),
-('so','checkout.continue_delivery','Sii wad Geynta'),
-('aa','checkout.continue_delivery','Itti fufi Geeshi'),
-('am','checkout.continue_delivery','ቀጥል ዴሊቨሪ'),
+('en','checkout.continue_delivery','Continue → Delivery'),
+('zh','checkout.continue_delivery','继续 → 配送'),
+('so','checkout.continue_delivery','Sii wad → Geynta'),
+('aa','checkout.continue_delivery','Itti fufi → Geeshi'),
+('am','checkout.continue_delivery','ቀጥል → ዴሊቨሪ'),
 
 ('en','checkout.delivery_info','Delivery information'),
 ('zh','checkout.delivery_info','配送信息'),
@@ -302,17 +308,17 @@ INSERT INTO ui_translations (language_code, key, value) VALUES
 ('aa','checkout.address_placeholder','Fakke: Gobba 4, Gammachuu Karaa, Jibuuti Magaalaa'),
 ('am','checkout.address_placeholder','ምሳሌ: ሰፈር 4, የሰላም መንገድ, ጂቡቲ ከተማ'),
 
-('en','checkout.back','Back'),
-('zh','checkout.back','返回'),
-('so','checkout.back','Laabo'),
-('aa','checkout.back','Galti'),
-('am','checkout.back','ተመለስ'),
+('en','checkout.back','← Back'),
+('zh','checkout.back','← 返回'),
+('so','checkout.back','← Laabo'),
+('aa','checkout.back','← Galti'),
+('am','checkout.back','← ተመለስ'),
 
-('en','checkout.continue_payment','Continue to Payment'),
-('zh','checkout.continue_payment','继续 付款'),
-('so','checkout.continue_payment','Sii wad Lacag bixinta'),
-('aa','checkout.continue_payment','Itti fufi Kaffaltii'),
-('am','checkout.continue_payment','ቀጥል ክፍያ'),
+('en','checkout.continue_payment','Continue → Payment'),
+('zh','checkout.continue_payment','继续 → 付款'),
+('so','checkout.continue_payment','Sii wad → Lacag bixinta'),
+('aa','checkout.continue_payment','Itti fufi → Kaffaltii'),
+('am','checkout.continue_payment','ቀጥል → ክፍያ'),
 
 ('en','checkout.payment_title','Payment method'),
 ('zh','checkout.payment_title','支付方式'),
@@ -344,17 +350,17 @@ INSERT INTO ui_translations (language_code, key, value) VALUES
 ('aa','checkout.free','Bilaa kanfaltii'),
 ('am','checkout.free','ነፃ'),
 
-('en','checkout.processing','Processing...'),
-('zh','checkout.processing','处理中...'),
-('so','checkout.processing','Diyaarinta...'),
-('aa','checkout.processing','Hojjetamaa...'),
-('am','checkout.processing','በሂደት ላይ...'),
+('en','checkout.processing','⏳ Processing...'),
+('zh','checkout.processing','⏳ 处理中...'),
+('so','checkout.processing','⏳ Diyaarinta...'),
+('aa','checkout.processing','⏳ Hojjetamaa...'),
+('am','checkout.processing','⏳ በሂደት ላይ...'),
 
-('en','checkout.confirm','Confirm order'),
-('zh','checkout.confirm','确认订单'),
-('so','checkout.confirm','Xaqiiji dalabka'),
-('aa','checkout.confirm','Ajando xaqiiqi'),
-('am','checkout.confirm','ትዕዛዝ አረጋግጥ'),
+('en','checkout.confirm','✅ Confirm order'),
+('zh','checkout.confirm','✅ 确认订单'),
+('so','checkout.confirm','✅ Xaqiiji dalabka'),
+('aa','checkout.confirm','✅ Ajando xaqiiqi'),
+('am','checkout.confirm','✅ ትዕዛዝ አረጋግጥ'),
 
 ('en','checkout.waafi_label','Waafi'),
 ('zh','checkout.waafi_label','Waafi'),
@@ -392,7 +398,9 @@ INSERT INTO ui_translations (language_code, key, value) VALUES
 ('aa','checkout.cash_desc','Geessitii kaffaltii'),
 ('am','checkout.cash_desc','በዴሊቨሪ ጊዜ ክፍያ'),
 
+-- ============================================================
 -- CART
+-- ============================================================
 ('en','cart.empty','Your cart is empty'),
 ('zh','cart.empty','您的购物车是空的'),
 ('so','cart.empty','Basket-kaagu waa madhan yahay'),
@@ -423,7 +431,9 @@ INSERT INTO ui_translations (language_code, key, value) VALUES
 ('aa','cart.clear','Kaaritaa teessi'),
 ('am','cart.clear','ቅርጫቱን አጽዳ'),
 
+-- ============================================================
 -- PRODUCT DETAIL
+-- ============================================================
 ('en','product.breadcrumb_home','Home'),
 ('zh','product.breadcrumb_home','首页'),
 ('so','product.breadcrumb_home','Bogga hore'),
@@ -445,7 +455,7 @@ INSERT INTO ui_translations (language_code, key, value) VALUES
 ('en','product.add_to_cart','Add to cart'),
 ('zh','product.add_to_cart','加入购物车'),
 ('so','product.add_to_cart','Ku dar basket-ka'),
-('aa','product.add_to_cart','Kaaritaatti idai'),
+('aa','product.add_to_cart','Kaaritaatti ida''i'),
 ('am','product.add_to_cart','ወደ ቅርጫት ጨምር'),
 
 ('en','product.local_badge','Local product'),
@@ -457,7 +467,7 @@ INSERT INTO ui_translations (language_code, key, value) VALUES
 ('en','product.bio_badge','Certified Organic'),
 ('zh','product.bio_badge','有机认证'),
 ('so','product.bio_badge','Dabiici ah oo la xaqiijiyey'),
-('aa','product.bio_badge','Naaturraalaa mirkanee'),
+('aa','product.bio_badge','Naaturraalaa mirkane''e'),
 ('am','product.bio_badge','የተረጋገጠ ኦርጋኒክ'),
 
 ('en','product.delivery_badge','48h Delivery'),
@@ -484,7 +494,9 @@ INSERT INTO ui_translations (language_code, key, value) VALUES
 ('aa','product.type_conv','Aadaa'),
 ('am','product.type_conv','ተለምዷዊ'),
 
+-- ============================================================
 -- HOME PAGE
+-- ============================================================
 ('en','home.no_products','No products found'),
 ('zh','home.no_products','未找到产品'),
 ('so','home.no_products','Lama helin badeecad'),
@@ -497,7 +509,9 @@ INSERT INTO ui_translations (language_code, key, value) VALUES
 ('aa','home.reset_filters','Caancaltu deebisi'),
 ('am','home.reset_filters','ማጣሪያዎችን ዳግም አስጀምር'),
 
+-- ============================================================
 -- TYPE FILTERS
+-- ============================================================
 ('en','filter.all','All'),
 ('zh','filter.all','全部'),
 ('so','filter.all','Dhammaan'),
@@ -516,7 +530,9 @@ INSERT INTO ui_translations (language_code, key, value) VALUES
 ('aa','filter.conv','Aadaa'),
 ('am','filter.conv','ተለምዷዊ'),
 
--- ORIGINS
+-- ============================================================
+-- COUNTRY / ORIGIN NAMES
+-- ============================================================
 ('en','origin.DJ','Djibouti'),
 ('zh','origin.DJ','吉布提'),
 ('so','origin.DJ','Jabuuti'),
