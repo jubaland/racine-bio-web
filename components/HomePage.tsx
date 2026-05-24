@@ -89,72 +89,6 @@ export default function HomePage({ products, categories, promos, producers }: {
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
       <Header onCartOpen={() => setCartOpen(true)} />
 
-      {/* Hero */}
-      <section className="bg-gradient-to-br from-[#1c3a05] via-[#2d6410] to-[#7a5800] text-white py-12 md:py-20 px-4 md:px-6">
-        <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-8 md:gap-12 items-center">
-          <div>
-            <div className="inline-flex items-center gap-2 bg-white/20 rounded-full px-4 py-1 text-sm mb-5 md:mb-6">
-              🇩🇯 {t('heroTag', 'Produits frais de Djibouti et de la région')}
-            </div>
-            <h2 className="text-3xl md:text-5xl font-bold mb-4 md:mb-6 leading-tight">
-              {t('tagline', 'Trouvez vos')} <span className="italic text-[#f5d020]">{t('tagline2', 'légumes')}</span> {t('tagline3', 'et fruits du jour')}
-            </h2>
-            <p className="text-base md:text-lg text-white/80 mb-6 md:mb-8">
-              {t('heroSub', 'Bio, conventionnel, local — tous les produits frais livrés directement depuis les fermes djiboutiennes.')}
-            </p>
-            <div className="flex gap-3 md:gap-4 flex-wrap">
-              <a
-                href="#produits"
-                className="bg-white text-[#526500] px-5 md:px-6 py-3 rounded-full font-semibold hover:bg-[#faf7e8] transition text-sm md:text-base"
-              >
-                🛒 {t('orderNow', 'Commander maintenant')}
-              </a>
-              <Link href="/about" className="border border-white/40 text-white px-5 md:px-6 py-3 rounded-full font-medium hover:bg-white/10 transition text-sm md:text-base">
-                {t('learnMore', 'Qui sommes-nous ?')}
-              </Link>
-            </div>
-          </div>
-          <div className="flex flex-col gap-4">
-            <div className="bg-white/10 backdrop-blur rounded-2xl p-6 border border-white/15 flex flex-col gap-5">
-              <p className="text-xs font-bold text-[#c8e050] uppercase tracking-widest">{t('hero.delivery_info', 'Infos pratiques')}</p>
-              {[
-                {
-                  emoji: '🚚',
-                  title: t('hero.delivery_zone', 'Zone de livraison'),
-                  desc: t('hero.delivery_zone_desc', 'Djibouti-Ville et environs'),
-                },
-                {
-                  emoji: '⏱',
-                  title: t('hero.delivery_delay', 'Délai de livraison'),
-                  desc: t('hero.delivery_delay_desc', 'Sous 48h après confirmation'),
-                },
-                {
-                  emoji: '🆓',
-                  title: t('hero.delivery_free', 'Livraison gratuite'),
-                  desc: t('hero.delivery_free_desc', 'Sur toutes vos commandes'),
-                },
-              ].map(item => (
-                <div key={item.title} className="flex items-start gap-3">
-                  <span className="text-2xl leading-none mt-0.5">{item.emoji}</span>
-                  <div>
-                    <p className="text-sm font-semibold text-white">{item.title}</p>
-                    <p className="text-xs text-white/65 mt-0.5">{item.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="bg-white/10 backdrop-blur rounded-2xl px-5 py-4 border border-white/15">
-              <p className="text-xs font-bold text-[#c8e050] uppercase tracking-widest mb-3">{t('hero.payment_title', 'Paiement accepté')}</p>
-              <div className="flex flex-wrap gap-2">
-                {['📱 Waafi', '💳 D-Money', '💵 Espèces'].map(m => (
-                  <span key={m} className="bg-white/15 text-white text-xs px-3 py-1.5 rounded-full font-medium">{m}</span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Sélection du moment */}
       {featuredProducts.length > 0 && (
         <section id="selection" className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12">
@@ -544,6 +478,72 @@ export default function HomePage({ products, categories, promos, producers }: {
               <div className="text-sm text-gray-500">{stat.label}</div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Hero */}
+      <section className="bg-gradient-to-br from-[#1c3a05] via-[#2d6410] to-[#7a5800] text-white py-12 md:py-20 px-4 md:px-6">
+        <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-8 md:gap-12 items-center">
+          <div>
+            <div className="inline-flex items-center gap-2 bg-white/20 rounded-full px-4 py-1 text-sm mb-5 md:mb-6">
+              🇩🇯 {t('heroTag', 'Produits frais de Djibouti et de la région')}
+            </div>
+            <h2 className="text-3xl md:text-5xl font-bold mb-4 md:mb-6 leading-tight">
+              {t('tagline', 'Trouvez vos')} <span className="italic text-[#f5d020]">{t('tagline2', 'légumes')}</span> {t('tagline3', 'et fruits du jour')}
+            </h2>
+            <p className="text-base md:text-lg text-white/80 mb-6 md:mb-8">
+              {t('heroSub', 'Bio, conventionnel, local — tous les produits frais livrés directement depuis les fermes djiboutiennes.')}
+            </p>
+            <div className="flex gap-3 md:gap-4 flex-wrap">
+              <a
+                href="#produits"
+                className="bg-white text-[#526500] px-5 md:px-6 py-3 rounded-full font-semibold hover:bg-[#faf7e8] transition text-sm md:text-base"
+              >
+                🛒 {t('orderNow', 'Commander maintenant')}
+              </a>
+              <Link href="/about" className="border border-white/40 text-white px-5 md:px-6 py-3 rounded-full font-medium hover:bg-white/10 transition text-sm md:text-base">
+                {t('learnMore', 'Qui sommes-nous ?')}
+              </Link>
+            </div>
+          </div>
+          <div className="flex flex-col gap-4">
+            <div className="bg-white/10 backdrop-blur rounded-2xl p-6 border border-white/15 flex flex-col gap-5">
+              <p className="text-xs font-bold text-[#c8e050] uppercase tracking-widest">{t('hero.delivery_info', 'Infos pratiques')}</p>
+              {[
+                {
+                  emoji: '🚚',
+                  title: t('hero.delivery_zone', 'Zone de livraison'),
+                  desc: t('hero.delivery_zone_desc', 'Djibouti-Ville et environs'),
+                },
+                {
+                  emoji: '⏱',
+                  title: t('hero.delivery_delay', 'Délai de livraison'),
+                  desc: t('hero.delivery_delay_desc', 'Sous 48h après confirmation'),
+                },
+                {
+                  emoji: '🆓',
+                  title: t('hero.delivery_free', 'Livraison gratuite'),
+                  desc: t('hero.delivery_free_desc', 'Sur toutes vos commandes'),
+                },
+              ].map(item => (
+                <div key={item.title} className="flex items-start gap-3">
+                  <span className="text-2xl leading-none mt-0.5">{item.emoji}</span>
+                  <div>
+                    <p className="text-sm font-semibold text-white">{item.title}</p>
+                    <p className="text-xs text-white/65 mt-0.5">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="bg-white/10 backdrop-blur rounded-2xl px-5 py-4 border border-white/15">
+              <p className="text-xs font-bold text-[#c8e050] uppercase tracking-widest mb-3">{t('hero.payment_title', 'Paiement accepté')}</p>
+              <div className="flex flex-wrap gap-2">
+                {['📱 Waafi', '💳 D-Money', '💵 Espèces'].map(m => (
+                  <span key={m} className="bg-white/15 text-white text-xs px-3 py-1.5 rounded-full font-medium">{m}</span>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
