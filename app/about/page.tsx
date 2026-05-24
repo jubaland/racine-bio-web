@@ -48,7 +48,7 @@ export default function AboutPage() {
             🌿 {t('about.tag', 'Notre mission')}
           </span>
           <h1 className="text-3xl md:text-5xl font-bold mb-6 leading-tight">
-            {t('about.hero_title', 'Nourrir mieux,')} <br />
+            {t('about.hero_title', 'Se nourrir mieux,')} <br />
             <span className="text-[#c8e050]">{t('about.hero_title2', 'pour vivre mieux')}</span>
           </h1>
           <p className="text-base md:text-xl text-white/80 leading-relaxed max-w-2xl mx-auto">
