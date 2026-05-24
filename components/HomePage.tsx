@@ -109,9 +109,6 @@ export default function HomePage({ products, categories, promos, producers }: {
               >
                 🛒 {t('orderNow', 'Commander maintenant')}
               </a>
-              <Link href="/about" className="border border-white/40 text-white px-4 py-2 rounded-full font-medium hover:bg-white/10 transition text-sm">
-                {t('learnMore', 'Qui sommes-nous ?')}
-              </Link>
             </div>
           </div>
           <div className="hidden md:flex flex-col gap-3">
@@ -540,7 +537,12 @@ export default function HomePage({ products, categories, promos, producers }: {
             <span className="font-bold text-[#526500]">Hornafresh</span>
             <span className="text-gray-400 text-sm">— {t('footer', 'Le marché premium, frais, bio, local et régional de Djibouti')}</span>
           </div>
-          <p className="text-sm text-gray-400">© 2026 Hornafresh. {t('rights', 'Tous droits réservés.')}</p>
+          <div className="flex items-center gap-4">
+            <Link href="/about" className="text-sm text-[#7d9800] hover:underline">
+              {t('learnMore', 'Qui sommes-nous ?')}
+            </Link>
+            <p className="text-sm text-gray-400">© 2026 Hornafresh. {t('rights', 'Tous droits réservés.')}</p>
+          </div>
         </div>
       </footer>
     </div>
