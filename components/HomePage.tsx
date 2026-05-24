@@ -90,7 +90,7 @@ export default function HomePage({ products, categories, promos, producers }: {
       <Header onCartOpen={() => setCartOpen(true)} />
 
       {/* Hero */}
-      <section className="bg-gradient-to-br from-[#1c3a05] via-[#2d6410] to-[#7a5800] text-white py-6 px-4 md:px-6">
+      <section className="bg-gradient-to-br from-[#1c3a05] via-[#2d6410] to-[#7a5800] text-white py-3 px-4 md:px-6">
         <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-6 md:gap-12 items-center">
           <div>
             <div className="inline-flex items-center gap-2 bg-white/20 rounded-full px-3 py-1 text-xs mb-3">
