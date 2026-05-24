@@ -9,6 +9,7 @@ import LanguageSelector from './LanguageSelector';
 
 export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
   const [user, setUser] = useState<any>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const { ui } = useLanguage();
   const { count } = useCart();
   const t = (key: string, fallback: string) => ui[key] || fallback;
@@ -30,7 +31,7 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
           <span className="text-3xl">🌿</span>
           <div>
             <h1 className="text-xl font-bold text-[#526500]">Hornafresh</h1>
-            <p className="text-xs text-gray-400">{t('footer', 'Le marché premium, frais, bio, local et régional de Djibouti')}</p>
+            <p className="text-xs text-gray-400 hidden md:block">{t('footer', 'Le marché premium, frais, bio, local et régional de Djibouti')}</p>
           </div>
         </Link>
         <nav className="hidden md:flex items-center gap-8">
@@ -39,6 +40,14 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
           <a href="/#promos" className="text-sm font-medium text-gray-600 hover:text-[#7d9800]">{t('promos', 'Promos')}</a>
         </nav>
         <div className="flex items-center gap-3">
+          {/* Hamburger mobile */}
+          <button
+            onClick={() => setMenuOpen(o => !o)}
+            className="md:hidden flex items-center justify-center w-9 h-9 rounded-full bg-[#ecf4d5] border border-[#d2e095] text-[#526500] hover:bg-[#d2e095] transition"
+            aria-label="Menu"
+          >
+            <span className="text-lg">{menuOpen ? '✕' : '☰'}</span>
+          </button>
           <LanguageSelector />
 
           {user ? (
@@ -79,6 +88,26 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
           </button>
         </div>
       </div>
+
+      {/* Menu mobile déroulant */}
+      {menuOpen && (
+        <div className="md:hidden border-t border-[#d2e095] bg-white px-4 py-3 flex flex-col gap-1">
+          <a href="/#produits" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-[#ecf4d5] hover:text-[#526500] transition">
+            🥬 {t('products', 'Produits')}
+          </a>
+          <a href="/#producteurs" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-[#ecf4d5] hover:text-[#526500] transition">
+            👨‍🌾 {t('producers', 'Producteurs')}
+          </a>
+          <a href="/#promos" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-[#ecf4d5] hover:text-[#526500] transition">
+            🏷️ {t('promos', 'Promotions')}
+          </a>
+          {!user && (
+            <Link href="/login" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-[#ecf4d5] hover:text-[#526500] transition">
+              👤 {t('login', 'Se connecter')}
+            </Link>
+          )}
+        </div>
+      )}
     </header>
   );
 }
