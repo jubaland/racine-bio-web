@@ -15,9 +15,8 @@ export default function CheckoutPage() {
   const t = (key: string, fallback: string) => ui[key] || fallback;
 
   const PAYMENT_METHODS = [
-    { id: 'waafi',  label: t('checkout.waafi_label',  'Waafi'),   emoji: '📱', desc: t('checkout.waafi_desc',  'Paiement mobile Waafi') },
-    { id: 'dmoney', label: t('checkout.dmoney_label', 'D-Money'), emoji: '💳', desc: t('checkout.dmoney_desc', 'Paiement mobile D-Money') },
-    { id: 'cash',   label: t('checkout.cash_label',   'Espèces'), emoji: '💵', desc: t('checkout.cash_desc',   'Paiement à la livraison') },
+    { id: 'waafi', label: t('checkout.waafi_label', 'Waafi'),   emoji: '📱', desc: t('checkout.waafi_desc', 'Paiement mobile Waafi') },
+    { id: 'cash',  label: t('checkout.cash_label',  'Espèces'), emoji: '💵', desc: t('checkout.cash_desc',  'Paiement à la livraison') },
   ];
 
   const [user, setUser] = useState<any>(null);
