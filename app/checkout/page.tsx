@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import InputMask from 'react-input-mask';
 import { useCart } from '../../context/CartContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
@@ -253,17 +254,20 @@ export default function CheckoutPage() {
                   <label className="text-sm font-medium text-gray-600 mb-1 block">
                     {t('checkout.phone', 'Téléphone *')}
                   </label>
-                  <input
-                    type="tel"
+                  <InputMask
+                    mask="99 99 99 99"
                     value={phone}
-                    onChange={e => {
-                      const digits = e.target.value.replace(/\D/g, '').slice(0, 8);
-                      setPhone(formatPhone(digits.length < 2 ? '77' : digits));
-                    }}
-                    maxLength={11}
-                    placeholder="77 XX XX XX"
-                    className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] bg-[#faf7e8]"
-                  />
+                    onChange={e => setPhone(e.target.value)}
+                    maskChar="X"
+                  >
+                    {(inputProps: any) => (
+                      <input
+                        {...inputProps}
+                        type="tel"
+                        className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] bg-[#faf7e8]"
+                      />
+                    )}
+                  </InputMask>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-600 mb-1 block">
