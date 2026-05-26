@@ -252,7 +252,7 @@ export default function CheckoutPage() {
                     type="tel"
                     value={phone}
                     onChange={e => setPhone(e.target.value.replace(/\D/g, ''))}
-                    placeholder={t('checkout.phone_placeholder', 'Ex: 77 XX XX XX')}
+                    placeholder={t('checkout.phone_placeholder', 'XX XX XX (6 chiffres restants)')}
                     className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] bg-[#faf7e8]"
                   />
                 </div>
