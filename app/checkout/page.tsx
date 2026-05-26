@@ -251,8 +251,11 @@ export default function CheckoutPage() {
                   <input
                     type="tel"
                     value={phone}
-                    onChange={e => setPhone(e.target.value.replace(/\D/g, ''))}
-                    placeholder={t('checkout.phone_placeholder', 'XX XX XX (6 chiffres restants)')}
+                    onChange={e => {
+                      const digits = e.target.value.replace(/\D/g, '');
+                      setPhone(digits.length < 2 ? '77' : digits);
+                    }}
+                    placeholder="77XX XX XX"
                     className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] bg-[#faf7e8]"
                   />
                 </div>
