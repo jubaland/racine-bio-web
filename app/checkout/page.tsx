@@ -25,7 +25,7 @@ export default function CheckoutPage() {
 
   const [step, setStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState('cash');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState('77');
   const [address, setAddress] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -251,7 +251,7 @@ export default function CheckoutPage() {
                   <input
                     type="tel"
                     value={phone}
-                    onChange={e => setPhone(e.target.value)}
+                    onChange={e => setPhone(e.target.value.replace(/\D/g, ''))}
                     placeholder={t('checkout.phone_placeholder', 'Ex: 77 XX XX XX')}
                     className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] bg-[#faf7e8]"
                   />
