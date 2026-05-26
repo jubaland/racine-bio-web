@@ -25,7 +25,11 @@ export default function CheckoutPage() {
 
   const [step, setStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState('cash');
-  const [phoneDigits, setPhoneDigits] = useState(''); // 6 chiffres après le 77
+  const [phoneDigits, setPhoneDigits] = useState(''); // 6 chiffres bruts après le 77
+  const [phoneFocused, setPhoneFocused] = useState(false);
+  const phoneDisplay = phoneFocused
+    ? phoneDigits
+    : (phoneDigits.match(/.{1,2}/g) || []).join(' ');
   const [address, setAddress] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -254,10 +258,12 @@ export default function CheckoutPage() {
                     </span>
                     <input
                       type="tel"
-                      value={phoneDigits}
+                      value={phoneDisplay}
                       onChange={e => setPhoneDigits(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      onFocus={() => setPhoneFocused(true)}
+                      onBlur={() => setPhoneFocused(false)}
                       placeholder="XX XX XX"
-                      maxLength={6}
+                      maxLength={8}
                       className="flex-1 px-4 py-3 text-sm text-gray-800 bg-transparent focus:outline-none"
                     />
                   </div>
