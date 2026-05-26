@@ -19,7 +19,7 @@ interface OrderItem {
 }
 
 interface Order {
-  id: number;
+  id: string;
   total: number;
   status: string;
   payment_method: string;
@@ -194,7 +194,7 @@ export default function ProfilePage() {
                     <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-[#f8fdf0]">
                       <div>
                         <div className="flex items-center gap-2 mb-0.5">
-                          <span className="font-mono text-xs text-gray-400">#{order.id}</span>
+                          <span className="font-mono text-xs text-gray-400">#{String(order.id).slice(0, 8).toUpperCase()}</span>
                           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${m.cls}`}>{m.label}</span>
                         </div>
                         <p className="text-xs text-gray-400">

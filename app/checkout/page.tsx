@@ -29,7 +29,7 @@ export default function CheckoutPage() {
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [orderId, setOrderId] = useState<number | null>(null);
+  const [orderId, setOrderId] = useState<string | null>(null);
   const [stockError, setStockError] = useState<{ name: string; available: number; unit: string; requested: number }[] | null>(null);
 
   useEffect(() => {
@@ -119,7 +119,7 @@ export default function CheckoutPage() {
           <div className="text-center max-w-md mx-auto px-6">
             <p className="text-7xl mb-6">🎉</p>
             <h2 className="text-2xl font-bold text-gray-800 mb-3">{t('checkout.confirmed', 'Commande confirmée !')}</h2>
-            <p className="text-gray-400 mb-2">{t('checkout.order_label', 'Commande #')}{orderId}</p>
+            <p className="text-gray-400 mb-2">{t('checkout.order_label', 'Commande #')}{orderId ? String(orderId).slice(0, 8).toUpperCase() : ''}</p>
             <p className="text-gray-500 text-sm mb-8">
               {t('checkout.thanks', 'Merci pour votre commande. Vous serez contacté pour la livraison.')}
             </p>
