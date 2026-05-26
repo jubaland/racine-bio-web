@@ -31,6 +31,7 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [confirmedTotal, setConfirmedTotal] = useState(0);
   const [stockError, setStockError] = useState<{ name: string; available: number; unit: string; requested: number }[] | null>(null);
 
   useEffect(() => {
@@ -83,6 +84,7 @@ export default function CheckoutPage() {
       }
 
       setOrderId(json.order.id);
+      setConfirmedTotal(total);
       clearCart();
       setSuccess(true);
     } catch (e) {
@@ -131,7 +133,7 @@ export default function CheckoutPage() {
               <div className="bg-[#e8f5e0] border border-[#a8c800] rounded-2xl p-4 mb-6 text-left">
                 <p className="font-semibold text-[#526500] mb-1">📱 Paiement Waafi à effectuer</p>
                 <p className="text-sm text-gray-600 mb-2">
-                  Envoyez <span className="font-bold text-[#526500]">{total.toLocaleString()} Fdj</span> au numéro :
+                  Envoyez <span className="font-bold text-[#526500]">{confirmedTotal.toLocaleString()} Fdj</span> au numéro :
                 </p>
                 <p className="text-2xl font-bold text-[#526500] tracking-widest text-center py-2">
                   {WAAFI_MERCHANT_NUMBER}
