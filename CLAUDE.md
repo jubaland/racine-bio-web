@@ -20,7 +20,7 @@ No test suite exists in this project.
 
 ### Data flow
 
-La page d'accueil (`app/page.tsx`) est un **Server Component** qui fetch en parallèle depuis Supabase et passe les données à `<HomePage>` (Client Component). Toutes les autres pages sont `'use client'` et fetchen directement avec le client Supabase public.
+La page d'accueil (`app/page.tsx`) est un **Server Component** avec `export const dynamic = 'force-dynamic'` (pas de cache Vercel, données toujours fraîches). Elle fetch en parallèle depuis Supabase et passe les données à `<HomePage>` (Client Component). Toutes les autres pages sont `'use client'` et fetchen directement avec le client Supabase public.
 
 Les deux clients Supabase ont des rôles distincts :
 - `lib/supabase.ts` — client public (anon key, soumis aux RLS). Utilisé côté client dans les pages et contextes.
@@ -52,7 +52,17 @@ Le fallback en français est **la source de vérité** — `ui[key]` est vide po
 
 ### Snapshot order_items
 
-À la création d'une commande, le checkout copie le nom, l'image, l'unité et la ferme du produit dans `order_items` (`product_name`, `product_image_url`, `product_unit`, `product_farm`). Cela garantit que les commandes historiques restent correctes même si un produit est modifié. L'API et les composants ont un fallback sur un join `products` pour la rétrocompatibilité.
+À la création d'une commande, le checkout copie le nom, l'image, l'unité et la ferme du produit dans `order_items` (`product_name`, `product_image_url`, `product_unit`, `product_farm`). Cela garantit que les commandes historiques restent correctes même si un produit est modifié. L'API et les composants ont un fallback sur un join `products` pour la rétrocompatibilité. Le script de migration est dans `scripts/migrate_order_items_snapshot.sql`.
+
+### Paiement
+
+Deux méthodes actives dans le checkout : **Waafi** et **Espèces**. D-Money est désactivé.
+
+**Waafi** — paiement manuel : le client envoie le montant au numéro marchand `77432615` depuis son app Waafi. La commande est créée en `pending`. L'admin vérifie le paiement et met à jour le statut manuellement dans `/admin` → Commandes.
+
+L'intégration API WaafiPay automatique (endpoint `https://api.waafipay.com/asm`, `API_PURCHASE`) est prévue mais en attente des credentials (`WAAFI_MERCHANT_UID`, `WAAFI_API_USER_ID`, `WAAFI_API_KEY` dans `.env.local` et variables Vercel). Ne pas recréer la route `/api/pay/waafi` avant d'avoir ces trois variables.
+
+**Champ téléphone checkout** — préfixe `77` fixe (div + span) + input pour les 6 chiffres restants. Format `XX XX XX` à la perte de focus via `onBlur`/`onFocus`. State : `phoneDigits` (chiffres bruts), `phoneFocused` (bool). Soumission : `'77' + phoneDigits`.
 
 ### Admin
 
