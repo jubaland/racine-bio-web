@@ -7,15 +7,17 @@ import { supabase } from '../../lib/supabase';
 import Header from '../../components/Header';
 import Link from 'next/link';
 
+type WaafiStatus = 'idle' | 'waiting' | 'error' | 'not_configured';
+
 export default function CheckoutPage() {
   const { items, total, clearCart } = useCart();
   const { ui } = useLanguage();
   const t = (key: string, fallback: string) => ui[key] || fallback;
 
   const PAYMENT_METHODS = [
-    { id: 'waafi',  label: t('checkout.waafi_label',  'Waafi'),    emoji: '📱', desc: t('checkout.waafi_desc',  'Paiement mobile Waafi') },
-    { id: 'dmoney', label: t('checkout.dmoney_label', 'D-Money'),  emoji: '💳', desc: t('checkout.dmoney_desc', 'Paiement mobile D-Money') },
-    { id: 'cash',   label: t('checkout.cash_label',   'Espèces'),  emoji: '💵', desc: t('checkout.cash_desc',   'Paiement à la livraison') },
+    { id: 'waafi',  label: t('checkout.waafi_label',  'Waafi'),   emoji: '📱', desc: t('checkout.waafi_desc',  'Paiement mobile Waafi — confirmation sur votre téléphone') },
+    { id: 'dmoney', label: t('checkout.dmoney_label', 'D-Money'), emoji: '💳', desc: t('checkout.dmoney_desc', 'Paiement mobile D-Money') },
+    { id: 'cash',   label: t('checkout.cash_label',   'Espèces'), emoji: '💵', desc: t('checkout.cash_desc',   'Paiement à la livraison') },
   ];
 
   const [user, setUser] = useState<any>(null);
@@ -25,9 +27,14 @@ export default function CheckoutPage() {
   const [step, setStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [phone, setPhone] = useState('');
+  const [mobilePayPhone, setMobilePayPhone] = useState('');
   const [address, setAddress] = useState('');
   const [name, setName] = useState('');
+
   const [loading, setLoading] = useState(false);
+  const [waafiStatus, setWaafiStatus] = useState<WaafiStatus>('idle');
+  const [waafiError, setWaafiError] = useState<string | null>(null);
+
   const [success, setSuccess] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [stockError, setStockError] = useState<{ name: string; available: number; unit: string; requested: number }[] | null>(null);
@@ -43,57 +50,111 @@ export default function CheckoutPage() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Réinitialise les erreurs Waafi quand on change de méthode
+  const handleMethodChange = (id: string) => {
+    setPaymentMethod(id);
+    setWaafiError(null);
+    setWaafiStatus('idle');
+    setMobilePayPhone('');
+  };
+
+  const createOrder = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        order: {
+          user_id:        session?.user?.id || null,
+          total,
+          status:         'pending',
+          payment_method: paymentMethod,
+          phone,
+          address,
+          customer_name:  name,
+        },
+        items: items.map(item => ({
+          product_id:        item.id,
+          quantity:          item.quantity,
+          price:             item.price,
+          product_name:      item.name,
+          product_image_url: item.image_url ?? null,
+          product_unit:      item.unit,
+          product_farm:      item.farm ?? null,
+        })),
+      }),
+    });
+    return res;
+  };
+
   const handleOrder = async () => {
     setLoading(true);
     setStockError(null);
+    setWaafiError(null);
+
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-
-      const res = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          order: {
-            user_id: session?.user?.id || null,
-            total,
-            status: 'pending',
-            payment_method: paymentMethod,
-            phone,
-            address,
-            customer_name: name,
-          },
-          items: items.map(item => ({
-            product_id:        item.id,
-            quantity:          item.quantity,
-            price:             item.price,
-            product_name:      item.name,
-            product_image_url: item.image_url ?? null,
-            product_unit:      item.unit,
-            product_farm:      item.farm ?? null,
-          })),
-        }),
-      });
-
+      // 1. Créer la commande (status: pending)
+      const res = await createOrder();
       const json = await res.json();
 
       if (!res.ok) {
-        if (json.error === 'stock_insufficient') {
-          setStockError(json.items);
-          return;
-        }
+        if (json.error === 'stock_insufficient') { setStockError(json.items); return; }
         throw new Error(json.error || 'Erreur serveur');
       }
 
-      setOrderId(json.order.id);
+      const newOrderId: string = json.order.id;
+      setOrderId(newOrderId);
+
+      // 2. Paiement Waafi : appel API + attente confirmation téléphone
+      if (paymentMethod === 'waafi') {
+        setWaafiStatus('waiting');
+        setLoading(false);
+
+        const payRes = await fetch('/api/pay/waafi', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId: newOrderId,
+            phone:   mobilePayPhone || phone,
+            amount:  total,
+          }),
+        });
+
+        const payJson = await payRes.json();
+
+        if (payJson.error === 'waafi_not_configured') {
+          setWaafiStatus('not_configured');
+          return;
+        }
+        if (payJson.error === 'timeout') {
+          setWaafiStatus('error');
+          setWaafiError(t('checkout.waafi_timeout', 'Délai dépassé. Vérifiez votre téléphone et réessayez.'));
+          return;
+        }
+        if (!payJson.success) {
+          setWaafiStatus('error');
+          setWaafiError(t('checkout.waafi_failed', 'Paiement refusé par Waafi. Vérifiez votre solde et réessayez.'));
+          return;
+        }
+
+        // Succès Waafi
+        setWaafiStatus('idle');
+        clearCart();
+        setSuccess(true);
+        return;
+      }
+
+      // 3. Cash / D-Money : confirmation directe
       clearCart();
       setSuccess(true);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
     } finally {
       setLoading(false);
     }
   };
 
+  // ── Écran : panier vide ──────────────────────────────────────────────────────
   if (items.length === 0 && !success) {
     return (
       <div className="min-h-screen bg-[#faf7e8]">
@@ -111,6 +172,36 @@ export default function CheckoutPage() {
     );
   }
 
+  // ── Écran : attente confirmation Waafi ──────────────────────────────────────
+  if (waafiStatus === 'waiting') {
+    return (
+      <div className="min-h-screen bg-[#faf7e8]">
+        <Header onCartOpen={() => {}} />
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center max-w-sm mx-auto px-6">
+            <p className="text-7xl mb-6 animate-pulse">📱</p>
+            <h2 className="text-xl font-bold text-gray-800 mb-3">
+              {t('checkout.waafi_waiting_title', 'Confirmation en cours...')}
+            </h2>
+            <p className="text-gray-500 text-sm mb-2">
+              {t('checkout.waafi_waiting_sub', 'Une demande de confirmation a été envoyée sur votre téléphone Waafi.')}
+            </p>
+            <p className="text-gray-400 text-xs">
+              {t('checkout.waafi_waiting_hint', 'Entrez votre PIN Waafi pour valider le paiement de')}{' '}
+              <span className="font-bold text-[#526500]">{total.toLocaleString()} Fdj</span>
+            </p>
+            <div className="mt-8 flex justify-center gap-1">
+              {[0,1,2].map(i => (
+                <span key={i} className="w-2 h-2 rounded-full bg-[#a8c800] animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Écran : succès ───────────────────────────────────────────────────────────
   if (success) {
     return (
       <div className="min-h-screen bg-[#faf7e8]">
@@ -119,7 +210,9 @@ export default function CheckoutPage() {
           <div className="text-center max-w-md mx-auto px-6">
             <p className="text-7xl mb-6">🎉</p>
             <h2 className="text-2xl font-bold text-gray-800 mb-3">{t('checkout.confirmed', 'Commande confirmée !')}</h2>
-            <p className="text-gray-400 mb-2">{t('checkout.order_label', 'Commande #')}{orderId ? String(orderId).slice(0, 8).toUpperCase() : ''}</p>
+            <p className="text-gray-400 mb-2">
+              {t('checkout.order_label', 'Commande #')}{orderId ? String(orderId).slice(0, 8).toUpperCase() : ''}
+            </p>
             <p className="text-gray-500 text-sm mb-8">
               {t('checkout.thanks', 'Merci pour votre commande. Vous serez contacté pour la livraison.')}
             </p>
@@ -144,6 +237,11 @@ export default function CheckoutPage() {
     { n: 3, label: t('checkout.step_payment',  'Paiement') },
   ];
 
+  const canConfirm =
+    !loading &&
+    !(paymentMethod === 'waafi' && !mobilePayPhone) &&
+    !(paymentMethod === 'dmoney' && !mobilePayPhone);
+
   return (
     <div className="min-h-screen bg-[#faf7e8]">
       <Header onCartOpen={() => {}} />
@@ -153,6 +251,7 @@ export default function CheckoutPage() {
           💳 {t('checkout.title', 'Finaliser la commande')}
         </h1>
 
+        {/* Indicateur d'étapes */}
         <div className="flex items-center gap-2 md:gap-4 mb-8">
           {STEPS.map((s, i) => (
             <div key={s.n} className="flex items-center gap-1.5 md:gap-2">
@@ -165,7 +264,7 @@ export default function CheckoutPage() {
           ))}
         </div>
 
-        {/* Step 1 — Récapitulatif */}
+        {/* ── Étape 1 : Récapitulatif ─────────────────────────────────────── */}
         {step === 1 && (
           <div>
             <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-4">
@@ -204,7 +303,7 @@ export default function CheckoutPage() {
           </div>
         )}
 
-        {/* Step 2 — Livraison */}
+        {/* ── Étape 2 : Livraison ─────────────────────────────────────────── */}
         {step === 2 && (
           <div>
             <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-4">
@@ -226,7 +325,7 @@ export default function CheckoutPage() {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-600 mb-1 block">
-                    {t('checkout.phone', 'Téléphone *')}
+                    {t('checkout.phone', 'Téléphone de livraison *')}
                   </label>
                   <input
                     type="tel"
@@ -268,7 +367,7 @@ export default function CheckoutPage() {
           </div>
         )}
 
-        {/* Step 3 — Garde auth */}
+        {/* ── Étape 3 : Garde auth ────────────────────────────────────────── */}
         {step === 3 && authChecked && !user && !guestMode && (
           <div className="bg-white rounded-3xl p-8 border border-[#d2e095] shadow-sm text-center">
             <p className="text-5xl mb-4">🔐</p>
@@ -283,7 +382,7 @@ export default function CheckoutPage() {
                 href={`/login?redirect=/checkout`}
                 className="w-full bg-[#a8c800] text-white py-3.5 rounded-2xl font-semibold hover:bg-[#7d9800] transition"
               >
-                {t('checkout.auth_signin', '🔑 Se connecter / S\'inscrire')}
+                {t('checkout.auth_signin', "🔑 Se connecter / S'inscrire")}
               </Link>
               <button
                 onClick={() => setGuestMode(true)}
@@ -291,68 +390,98 @@ export default function CheckoutPage() {
               >
                 {t('checkout.auth_guest', 'Continuer sans compte →')}
               </button>
-              <button
-                onClick={() => setStep(2)}
-                className="text-sm text-gray-400 hover:text-gray-600 mt-1"
-              >
+              <button onClick={() => setStep(2)} className="text-sm text-gray-400 hover:text-gray-600 mt-1">
                 {t('checkout.back', '← Retour')}
               </button>
             </div>
           </div>
         )}
 
-        {/* Step 3 — Paiement */}
+        {/* ── Étape 3 : Paiement ──────────────────────────────────────────── */}
         {step === 3 && authChecked && (user || guestMode) && (
           <div>
             <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-4">
               <h2 className="text-lg font-semibold text-gray-800 mb-4">
                 💳 {t('checkout.payment_title', 'Mode de paiement')}
               </h2>
+
               <div className="space-y-3">
                 {PAYMENT_METHODS.map(method => (
                   <button
                     key={method.id}
-                    onClick={() => setPaymentMethod(method.id)}
-                    className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition ${
+                    onClick={() => handleMethodChange(method.id)}
+                    className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition text-left ${
                       paymentMethod === method.id
                         ? 'border-[#a8c800] bg-[#ecf4d5]'
                         : 'border-[#d2e095] bg-white hover:bg-[#faf7e8]'
                     }`}
                   >
                     <span className="text-3xl">{method.emoji}</span>
-                    <div className="text-left">
+                    <div>
                       <p className="font-semibold text-gray-800">{method.label}</p>
                       <p className="text-xs text-gray-400">{method.desc}</p>
                     </div>
                     {paymentMethod === method.id && (
-                      <span className="ml-auto text-[#a8c800] text-xl">✓</span>
+                      <span className="ml-auto text-[#a8c800] text-xl flex-shrink-0">✓</span>
                     )}
                   </button>
                 ))}
               </div>
 
+              {/* Champ numéro Waafi / D-Money */}
               {(paymentMethod === 'waafi' || paymentMethod === 'dmoney') && (
-                <div className="mt-4">
-                  <label className="text-sm font-medium text-gray-600 mb-1 block">
-                    {t('checkout.mobile_number', 'Numéro')}{' '}
-                    {paymentMethod === 'waafi'
-                      ? t('checkout.waafi_label', 'Waafi')
-                      : t('checkout.dmoney_label', 'D-Money')}
+                <div className="mt-4 p-4 bg-[#f8fdf0] rounded-2xl border border-[#d2e095]">
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                    📱 {t('checkout.mobile_pay_number', 'Numéro')}{' '}
+                    <span className="font-bold">
+                      {paymentMethod === 'waafi'
+                        ? t('checkout.waafi_label', 'Waafi')
+                        : t('checkout.dmoney_label', 'D-Money')}
+                    </span>{' '}
+                    *
                   </label>
                   <input
                     type="tel"
+                    value={mobilePayPhone}
+                    onChange={e => setMobilePayPhone(e.target.value)}
                     placeholder={t('checkout.phone_placeholder', 'Ex: 77 XX XX XX')}
-                    className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] bg-[#faf7e8]"
+                    className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] bg-white"
                   />
+                  {paymentMethod === 'waafi' && (
+                    <p className="text-xs text-gray-400 mt-2">
+                      {t('checkout.waafi_push_hint', 'Une confirmation sera envoyée sur ce numéro. Entrez votre PIN Waafi pour valider.')}
+                    </p>
+                  )}
                 </div>
               )}
 
-              <div className="border-t border-[#d2e095] mt-6 pt-4">
-                <div className="flex items-center justify-between mb-2">
+              {/* Erreur non configuré */}
+              {waafiStatus === 'not_configured' && (
+                <div className="mt-4 bg-orange-50 border border-orange-200 rounded-2xl p-4">
+                  <p className="text-orange-700 font-semibold text-sm">⚙️ Waafi non configuré</p>
+                  <p className="text-orange-600 text-xs mt-1">
+                    Le paiement Waafi est en cours d'activation. Choisissez Espèces pour finaliser votre commande.
+                  </p>
+                </div>
+              )}
+
+              {/* Erreur Waafi (refus / timeout) */}
+              {waafiStatus === 'error' && waafiError && (
+                <div className="mt-4 bg-red-50 border border-red-200 rounded-2xl p-4">
+                  <p className="text-red-700 font-semibold text-sm">❌ {waafiError}</p>
+                  <p className="text-red-500 text-xs mt-1">
+                    {t('checkout.waafi_retry', 'Vous pouvez réessayer ou choisir un autre mode de paiement.')}
+                  </p>
+                </div>
+              )}
+
+              {/* Récapitulatif montant */}
+              <div className="border-t border-[#d2e095] mt-6 pt-4 space-y-2">
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">{t('checkout.subtotal', 'Sous-total')}</span>
                   <span className="font-medium">{total.toLocaleString()} Fdj</span>
                 </div>
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">{t('checkout.delivery_label', 'Livraison')}</span>
                   <span className="font-medium text-green-500">{t('checkout.free', 'Gratuite')}</span>
                 </div>
@@ -363,6 +492,7 @@ export default function CheckoutPage() {
               </div>
             </div>
 
+            {/* Erreur stock */}
             {stockError && (
               <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-2">
                 <p className="text-red-700 font-semibold text-sm mb-2">⚠️ {t('checkout.stock_error', 'Stock insuffisant pour certains articles :')}</p>
@@ -380,13 +510,14 @@ export default function CheckoutPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => setStep(2)}
-                className="flex-1 bg-white text-gray-600 py-4 rounded-2xl font-semibold border border-[#d2e095] hover:bg-[#ecf4d5] transition"
+                disabled={loading}
+                className="flex-1 bg-white text-gray-600 py-4 rounded-2xl font-semibold border border-[#d2e095] hover:bg-[#ecf4d5] transition disabled:opacity-50"
               >
                 {t('checkout.back', '← Retour')}
               </button>
               <button
                 onClick={handleOrder}
-                disabled={loading}
+                disabled={!canConfirm}
                 className="flex-1 bg-[#a8c800] text-white py-4 rounded-2xl font-semibold hover:bg-[#7d9800] transition disabled:opacity-50"
               >
                 {loading
