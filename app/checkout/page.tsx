@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import InputMask from 'react-input-mask';
 import { useCart } from '../../context/CartContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
@@ -26,12 +25,7 @@ export default function CheckoutPage() {
 
   const [step, setStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState('cash');
-  const [phone, setPhone] = useState('77');
-
-  const formatPhone = (raw: string) => {
-    const digits = raw.replace(/\D/g, '').slice(0, 8);
-    return (digits.match(/.{1,2}/g) || []).join(' ');
-  };
+  const [phoneDigits, setPhoneDigits] = useState(''); // 6 chiffres après le 77
   const [address, setAddress] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -66,7 +60,7 @@ export default function CheckoutPage() {
             total,
             status:         'pending',
             payment_method: paymentMethod,
-            phone,
+            phone: '77' + phoneDigits,
             address,
             customer_name:  name,
           },
@@ -254,20 +248,19 @@ export default function CheckoutPage() {
                   <label className="text-sm font-medium text-gray-600 mb-1 block">
                     {t('checkout.phone', 'Téléphone *')}
                   </label>
-                  <InputMask
-                    mask="99 99 99 99"
-                    value={phone}
-                    onChange={e => setPhone(e.target.value)}
-                    maskChar="X"
-                  >
-                    {(inputProps: any) => (
-                      <input
-                        {...inputProps}
-                        type="tel"
-                        className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] bg-[#faf7e8]"
-                      />
-                    )}
-                  </InputMask>
+                  <div className="flex border border-[#d2e095] rounded-xl overflow-hidden focus-within:border-[#a8c800] bg-[#faf7e8] transition">
+                    <span className="flex items-center px-4 text-sm font-semibold text-gray-700 bg-[#ecf4d5] border-r border-[#d2e095] select-none">
+                      77
+                    </span>
+                    <input
+                      type="tel"
+                      value={phoneDigits}
+                      onChange={e => setPhoneDigits(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="XX XX XX"
+                      maxLength={6}
+                      className="flex-1 px-4 py-3 text-sm text-gray-800 bg-transparent focus:outline-none"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-600 mb-1 block">
@@ -292,7 +285,7 @@ export default function CheckoutPage() {
               </button>
               <button
                 onClick={() => setStep(3)}
-                disabled={!name || !phone || !address}
+                disabled={!name || phoneDigits.length === 0 || !address}
                 className="flex-1 bg-[#a8c800] text-white py-4 rounded-2xl font-semibold hover:bg-[#7d9800] transition disabled:opacity-50"
               >
                 {t('checkout.continue_payment', 'Continuer → Paiement')}
