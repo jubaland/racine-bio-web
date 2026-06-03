@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useLanguage } from '../context/LanguageContext';
 import { useCart } from '../context/CartContext';
@@ -33,6 +33,16 @@ export default function HomePage({ products, categories, promos, producers }: {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [referralBarDismissed, setReferralBarDismissed] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    setReferralBarDismissed(localStorage.getItem('hf_referral_bar') === '1');
+  }, []);
+
+  const dismissReferralBar = () => {
+    localStorage.setItem('hf_referral_bar', '1');
+    setReferralBarDismissed(true);
+  };
 
   const t = (key: string, fallback: string) => ui[key] || fallback;
 
@@ -87,6 +97,34 @@ export default function HomePage({ products, categories, promos, producers }: {
     <div className="min-h-screen bg-[#faf7e8]">
 
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+
+      {/* Referral announcement bar */}
+      {referralBarDismissed === false && (
+        <div className="bg-[#c8e050] text-[#1c3a05]">
+          <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-center gap-3 relative">
+            <span className="hidden md:inline text-sm font-medium">
+              🎁 {t('referral.bar_text', 'Parrainez un ami — il reçoit la livraison offerte, et vous aussi sur votre prochaine commande.')}
+            </span>
+            <span className="md:hidden text-xs font-medium text-center">
+              🎁 {t('referral.bar_text_short', 'Parrainez un ami — livraison offerte pour vous deux.')}
+            </span>
+            <Link
+              href="/profile"
+              className="shrink-0 bg-[#1c3a05] text-white text-xs font-semibold px-4 py-1.5 rounded-full hover:bg-[#2d6410] transition"
+            >
+              {t('referral.bar_cta', 'Parrainer →')}
+            </Link>
+            <button
+              onClick={dismissReferralBar}
+              aria-label="Fermer"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-[#1c3a05]/50 hover:text-[#1c3a05] transition text-base leading-none font-bold"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       <Header onCartOpen={() => setCartOpen(true)} />
 
       {/* Hero */}
