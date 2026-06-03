@@ -325,16 +325,16 @@ export default function CheckoutPage() {
         </h1>
 
         {/* Indicateur d'étapes */}
-        <div className="flex items-center mb-8">
+        <div className="flex items-start mb-8">
           {STEPS.map((s, i) => (
-            <div key={s.n} className="flex items-center flex-1 min-w-0">
-              <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-none ${step >= s.n ? 'bg-[#a8c800] text-white' : 'bg-white border border-[#d2e095] text-gray-400'}`}>
+            <div key={s.n} className="flex items-start flex-1">
+              <div className="flex flex-col items-center gap-1.5 flex-1">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= s.n ? 'bg-[#a8c800] text-white' : 'bg-white border border-[#d2e095] text-gray-400'}`}>
                   {s.n}
                 </div>
-                <span className={`text-[10px] sm:text-xs text-center leading-tight w-full ${step >= s.n ? 'text-gray-800 font-medium' : 'text-gray-400'}`}>{s.label}</span>
+                <span className={`text-xs text-center ${step >= s.n ? 'text-gray-800 font-medium' : 'text-gray-400'}`}>{s.label}</span>
               </div>
-              {i < 2 && <span className="text-gray-300 flex-none pb-5">›</span>}
+              {i < 2 && <span className="text-gray-300 mt-2 flex-none">›</span>}
             </div>
           ))}
         </div>
