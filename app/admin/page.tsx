@@ -13,8 +13,9 @@ import AdminOrders from '../../components/admin/AdminOrders';
 import AdminRequests from '../../components/admin/AdminRequests';
 import AdminUsers from '../../components/admin/AdminUsers';
 import AdminDelivery from '../../components/admin/AdminDelivery';
+import AdminNotifications from '../../components/admin/AdminNotifications';
 
-type Section = 'dashboard' | 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'requests' | 'users' | 'delivery';
+type Section = 'dashboard' | 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'requests' | 'users' | 'delivery' | 'notifications';
 
 export default function AdminPage() {
   const [user, setUser] = useState<any>(null);
@@ -22,6 +23,7 @@ export default function AdminPage() {
   const [accessDenied, setAccessDenied] = useState(false);
   const [activeSection, setActiveSection] = useState<Section>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
@@ -36,6 +38,7 @@ export default function AdminPage() {
     { id: 'requests', emoji: '📋', label: t('admin.nav_requests', 'Demandes producteurs') },
     { id: 'users', emoji: '👥', label: t('admin.nav_users', 'Utilisateurs') },
     { id: 'delivery', emoji: '🚚', label: t('admin.nav_delivery', 'Livraison') },
+    { id: 'notifications', emoji: '🔔', label: t('admin.nav_notifications', 'Notifications') },
   ];
 
   useEffect(() => {
@@ -54,6 +57,21 @@ export default function AdminPage() {
       }
       setUser(session.user);
       setLoading(false);
+
+      // Unread notifications count + realtime
+      const { count } = await supabase
+        .from('admin_notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('read', false);
+      setUnreadCount(count || 0);
+
+      const channel = supabase
+        .channel('admin_notifs_badge')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'admin_notifications' },
+          () => setUnreadCount(c => c + 1)
+        )
+        .subscribe();
+      return () => { supabase.removeChannel(channel); };
     };
     init();
   }, []);
@@ -74,6 +92,7 @@ export default function AdminPage() {
       case 'requests': return <AdminRequests />;
       case 'users': return <AdminUsers />;
       case 'delivery': return <AdminDelivery />;
+      case 'notifications': return <AdminNotifications />;
     }
   };
 
@@ -144,7 +163,11 @@ export default function AdminPage() {
           {NAV_ITEMS.map(item => (
             <button
               key={item.id}
-              onClick={() => { setActiveSection(item.id); setSidebarOpen(false); }}
+              onClick={() => {
+                setActiveSection(item.id);
+                setSidebarOpen(false);
+                if (item.id === 'notifications') setUnreadCount(0);
+              }}
               className={`
                 w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition
                 ${activeSection === item.id
@@ -153,7 +176,12 @@ export default function AdminPage() {
               `}
             >
               <span className="text-lg w-6 text-center">{item.emoji}</span>
-              <span>{item.label}</span>
+              <span className="flex-1 text-left">{item.label}</span>
+              {item.id === 'notifications' && unreadCount > 0 && (
+                <span className="bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </button>
           ))}
         </nav>

@@ -39,6 +39,10 @@ export async function sendPushToUser(userId: string, payload: { title: string; b
 }
 
 export async function sendPushToAdmin(payload: { title: string; body: string; url?: string }) {
+  // Log en base (fire-and-forget) — indépendant de la livraison push
+  void supabaseAdmin.from('admin_notifications')
+    .insert({ title: payload.title, body: payload.body ?? null, url: payload.url ?? null });
+
   const ready = initVapid();
   console.log('[push] sendPushToAdmin | initVapid:', ready);
   if (!ready) return;
