@@ -647,10 +647,12 @@ export default function CheckoutPage() {
           <div>
 
             {/* Récapitulatif commande */}
-            <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-4">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">
-                📋 {t('checkout.recap_title', 'Récapitulatif')}
-              </h2>
+            <div className="bg-[#f4f9e8] rounded-3xl border-2 border-[#a8c800] shadow-sm mb-4 overflow-hidden">
+              <div className="bg-[#526500] px-6 py-3 flex items-center gap-2">
+                <span className="text-white text-base">📋</span>
+                <h2 className="text-base font-bold text-white">{t('checkout.recap_title', 'Récapitulatif de votre commande')}</h2>
+              </div>
+              <div className="p-6">
 
               {/* Articles */}
               <div className="space-y-3 mb-4">
@@ -713,6 +715,7 @@ export default function CheckoutPage() {
                   </div>
                 </div>
               )}
+              </div>{/* /p-6 */}
             </div>
 
             <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-4">
