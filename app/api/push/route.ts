@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabase-admin';
-import { createClient } from '@supabase/supabase-js';
 
 // POST — enregistre ou supprime un abonnement push
 export async function POST(request: Request) {
@@ -14,11 +13,7 @@ export async function POST(request: Request) {
     let isAdmin = false;
 
     if (token) {
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
-      const { data: { user } } = await supabase.auth.getUser(token);
+      const { data: { user } } = await supabaseAdmin.auth.getUser(token);
       if (user) {
         userId = user.id;
         isAdmin = user.user_metadata?.is_admin === true;
