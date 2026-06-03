@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabase-admin';
 import { sendOrderConfirmation, sendNewOrderAlert, sendStatusUpdate } from '../../../lib/emails';
-import { sendPushToUser, sendPushToAdmin } from '../../../lib/push';
 
 // POST — crée commande + articles avec vérification et décrémentation du stock
 export async function POST(request: Request) {
@@ -150,19 +149,22 @@ export async function POST(request: Request) {
         }));
         await sendNewOrderAlert(createdOrder, emailItems, customerEmail);
         if (customerEmail) await sendOrderConfirmation(createdOrder, emailItems, customerEmail);
-        const shortId = String(createdOrder.id).slice(0, 8).toUpperCase();
-        if (createdOrder.user_id) {
-          await sendPushToUser(createdOrder.user_id, {
-            title: '✅ Commande confirmée',
-            body: `Commande #${shortId} — ${Number(createdOrder.total).toLocaleString('fr-FR')} Fdj`,
-            url: '/profile',
+        try {
+          const { sendPushToUser, sendPushToAdmin } = await import('../../../lib/push');
+          const shortId = String(createdOrder.id).slice(0, 8).toUpperCase();
+          if (createdOrder.user_id) {
+            await sendPushToUser(createdOrder.user_id, {
+              title: '✅ Commande confirmée',
+              body: `Commande #${shortId} — ${Number(createdOrder.total).toLocaleString('fr-FR')} Fdj`,
+              url: '/profile',
+            });
+          }
+          await sendPushToAdmin({
+            title: '🛍️ Nouvelle commande',
+            body: `#${shortId} — ${createdOrder.customer_name} — ${Number(createdOrder.total).toLocaleString('fr-FR')} Fdj`,
+            url: '/admin',
           });
-        }
-        await sendPushToAdmin({
-          title: '🛍️ Nouvelle commande',
-          body: `#${shortId} — ${createdOrder.customer_name} — ${Number(createdOrder.total).toLocaleString('fr-FR')} Fdj`,
-          url: '/admin',
-        });
+        } catch (_) {}
       } catch (_) { /* email failure must not affect order */ }
     })();
 
@@ -258,19 +260,22 @@ export async function PATCH(request: Request) {
       const { data: userData } = await supabaseAdmin.auth.admin.getUserById(updatedOrder.user_id);
       const customerEmail = userData?.user?.email;
       if (customerEmail) await sendStatusUpdate(updatedOrder, customerEmail);
-      const STATUS_PUSH: Record<string, string> = {
-        processing: '🚚 Commande en préparation',
-        shipping:   '📦 Commande expédiée',
-        delivered:  '✅ Commande livrée !',
-        cancelled:  '❌ Commande annulée',
-      };
-      if (STATUS_PUSH[updatedOrder.status]) {
-        await sendPushToUser(updatedOrder.user_id, {
-          title: STATUS_PUSH[updatedOrder.status],
-          body: `Commande #${String(updatedOrder.id).slice(0, 8).toUpperCase()}`,
-          url: '/profile',
-        });
-      }
+      try {
+        const { sendPushToUser } = await import('../../../lib/push');
+        const STATUS_PUSH: Record<string, string> = {
+          processing: '🚚 Commande en préparation',
+          shipping:   '📦 Commande expédiée',
+          delivered:  '✅ Commande livrée !',
+          cancelled:  '❌ Commande annulée',
+        };
+        if (STATUS_PUSH[updatedOrder.status] && updatedOrder.user_id) {
+          await sendPushToUser(updatedOrder.user_id, {
+            title: STATUS_PUSH[updatedOrder.status],
+            body: `Commande #${String(updatedOrder.id).slice(0, 8).toUpperCase()}`,
+            url: '/profile',
+          });
+        }
+      } catch (_) {}
     } catch (_) { /* email failure must not affect response */ }
   })();
 
