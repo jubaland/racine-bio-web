@@ -394,7 +394,7 @@ export default function CheckoutPage() {
                       value={name}
                       onChange={e => setName(e.target.value)}
                       placeholder={t('checkout.name_placeholder', 'Ex: Ahmed Hassan')}
-                      className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] bg-[#faf7e8]"
+                      className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] bg-white"
                     />
                   </div>
 
@@ -402,7 +402,7 @@ export default function CheckoutPage() {
                     <label className="text-sm font-medium text-gray-600 mb-1 block">
                       {t('checkout.phone', 'Téléphone *')}
                     </label>
-                    <div className="flex border border-[#d2e095] rounded-xl overflow-hidden focus-within:border-[#a8c800] bg-[#faf7e8] transition">
+                    <div className="flex border border-[#d2e095] rounded-xl overflow-hidden focus-within:border-[#a8c800] bg-white transition">
                       <span className="flex items-center px-4 text-sm font-semibold text-gray-700 bg-[#ecf4d5] border-r border-[#d2e095] select-none">
                         77
                       </span>
@@ -431,7 +431,7 @@ export default function CheckoutPage() {
                       onChange={e => setAddress(e.target.value)}
                       placeholder={t('checkout.address_placeholder', 'Ex: Quartier 4, Rue de la Paix, Djibouti-Ville')}
                       rows={3}
-                      className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] bg-[#faf7e8] resize-none"
+                      className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] bg-white resize-none"
                     />
                   </div>
 
