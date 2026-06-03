@@ -51,7 +51,7 @@ export default function CheckoutPage() {
   const [stockError, setStockError] = useState<{ name: string; available: number; unit: string; requested: number }[] | null>(null);
 
   // Options de livraison
-  const [deliveryOptions, setDeliveryOptions] = useState<{ id: number; name: string; description: string; price: number; emoji: string }[]>([]);
+  const [deliveryOptions, setDeliveryOptions] = useState<{ id: number; name: string; description: string; price: number; emoji: string; is_standard: boolean }[]>([]);
   const [selectedDeliveryId, setSelectedDeliveryId] = useState<number | null>(null);
   const selectedDelivery = deliveryOptions.find(o => o.id === selectedDeliveryId) ?? null;
   const baseFee = selectedDelivery?.price ?? 0;
@@ -72,10 +72,8 @@ export default function CheckoutPage() {
   const [newAddressLabel, setNewAddressLabel] = useState('Maison');
 
   const referralActive = !!(appliedCode || (useReferralCredit && referralCredits > 0));
-  const paidOptions = deliveryOptions.filter(o => o.price > 0);
-  const referralDiscount = referralActive && paidOptions.length > 0
-    ? Math.min(...paidOptions.map(o => o.price))
-    : 0;
+  const standardOption = deliveryOptions.find(o => o.is_standard);
+  const referralDiscount = referralActive && standardOption ? standardOption.price : 0;
   const deliveryFee = Math.max(0, baseFee - referralDiscount);
   const orderTotal = total + deliveryFee;
 
@@ -98,7 +96,7 @@ export default function CheckoutPage() {
     // Charger les options de livraison
     supabase
       .from('delivery_options')
-      .select('id, name, description, price, emoji')
+      .select('id, name, description, price, emoji, is_standard')
       .eq('is_active', true)
       .order('sort_order')
       .order('id')

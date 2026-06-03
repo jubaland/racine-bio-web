@@ -11,10 +11,11 @@ interface DeliveryOption {
   price: number;
   emoji: string;
   is_active: boolean;
+  is_standard: boolean;
   sort_order: number;
 }
 
-const EMPTY = { name: '', description: '', price: 0, emoji: '🚚', is_active: true, sort_order: 0 };
+const EMPTY = { name: '', description: '', price: 0, emoji: '🚚', is_active: true, is_standard: false, sort_order: 0 };
 
 export default function AdminDelivery() {
   const [options, setOptions] = useState<DeliveryOption[]>([]);
@@ -55,6 +56,7 @@ export default function AdminDelivery() {
       price: opt.price,
       emoji: opt.emoji,
       is_active: opt.is_active,
+      is_standard: opt.is_standard,
       sort_order: opt.sort_order,
     });
     setError('');
@@ -71,8 +73,13 @@ export default function AdminDelivery() {
       price:       Math.max(0, Number(form.price) || 0),
       emoji:       form.emoji.trim() || '🚚',
       is_active:   form.is_active,
+      is_standard: form.is_standard,
       sort_order:  Number(form.sort_order) || 0,
     };
+    // Une seule option peut être "standard" — réinitialiser les autres si nécessaire
+    if (form.is_standard) {
+      await supabase.from('delivery_options').update({ is_standard: false }).neq('id', editingId ?? 0);
+    }
     const { error: err } = editingId
       ? await supabase.from('delivery_options').update(payload).eq('id', editingId)
       : await supabase.from('delivery_options').insert(payload);
@@ -139,6 +146,9 @@ export default function AdminDelivery() {
                       {opt.price === 0 ? 'Gratuit' : `${opt.price.toLocaleString()} Fdj`}
                     </span>
                     <span className="text-xs text-gray-300">ordre {opt.sort_order}</span>
+                    {opt.is_standard && (
+                      <span className="text-xs bg-amber-100 text-amber-700 px-2.5 py-0.5 rounded-full font-semibold">★ Référence parrainage</span>
+                    )}
                     {!opt.is_active && (
                       <span className="text-xs bg-gray-100 text-gray-400 px-2.5 py-0.5 rounded-full">Désactivé</span>
                     )}
@@ -245,6 +255,19 @@ export default function AdminDelivery() {
                 className="w-4 h-4 accent-[#a8c800]"
               />
               <span className="text-sm font-medium text-gray-700">Active — visible au checkout</span>
+            </label>
+
+            <label className="flex items-center gap-3 cursor-pointer select-none p-3 bg-amber-50 rounded-xl border border-amber-200">
+              <input
+                type="checkbox"
+                checked={form.is_standard}
+                onChange={e => setForm(f => ({ ...f, is_standard: e.target.checked }))}
+                className="w-4 h-4 accent-amber-500"
+              />
+              <div>
+                <span className="text-sm font-medium text-amber-800">★ Option de référence (parrainage)</span>
+                <p className="text-xs text-amber-600 mt-0.5">Le code parrainage déduit le prix de cette option des frais de livraison.</p>
+              </div>
             </label>
 
             {error && <p className="text-sm text-red-500">⚠️ {error}</p>}
