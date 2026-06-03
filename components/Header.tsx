@@ -34,10 +34,6 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
             <p className="text-xs text-gray-400 hidden md:block">{t('footer', 'Le marché premium, frais, bio, local et régional de Djibouti')}</p>
           </div>
         </Link>
-        <nav className="hidden md:flex items-center gap-8">
-          <a href="/#produits" className="text-sm font-medium text-gray-600 hover:text-[#7d9800]">{t('products', 'Produits')}</a>
-          <a href="/#producteurs" className="text-sm font-medium text-gray-600 hover:text-[#7d9800]">{t('producers', 'Producteurs')}</a>
-        </nav>
         <div className="flex items-center gap-3">
           {/* Hamburger mobile */}
           <button
@@ -91,12 +87,6 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
       {/* Menu mobile déroulant */}
       {menuOpen && (
         <div className="md:hidden border-t border-[#d2e095] bg-white px-4 py-3 flex flex-col gap-1">
-          <a href="/#produits" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-[#ecf4d5] hover:text-[#526500] transition">
-            🥬 {t('products', 'Produits')}
-          </a>
-          <a href="/#producteurs" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-[#ecf4d5] hover:text-[#526500] transition">
-            👨‍🌾 {t('producers', 'Producteurs')}
-          </a>
           {!user && (
             <Link href="/login" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-[#ecf4d5] hover:text-[#526500] transition">
               👤 {t('login', 'Se connecter')}
