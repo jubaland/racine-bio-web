@@ -140,6 +140,31 @@ export async function POST(request: Request) {
       const shortId = String(createdOrder.id).slice(0, 8).toUpperCase();
       if (createdOrder.user_id) await sendPushToUser(createdOrder.user_id, { title: '✅ Commande confirmée', body: `Commande #${shortId} — ${Number(createdOrder.total).toLocaleString('fr-FR')} Fdj`, url: '/profile' });
       await sendPushToAdmin({ title: '🛍️ Nouvelle commande', body: `#${shortId} — ${createdOrder.customer_name} — ${Number(createdOrder.total).toLocaleString('fr-FR')} Fdj`, url: '/admin' });
+
+      // Alertes stock bas (seuil : 5 unités)
+      const LOW = 5;
+      const lowStock = items
+        .map((item: any) => ({
+          name:     stockMap[item.product_id]?.name ?? `Produit #${item.product_id}`,
+          newStock: Math.max(0, (stockMap[item.product_id]?.stock_qty ?? 0) - item.quantity),
+          wasAbove: (stockMap[item.product_id]?.stock_qty ?? 0) > LOW,
+        }))
+        .filter(p => p.newStock <= LOW && p.wasAbove);
+
+      if (lowStock.length === 1) {
+        const p = lowStock[0];
+        await sendPushToAdmin({
+          title: `⚠️ Stock bas — ${p.name}`,
+          body: `Plus que ${p.newStock} unité${p.newStock !== 1 ? 's' : ''} restante${p.newStock !== 1 ? 's' : ''}`,
+          url: '/admin',
+        });
+      } else if (lowStock.length > 1) {
+        await sendPushToAdmin({
+          title: `⚠️ Stock bas — ${lowStock.length} produits`,
+          body: lowStock.map(p => `${p.name} (${p.newStock})`).join(', '),
+          url: '/admin',
+        });
+      }
     } catch (_) {}
 
     // Emails — fire-and-forget (Resend peut prendre ~1s)
