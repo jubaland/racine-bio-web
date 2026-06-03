@@ -39,9 +39,11 @@ export async function sendPushToUser(userId: string, payload: { title: string; b
 }
 
 export async function sendPushToAdmin(payload: { title: string; body: string; url?: string }) {
-  // Log en base (fire-and-forget) — indépendant de la livraison push
-  void supabaseAdmin.from('admin_notifications')
+  // Log en base — awaité pour garantir l'exécution en serverless
+  const { error: insertError } = await supabaseAdmin.from('admin_notifications')
     .insert({ title: payload.title, body: payload.body ?? null, url: payload.url ?? null });
+  if (insertError) console.error('[push] admin_notifications insert error:', insertError.message);
+  else console.log('[push] admin_notifications insert ok');
 
   const ready = initVapid();
   console.log('[push] sendPushToAdmin | initVapid:', ready);
