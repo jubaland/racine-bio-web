@@ -51,20 +51,20 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                          className="w-7 h-7 rounded-full bg-white border border-[#d2e095] flex items-center justify-center text-gray-600 hover:bg-[#ecf4d5] transition"
+                          className="w-9 h-9 rounded-full bg-white border border-[#d2e095] flex items-center justify-center text-gray-600 hover:bg-[#ecf4d5] transition"
                         >−</button>
                         <span className="text-sm font-semibold w-5 text-center">{item.quantity}</span>
                         <button
                           disabled={item.quantity >= item.stock_qty}
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          className="w-7 h-7 rounded-full bg-[#a8c800] flex items-center justify-center text-white hover:bg-[#7d9800] transition disabled:opacity-30 disabled:cursor-not-allowed"
+                          className="w-9 h-9 rounded-full bg-[#a8c800] flex items-center justify-center text-white hover:bg-[#7d9800] transition disabled:opacity-30 disabled:cursor-not-allowed"
                         >+</button>
                       </div>
                       {item.quantity >= item.stock_qty && (
                         <span className="text-xs text-orange-500">Max {item.stock_qty} {item.unit}</span>
                       )}
                     </div>
-                    <button onClick={() => removeItem(item.id)} className="text-gray-300 hover:text-red-400 transition flex-none">🗑</button>
+                    <button onClick={() => removeItem(item.id)} className="p-2 -mr-1 text-gray-300 hover:text-red-400 transition flex-none">🗑</button>
                   </div>
                 ))}
               </div>

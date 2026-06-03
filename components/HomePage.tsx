@@ -206,7 +206,7 @@ export default function HomePage({ products, categories, promos, producers }: {
               return (
                 <Link key={p.id} href={`/product/${p.id}`} onClick={(p.stock_qty ?? 0) <= 0 ? (e) => e.preventDefault() : undefined}
                   className={`bg-white rounded-2xl overflow-hidden border border-[#d2e095] transition group ${(p.stock_qty ?? 0) <= 0 ? 'cursor-default opacity-75' : 'hover:shadow-lg'}`}>
-                  <div className="relative h-40 bg-[#ecf4d5]">
+                  <div className="relative h-32 sm:h-40 bg-[#ecf4d5]">
                     {p.image_url ? (
                       <img src={p.image_url} alt={getProductName(p)} className={`w-full h-full object-cover transition duration-300 ${(p.stock_qty ?? 0) <= 0 ? 'opacity-50' : 'group-hover:scale-105'}`} />
                     ) : (
@@ -267,13 +267,13 @@ export default function HomePage({ products, categories, promos, producers }: {
               {t('seeAll', 'Tout voir')}
             </button>
           </div>
-          <div className="flex gap-4 overflow-x-auto pb-4">
+          <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory">
             {localProducts.map((p: any) => {
               const isBio = p.product_type === 'bio';
               const flag = ORIGIN_FLAGS[p.origin_country] || '🌍';
               return (
                 <Link key={p.id} href={`/product/${p.id}`} onClick={(p.stock_qty ?? 0) <= 0 ? (e) => e.preventDefault() : undefined}
-                  className={`flex-none w-48 bg-white rounded-2xl overflow-hidden border border-[#d2e095] transition group ${(p.stock_qty ?? 0) <= 0 ? 'cursor-default opacity-75' : 'hover:shadow-md'}`}>
+                  className={`flex-none w-44 sm:w-48 snap-center bg-white rounded-2xl overflow-hidden border border-[#d2e095] transition group ${(p.stock_qty ?? 0) <= 0 ? 'cursor-default opacity-75' : 'hover:shadow-md'}`}>
                   <div className="relative h-36 bg-[#ecf4d5]">
                     {p.image_url ? (
                       <img src={p.image_url} alt={getProductName(p)} className={`w-full h-full object-cover transition duration-300 ${(p.stock_qty ?? 0) <= 0 ? 'opacity-50' : 'group-hover:scale-105'}`} />
@@ -454,7 +454,7 @@ export default function HomePage({ products, categories, promos, producers }: {
               const isBio = product.product_type === 'bio';
               return (
                 <Link key={product.id} href={`/product/${product.id}`} onClick={(product.stock_qty ?? 0) <= 0 ? (e) => e.preventDefault() : undefined} className={`bg-white rounded-2xl overflow-hidden border border-[#d2e095] transition group ${(product.stock_qty ?? 0) <= 0 ? 'cursor-default opacity-75' : 'hover:shadow-lg'}`}>
-                  <div className="relative h-44 bg-[#ecf4d5]">
+                  <div className="relative h-36 sm:h-44 bg-[#ecf4d5]">
                     {product.image_url ? (
                       <img src={product.image_url} alt={getProductName(product)} className={`w-full h-full object-cover transition duration-300 ${(product.stock_qty ?? 0) <= 0 ? 'opacity-50' : 'group-hover:scale-105'}`} />
                     ) : (

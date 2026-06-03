@@ -53,7 +53,7 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
       <Header onCartOpen={() => setCartOpen(true)} />
 
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
 
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">
@@ -69,7 +69,7 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
           <div className="grid md:grid-cols-2 gap-0">
 
             {/* Image */}
-            <div className="relative h-80 md:h-auto bg-[#ecf4d5]">
+            <div className="relative h-52 sm:h-64 md:h-auto bg-[#ecf4d5]">
               {product.image_url ? (
                 <img src={product.image_url} alt={getProductName(product)} className="w-full h-full object-cover" />
               ) : (
@@ -84,7 +84,7 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
             </div>
 
             {/* Info */}
-            <div className="p-8">
+            <div className="p-4 sm:p-6 md:p-8">
               <h1 className="text-2xl font-bold text-gray-800 mb-2">{getProductName(product)}</h1>
               <p className="text-gray-400 text-sm mb-4">🌱 {product.farm} · {product.region}</p>
 

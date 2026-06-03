@@ -28,7 +28,7 @@ export default function FavoritesPage() {
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
       <Header onCartOpen={() => setCartOpen(true)} />
 
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <h1 className="text-2xl font-bold text-gray-800 mb-6">❤️ {t('favorites', 'Mes favoris')}</h1>
 
         {favorites.length === 0 ? (
@@ -43,7 +43,7 @@ export default function FavoritesPage() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {favorites.map((product: any) => (
               <div key={product.id} className="bg-white rounded-2xl overflow-hidden border border-[#d2e095] hover:shadow-lg transition group">
-                <div className="relative h-44 bg-[#ecf4d5]">
+                <div className="relative h-36 sm:h-44 bg-[#ecf4d5]">
                   <Link href={`/product/${product.id}`}>
                     {product.image_url ? (
                       <img src={product.image_url} alt={getProductName(product)} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />

@@ -244,7 +244,7 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-[#faf7e8]">
       <header className="bg-white border-b border-[#d2e095] sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
             <span className="text-3xl">🌿</span>
             <div>
@@ -258,11 +258,11 @@ export default function ProfilePage() {
         </div>
       </header>
 
-      <div className="max-w-3xl mx-auto px-6 py-12">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
 
         {/* Carte utilisateur */}
-        <div className="bg-white rounded-3xl p-8 border border-[#d2e095] shadow-sm mb-6">
-          <div className="flex items-center gap-6">
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#d2e095] shadow-sm mb-6">
+          <div className="flex items-center gap-4 sm:gap-6">
             <div className="w-20 h-20 bg-[#ecf4d5] rounded-full flex items-center justify-center text-4xl">👤</div>
             <div className="flex-1">
               <h2 className="text-xl font-bold text-gray-800">
@@ -612,7 +612,7 @@ export default function ProfilePage() {
               </p>
               <div className="flex items-center gap-3">
                 <div className="flex-1 bg-[#ecf4d5] border border-[#d2e095] rounded-xl px-5 py-3 text-center">
-                  <span className="text-2xl font-bold text-[#526500] tracking-[0.25em]">{referralCode}</span>
+                  <span className="text-xl sm:text-2xl font-bold text-[#526500] tracking-[0.1em] sm:tracking-[0.25em]">{referralCode}</span>
                 </div>
                 <button
                   onClick={() => {
