@@ -645,6 +645,76 @@ export default function CheckoutPage() {
         {/* ── Étape 3 : Paiement ──────────────────────────────────────────── */}
         {step === 3 && authChecked && (user || guestMode) && (
           <div>
+
+            {/* Récapitulatif commande */}
+            <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-4">
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                📋 {t('checkout.recap_title', 'Récapitulatif')}
+              </h2>
+
+              {/* Articles */}
+              <div className="space-y-3 mb-4">
+                {items.map(item => (
+                  <div key={item.id} className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl overflow-hidden bg-[#ecf4d5] flex-none">
+                      {item.image_url
+                        ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                        : <div className="w-full h-full flex items-center justify-center text-base opacity-30">📷</div>}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">{item.name}</p>
+                      <p className="text-xs text-gray-400">x{item.quantity} · {item.price.toLocaleString()} Fdj {item.unit}</p>
+                    </div>
+                    <p className="text-sm font-bold text-[#7d9800] flex-none">{(item.price * item.quantity).toLocaleString()} Fdj</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Séparateur */}
+              <div className="border-t border-[#f0f0f0] my-4" />
+
+              {/* Adresse */}
+              <div className="flex items-start gap-3 mb-3">
+                <span className="text-lg mt-0.5 flex-none">📍</span>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{t('checkout.delivery_address', 'Adresse de livraison')}</p>
+                  <p className="text-sm font-medium text-gray-800">{name}</p>
+                  <p className="text-xs text-gray-500">77 {(phoneDigits.match(/.{1,2}/g) || []).join(' ')}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{address}</p>
+                </div>
+                <button onClick={() => setStep(2)} className="ml-auto text-xs text-[#7d9800] hover:underline flex-none">
+                  {t('checkout.edit', 'Modifier')}
+                </button>
+              </div>
+
+              {/* Mode de livraison */}
+              {selectedDelivery && (
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-lg flex-none">{selectedDelivery.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{t('checkout.delivery_mode', 'Livraison')}</p>
+                    <p className="text-sm text-gray-800">{selectedDelivery.name}</p>
+                  </div>
+                  <p className="text-sm font-bold flex-none">
+                    {deliveryFee === 0
+                      ? <span className="text-green-500">{baseFee > 0 ? t('checkout.delivery_offered', 'Offerte') + ' 🎁' : t('checkout.free', 'Gratuite')}</span>
+                      : <span className="text-[#526500]">{deliveryFee.toLocaleString()} Fdj</span>}
+                  </p>
+                </div>
+              )}
+
+              {/* Demande spéciale */}
+              {specialInstructions.trim() && (
+                <div className="flex items-start gap-3">
+                  <span className="text-lg flex-none mt-0.5">📝</span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{t('checkout.special_title', 'Demande spéciale')}</p>
+                    <p className="text-xs text-gray-600 leading-relaxed">{specialInstructions}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-4">
               <h2 className="text-lg font-semibold text-gray-800 mb-4">
                 💳 {t('checkout.payment_title', 'Mode de paiement')}
