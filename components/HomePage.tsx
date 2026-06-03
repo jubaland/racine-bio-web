@@ -32,6 +32,7 @@ export default function HomePage({ products, categories, promos, producers }: {
   const [activeOrigin, setActiveOrigin] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [promoOnly, setPromoOnly] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [referralBarDismissed, setReferralBarDismissed] = useState<boolean | null>(null);
 
@@ -89,6 +90,10 @@ export default function HomePage({ products, categories, promos, producers }: {
     return result;
   };
 
+  const promoCategories = new Set(
+    promos.filter((p: any) => p.active !== false && p.category).map((p: any) => p.category)
+  );
+
   const filteredProducts = products.filter(p => {
     const catMatch = activeCategory === 'all' || p.category === activeCategory;
     const typeMatch = activeType === 'all' || p.product_type === activeType;
@@ -96,7 +101,8 @@ export default function HomePage({ products, categories, promos, producers }: {
     const searchMatch = searchQuery === '' ||
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (p.farm && p.farm.toLowerCase().includes(searchQuery.toLowerCase()));
-    return catMatch && typeMatch && originMatch && searchMatch;
+    const promoMatch = !promoOnly || promoCategories.has(p.category);
+    return catMatch && typeMatch && originMatch && searchMatch && promoMatch;
   });
 
   const localProducts = products.filter(p => p.is_local);
@@ -342,6 +348,23 @@ export default function HomePage({ products, categories, promos, producers }: {
           })()}
         </div>
 
+        {/* Chip Promos */}
+        {promoCategories.size > 0 && (
+          <div className="mb-3">
+            <button
+              onClick={() => setPromoOnly(v => !v)}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition ${
+                promoOnly
+                  ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
+                  : 'bg-white text-amber-700 border-amber-300 hover:bg-amber-50'
+              }`}
+            >
+              🏷️ {t('filter.promos_only', 'Articles en promotion')}
+              {promoOnly && <span className="text-white/80 text-xs">✕</span>}
+            </button>
+          </div>
+        )}
+
         {/* Filtres */}
         <div className="flex flex-wrap gap-3 mb-6">
           <select
@@ -375,9 +398,9 @@ export default function HomePage({ products, categories, promos, producers }: {
             ))}
           </select>
 
-          {(activeCategory !== 'all' || activeType !== 'all' || activeOrigin !== 'all' || searchQuery) && (
+          {(activeCategory !== 'all' || activeType !== 'all' || activeOrigin !== 'all' || searchQuery || promoOnly) && (
             <button
-              onClick={() => { setActiveType('all'); setActiveOrigin('all'); setActiveCategory('all'); setSearchQuery(''); }}
+              onClick={() => { setActiveType('all'); setActiveOrigin('all'); setActiveCategory('all'); setSearchQuery(''); setPromoOnly(false); }}
               className="px-4 py-2.5 text-sm text-red-400 hover:text-red-600 border border-red-200 rounded-xl bg-white hover:bg-red-50 transition"
             >
               ✕ {t('home.reset_filters', 'Réinitialiser')}
@@ -417,6 +440,11 @@ export default function HomePage({ products, categories, promos, producers }: {
                     <div className={`absolute top-2 left-2 text-xs font-bold px-2 py-1 rounded-md ${isBio ? 'bg-[#edf5a0] text-[#526500]' : 'bg-orange-100 text-orange-700'}`}>
                       {isBio ? `🌿 ${t('product.type_bio', 'Bio')}` : `🥕 ${t('product.type_conv', 'Conv.')}`}
                     </div>
+                    {promoCategories.has(product.category) && (
+                      <div className="absolute top-9 left-2 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-400 text-amber-900">
+                        🏷️ Promo
+                      </div>
+                    )}
                     {/* Bouton favori sur l'image */}
                     <button
                       onClick={(e) => { e.stopPropagation(); e.preventDefault(); isFavorite(product.id) ? removeFavorite(product.id) : addFavorite(product); }}
