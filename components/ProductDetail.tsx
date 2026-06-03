@@ -78,7 +78,7 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
               <div className={`absolute top-4 left-4 text-xs font-bold px-3 py-1 rounded-full ${isBio ? 'bg-[#edf5a0] text-[#526500]' : 'bg-orange-100 text-orange-700'}`}>
                 {isBio ? `🌿 ${t('product.type_bio', 'Bio')}` : `🥕 ${t('product.type_conv', 'Conventionnel')}`}
               </div>
-              <div className="absolute top-4 right-4 bg-white/90 rounded-full px-3 py-1 text-sm">
+              <div className="absolute top-4 right-4 bg-white shadow rounded-full px-3 py-1 text-sm font-medium text-gray-700">
                 {origin.flag} {origin.label}
               </div>
             </div>

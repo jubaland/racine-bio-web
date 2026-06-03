@@ -232,11 +232,10 @@ export default function HomePage({ products, categories, promos, producers }: {
                         {p.featured_badge}
                       </div>
                     )}
-                    <div className="absolute bottom-2 right-2 bg-white/80 rounded-full px-2 py-0.5 text-xs backdrop-blur-sm">{flag}</div>
                   </div>
                   <div className="p-3">
                     <h3 className="text-sm font-semibold text-gray-800 truncate">{getProductName(p)}</h3>
-                    <p className="text-xs text-gray-400 mt-1">🌱 {p.farm}</p>
+                    <p className="text-xs text-gray-400 mt-1">🌱 {p.farm} · {flag}</p>
                     <div className="flex items-center justify-between mt-3">
                       <div>
                         {p.old_price && (
@@ -299,11 +298,10 @@ export default function HomePage({ products, categories, promos, producers }: {
                       onClick={(e) => { e.stopPropagation(); e.preventDefault(); isFavorite(p.id) ? removeFavorite(p.id) : addFavorite(p); }}
                       className="absolute top-2 right-2 w-7 h-7 bg-[#a8c800] rounded-full flex items-center justify-center shadow hover:bg-[#7d9800] transition text-sm"
                     >{isFavorite(p.id) ? '❤️' : '🤍'}</button>
-                    <div className="absolute bottom-2 right-2 bg-white/80 rounded-full px-1.5 py-0.5 text-xs backdrop-blur-sm">{flag}</div>
                   </div>
                   <div className="p-3">
                     <p className="text-sm font-medium text-gray-800 truncate">{getProductName(p)}</p>
-                    <p className="text-xs text-gray-400 mt-1">🌱 {p.farm}</p>
+                    <p className="text-xs text-gray-400 mt-1">🌱 {p.farm} · {flag}</p>
                     <div className="flex items-center justify-between mt-2">
                       <div>
                         {(p.old_price || p.oldPrice) && (
@@ -483,14 +481,10 @@ export default function HomePage({ products, categories, promos, producers }: {
                     >
                       {isFavorite(product.id) ? '❤️' : '🤍'}
                     </button>
-                    {/* Drapeau en bas à droite */}
-                    <div className="absolute bottom-2 right-2 bg-white/80 rounded-full px-2 py-0.5 text-xs backdrop-blur-sm">
-                      {origin.flag}
-                    </div>
                   </div>
                   <div className="p-3">
                     <h3 className="text-sm font-semibold text-gray-800 truncate">{getProductName(product)}</h3>
-                    <p className="text-xs text-gray-400 mt-1">🌱 {product.farm}</p>
+                    <p className="text-xs text-gray-400 mt-1">🌱 {product.farm} · {origin.flag}</p>
                     <div className="flex items-center justify-between mt-3">
                       <div>
                         {(product.old_price || product.oldPrice) && (
