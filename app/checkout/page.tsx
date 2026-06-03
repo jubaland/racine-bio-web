@@ -59,7 +59,8 @@ export default function CheckoutPage() {
 
   const showAddressCards = !!(user && savedAddresses.length > 0);
   const showNewAddressForm = !showAddressCards || selectedAddressId === 'new';
-  const formFilled = name.trim().length > 0 && phoneDigits.length > 0 && address.trim().length > 0;
+  const phoneValid = phoneDigits.length === 6;
+  const formFilled = name.trim().length > 0 && phoneValid && address.trim().length > 0;
   const canContinueStep2 = showAddressCards && selectedAddressId !== 'new'
     ? selectedAddressId !== null
     : formFilled;
@@ -416,6 +417,9 @@ export default function CheckoutPage() {
                         className="flex-1 px-4 py-3 text-sm text-gray-800 bg-transparent focus:outline-none"
                       />
                     </div>
+                    {phoneDigits.length > 0 && !phoneValid && (
+                      <p className="text-xs text-red-500 mt-1.5">⚠️ Le numéro doit contenir 8 chiffres au total (77 + 6 chiffres)</p>
+                    )}
                   </div>
 
                   <div>
