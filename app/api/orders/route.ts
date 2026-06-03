@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabase-admin';
+import { sendOrderConfirmation, sendNewOrderAlert, sendStatusUpdate } from '../../../lib/emails';
 
 // POST — crée commande + articles avec vérification et décrémentation du stock
 export async function POST(request: Request) {
@@ -85,6 +86,24 @@ export async function POST(request: Request) {
         .eq('id', item.product_id);
     }));
 
+    // Emails — fire-and-forget, never block the order response
+    (async () => {
+      try {
+        let customerEmail: string | null = null;
+        if (createdOrder.user_id) {
+          const { data: userData } = await supabaseAdmin.auth.admin.getUserById(createdOrder.user_id);
+          customerEmail = userData?.user?.email ?? null;
+        }
+        const emailItems = items.map((item: any) => ({
+          ...item,
+          product_name: item.product_name ?? stockMap[item.product_id]?.name ?? null,
+          product_unit: item.product_unit ?? stockMap[item.product_id]?.unit ?? null,
+        }));
+        await sendNewOrderAlert(createdOrder, emailItems, customerEmail);
+        if (customerEmail) await sendOrderConfirmation(createdOrder, emailItems, customerEmail);
+      } catch (_) { /* email failure must not affect order */ }
+    })();
+
     return NextResponse.json({ order: createdOrder });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
@@ -162,7 +181,23 @@ export async function PATCH(request: Request) {
     }
   }
 
-  const { error } = await supabaseAdmin.from('orders').update({ status }).eq('id', id);
+  const { data: updatedOrder, error } = await supabaseAdmin
+    .from('orders')
+    .update({ status })
+    .eq('id', id)
+    .select()
+    .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  // Notifier le client par email — fire-and-forget
+  (async () => {
+    try {
+      if (!updatedOrder?.user_id) return;
+      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(updatedOrder.user_id);
+      const customerEmail = userData?.user?.email;
+      if (customerEmail) await sendStatusUpdate(updatedOrder, customerEmail);
+    } catch (_) { /* email failure must not affect response */ }
+  })();
+
   return NextResponse.json({ ok: true });
 }
