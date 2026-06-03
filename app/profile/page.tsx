@@ -393,15 +393,19 @@ export default function ProfilePage() {
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-6">
           {[
-            { emoji: '📦', label: t('profile.stat_orders', 'Commandes'), value: orders.length },
-            { emoji: '❤️', label: t('profile.stat_favorites', 'Favoris'), value: favCount },
-            { emoji: '📍', label: t('profile.stat_addresses', 'Adresses'), value: addresses.length },
+            { emoji: '📦', label: t('profile.stat_orders', 'Commandes'), value: orders.length, anchor: 'section-orders' },
+            { emoji: '❤️', label: t('profile.stat_favorites', 'Favoris'), value: favCount, anchor: 'section-favorites' },
+            { emoji: '📍', label: t('profile.stat_addresses', 'Adresses'), value: addresses.length, anchor: 'section-addresses' },
           ].map(stat => (
-            <div key={stat.label} className="bg-white rounded-2xl p-4 text-center border border-[#d2e095]">
+            <button
+              key={stat.label}
+              onClick={() => document.getElementById(stat.anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              className="bg-white rounded-2xl p-4 text-center border border-[#d2e095] hover:border-[#a8c800] hover:shadow-sm transition"
+            >
               <p className="text-2xl mb-1">{stat.emoji}</p>
               <p className="text-xl font-bold text-[#526500]">{stat.value}</p>
               <p className="text-xs text-gray-400">{stat.label}</p>
-            </div>
+            </button>
           ))}
         </div>
 
@@ -514,7 +518,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Favoris */}
-        <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6">
+        <div id="section-favorites" className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-800">❤️ {t('profile.my_favorites', 'Mes favoris')}</h3>
             <Link href="/favorites" className="text-sm text-[#7d9800] hover:underline">
@@ -542,7 +546,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Adresses de livraison */}
-        <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6">
+        <div id="section-addresses" className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-800">📍 Mes adresses</h3>
             {!showAddressForm && (
@@ -775,7 +779,7 @@ export default function ProfilePage() {
         )}
 
         {/* Commandes */}
-        <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6">
+        <div id="section-orders" className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">📦 {t('profile.my_orders', 'Mes commandes')}</h3>
 
           {orders.length === 0 ? (
