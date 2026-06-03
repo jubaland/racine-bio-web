@@ -242,6 +242,13 @@ export default function ProfilePage() {
     setSavingPassword(false);
   };
 
+  const urlBase64ToUint8Array = (base64: string) => {
+    const padding = '='.repeat((4 - base64.length % 4) % 4);
+    const b64 = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const raw = window.atob(b64);
+    return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+  };
+
   const togglePush = async () => {
     setPushLoading(true);
     try {
@@ -262,7 +269,7 @@ export default function ProfilePage() {
         if (permission !== 'granted') { setPushLoading(false); return; }
         const sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+          applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
         });
         await fetch('/api/push', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
           body: JSON.stringify({ subscription: sub.toJSON(), action: 'subscribe' }) });
