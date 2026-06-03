@@ -80,6 +80,7 @@ export default function ProfilePage() {
   const [pushSupported, setPushSupported] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
+  const [pushError, setPushError] = useState('');
 
   // Sécurité
   const [securityOpen, setSecurityOpen] = useState(false);
@@ -251,6 +252,7 @@ export default function ProfilePage() {
 
   const togglePush = async () => {
     setPushLoading(true);
+    setPushError('');
     try {
       const reg = await navigator.serviceWorker.ready;
       const { data: { session } } = await supabase.auth.getSession();
@@ -266,16 +268,30 @@ export default function ProfilePage() {
         setPushEnabled(false);
       } else {
         const permission = await Notification.requestPermission();
+        if (permission === 'denied') {
+          setPushError(t('profile.push_permission_denied', 'Notifications bloquées par le navigateur. Autorisez-les dans les paramètres.'));
+          setPushLoading(false);
+          return;
+        }
         if (permission !== 'granted') { setPushLoading(false); return; }
+        const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        if (!vapidKey) { setPushError('Clé VAPID manquante — contactez le support.'); setPushLoading(false); return; }
         const sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
+          applicationServerKey: urlBase64ToUint8Array(vapidKey),
         });
-        await fetch('/api/push', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        const res = await fetch('/api/push', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
           body: JSON.stringify({ subscription: sub.toJSON(), action: 'subscribe' }) });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || `HTTP ${res.status}`);
+        }
         setPushEnabled(true);
       }
-    } catch (e) { console.error(e); }
+    } catch (e: any) {
+      console.error('[push] togglePush error:', e);
+      setPushError(e?.message || 'Erreur inconnue');
+    }
     setPushLoading(false);
   };
 
@@ -898,6 +914,9 @@ export default function ProfilePage() {
                         <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${pushEnabled ? 'translate-x-5' : 'translate-x-1'}`} />
                       </button>
                     </div>
+                  )}
+                  {pushError && (
+                    <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{pushError}</p>
                   )}
                   {([
                     { key: 'orders', label: t('profile.notif_orders', 'Confirmation de commande'), desc: t('profile.notif_orders_desc', 'Recevoir un email à chaque nouvelle commande') },
