@@ -183,7 +183,7 @@ export async function sendStatusUpdate(order: any, customerEmail: string) {
   const statusLabel = STATUS_LABELS[order.status] || order.status;
 
   const messages: Record<string, string> = {
-    processing: 'Votre commande est en cours de préparation. Nous vous contacterons dès qu'elle est prête.',
+    processing: "Votre commande est en cours de préparation. Nous vous contacterons dès qu'elle est prête.",
     shipping:   'Votre commande est en route ! Notre livreur vous contactera pour la remise.',
     delivered:  'Votre commande a été livrée. Merci pour votre confiance et à bientôt !',
     cancelled:  'Votre commande a été annulée. Contactez-nous si vous avez des questions.',
