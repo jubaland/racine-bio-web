@@ -294,12 +294,21 @@ export default function ProfilePage() {
         </div>
 
         {/* ── Tableau de bord dépenses ── */}
-        {orders.length > 0 && (
-          <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-5">
-              📊 {t('profile.spending_title', 'Mes dépenses')}
-            </h3>
+        <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-5">
+            📊 {t('profile.spending_title', 'Mes dépenses')}
+          </h3>
 
+          {orders.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-4xl mb-3 opacity-20">📊</p>
+              <p className="text-gray-400 text-sm">{t('profile.spending_empty', 'Vos statistiques apparaîtront après votre première commande.')}</p>
+              <Link href="/" className="mt-3 inline-block text-sm text-[#7d9800] hover:underline">
+                {t('profile.start_shopping', 'Commencer mes achats')}
+              </Link>
+            </div>
+          ) : (
+            <>
             {/* KPIs */}
             <div className="grid grid-cols-3 gap-3 mb-6">
               <div className="bg-gradient-to-br from-[#ecf4d5] to-[#d6eea0] rounded-2xl p-3 text-center">
@@ -388,8 +397,9 @@ export default function ProfilePage() {
                 </div>
               </>
             )}
-          </div>
-        )}
+            </>
+          )}
+        </div>
 
         {/* Favoris */}
         <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6">
