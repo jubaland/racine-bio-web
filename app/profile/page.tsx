@@ -915,26 +915,6 @@ export default function ProfilePage() {
                           <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${pushEnabled ? 'translate-x-5' : 'translate-x-1'}`} />
                         </button>
                       </div>
-                      {pushEnabled && (
-                        <button
-                          onClick={async () => {
-                            setPushError('');
-                            const { data: { session } } = await supabase.auth.getSession();
-                            const token = session?.access_token;
-                            const res = await fetch('/api/push/test', { method: 'POST', headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
-                            const body = await res.json();
-                            if (!res.ok) setPushError('Test échoué : ' + (body.error || `HTTP ${res.status}`));
-                            else {
-                              const failed = body.report?.filter((r: any) => !r.ok);
-                              if (failed?.length) setPushError('Erreur push : ' + failed[0].error);
-                              else setPushError('✅ Notification envoyée — vérifiez votre navigateur');
-                            }
-                          }}
-                          className="text-xs text-[#526500] underline underline-offset-2 self-start"
-                        >
-                          Envoyer une notification test
-                        </button>
-                      )}
                     </div>
                   )}
                   {pushError && (
