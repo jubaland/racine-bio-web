@@ -147,25 +147,22 @@ export async function POST(request: Request) {
           product_name: item.product_name ?? stockMap[item.product_id]?.name ?? null,
           product_unit: item.product_unit ?? stockMap[item.product_id]?.unit ?? null,
         }));
+        console.log('[email] sending to admin:', process.env.ADMIN_EMAIL, '| customer:', customerEmail);
         await sendNewOrderAlert(createdOrder, emailItems, customerEmail);
-        if (customerEmail) await sendOrderConfirmation(createdOrder, emailItems, customerEmail);
-        try {
-          const { sendPushToUser, sendPushToAdmin } = await import('../../../lib/push');
-          const shortId = String(createdOrder.id).slice(0, 8).toUpperCase();
-          if (createdOrder.user_id) {
-            await sendPushToUser(createdOrder.user_id, {
-              title: '✅ Commande confirmée',
-              body: `Commande #${shortId} — ${Number(createdOrder.total).toLocaleString('fr-FR')} Fdj`,
-              url: '/profile',
-            });
-          }
-          await sendPushToAdmin({
-            title: '🛍️ Nouvelle commande',
-            body: `#${shortId} — ${createdOrder.customer_name} — ${Number(createdOrder.total).toLocaleString('fr-FR')} Fdj`,
-            url: '/admin',
-          });
-        } catch (_) {}
-      } catch (_) { /* email failure must not affect order */ }
+        console.log('[email] admin alert sent');
+        if (customerEmail) {
+          await sendOrderConfirmation(createdOrder, emailItems, customerEmail);
+          console.log('[email] customer confirmation sent');
+        }
+      } catch (err) {
+        console.error('[email] ERROR:', err);
+      }
+      try {
+        const { sendPushToUser, sendPushToAdmin } = await import('../../../lib/push');
+        const shortId = String(createdOrder.id).slice(0, 8).toUpperCase();
+        if (createdOrder.user_id) await sendPushToUser(createdOrder.user_id, { title: '✅ Commande confirmée', body: `Commande #${shortId} — ${Number(createdOrder.total).toLocaleString('fr-FR')} Fdj`, url: '/profile' });
+        await sendPushToAdmin({ title: '🛍️ Nouvelle commande', body: `#${shortId} — ${createdOrder.customer_name} — ${Number(createdOrder.total).toLocaleString('fr-FR')} Fdj`, url: '/admin' });
+      } catch (_) {}
     })();
 
     return NextResponse.json({ order: createdOrder });
