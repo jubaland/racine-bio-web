@@ -901,22 +901,44 @@ export default function ProfilePage() {
               {notifOpen && (
                 <div className="px-4 pb-4 pt-2 space-y-4 bg-white">
                   {pushSupported && (
-                    <div className="flex items-center justify-between gap-3 pb-3 border-b border-[#f0f7e0]">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-700">🔔 {t('profile.notif_push', 'Notifications navigateur')}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">{t('profile.notif_push_desc', 'Alertes instantanées sur cet appareil')}</p>
+                    <div className="flex flex-col gap-2 pb-3 border-b border-[#f0f7e0]">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-700">🔔 {t('profile.notif_push', 'Notifications navigateur')}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{t('profile.notif_push_desc', 'Alertes instantanées sur cet appareil')}</p>
+                        </div>
+                        <button
+                          onClick={togglePush}
+                          disabled={pushLoading}
+                          className={`relative w-11 h-6 rounded-full transition-colors flex-none ${pushEnabled ? 'bg-[#a8c800]' : 'bg-gray-200'} disabled:opacity-60`}
+                        >
+                          <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${pushEnabled ? 'translate-x-5' : 'translate-x-1'}`} />
+                        </button>
                       </div>
-                      <button
-                        onClick={togglePush}
-                        disabled={pushLoading}
-                        className={`relative w-11 h-6 rounded-full transition-colors flex-none ${pushEnabled ? 'bg-[#a8c800]' : 'bg-gray-200'} disabled:opacity-60`}
-                      >
-                        <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${pushEnabled ? 'translate-x-5' : 'translate-x-1'}`} />
-                      </button>
+                      {pushEnabled && (
+                        <button
+                          onClick={async () => {
+                            setPushError('');
+                            const { data: { session } } = await supabase.auth.getSession();
+                            const token = session?.access_token;
+                            const res = await fetch('/api/push/test', { method: 'POST', headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
+                            const body = await res.json();
+                            if (!res.ok) setPushError('Test échoué : ' + (body.error || `HTTP ${res.status}`));
+                            else {
+                              const failed = body.report?.filter((r: any) => !r.ok);
+                              if (failed?.length) setPushError('Erreur push : ' + failed[0].error);
+                              else setPushError('✅ Notification envoyée — vérifiez votre navigateur');
+                            }
+                          }}
+                          className="text-xs text-[#526500] underline underline-offset-2 self-start"
+                        >
+                          Envoyer une notification test
+                        </button>
+                      )}
                     </div>
                   )}
                   {pushError && (
-                    <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{pushError}</p>
+                    <p className={`text-xs rounded-lg px-3 py-2 ${pushError.startsWith('✅') ? 'text-green-700 bg-green-50' : 'text-red-500 bg-red-50'}`}>{pushError}</p>
                   )}
                   {([
                     { key: 'orders', label: t('profile.notif_orders', 'Confirmation de commande'), desc: t('profile.notif_orders_desc', 'Recevoir un email à chaque nouvelle commande') },
