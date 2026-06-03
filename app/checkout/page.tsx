@@ -50,6 +50,12 @@ export default function CheckoutPage() {
   const [confirmedTotal, setConfirmedTotal] = useState(0);
   const [stockError, setStockError] = useState<{ name: string; available: number; unit: string; requested: number }[] | null>(null);
 
+  // Options de livraison
+  const [deliveryOptions, setDeliveryOptions] = useState<{ id: number; name: string; description: string; price: number; emoji: string }[]>([]);
+  const [selectedDeliveryId, setSelectedDeliveryId] = useState<number | null>(null);
+  const selectedDelivery = deliveryOptions.find(o => o.id === selectedDeliveryId) ?? null;
+  const baseFee = selectedDelivery?.price ?? 0;
+
   // Parrainage
   const [refCodeInput, setRefCodeInput] = useState('');
   const [appliedCode, setAppliedCode] = useState<string | null>(null);
@@ -65,13 +71,17 @@ export default function CheckoutPage() {
   const [saveNewAddress, setSaveNewAddress] = useState(false);
   const [newAddressLabel, setNewAddressLabel] = useState('Maison');
 
+  const referralActive = !!(appliedCode || (useReferralCredit && referralCredits > 0));
+  const deliveryFee = referralActive ? 0 : baseFee;
+  const orderTotal = total + deliveryFee;
+
   const showAddressCards = !!(user && savedAddresses.length > 0);
   const showNewAddressForm = !showAddressCards || selectedAddressId === 'new';
   const phoneValid = phoneDigits.length === 6;
   const formFilled = name.trim().length > 0 && phoneValid && address.trim().length > 0;
-  const canContinueStep2 = showAddressCards && selectedAddressId !== 'new'
+  const canContinueStep2 = (showAddressCards && selectedAddressId !== 'new'
     ? selectedAddressId !== null
-    : formFilled;
+    : formFilled) && selectedDeliveryId !== null;
 
   const selectSavedAddress = (addr: SavedAddress) => {
     setSelectedAddressId(addr.id);
@@ -81,6 +91,19 @@ export default function CheckoutPage() {
   };
 
   useEffect(() => {
+    // Charger les options de livraison
+    supabase
+      .from('delivery_options')
+      .select('id, name, description, price, emoji')
+      .eq('is_active', true)
+      .order('sort_order')
+      .order('id')
+      .then(({ data }) => {
+        const opts = data || [];
+        setDeliveryOptions(opts);
+        if (opts.length > 0) setSelectedDeliveryId(opts[0].id);
+      });
+
     // Pré-remplir le code depuis localStorage (lien de parrainage)
     const saved = localStorage.getItem('hf_ref_code');
     if (saved) { setRefCodeInput(saved); setAppliedCode(saved); }
@@ -160,13 +183,15 @@ export default function CheckoutPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           order: {
-            user_id:        session?.user?.id || null,
-            total,
-            status:         'pending',
-            payment_method: paymentMethod,
-            phone: '77' + phoneDigits,
+            user_id:              session?.user?.id || null,
+            total:                orderTotal,
+            delivery_fee:         deliveryFee,
+            delivery_option_name: selectedDelivery?.name ?? null,
+            status:               'pending',
+            payment_method:       paymentMethod,
+            phone:   '77' + phoneDigits,
             address,
-            customer_name:  name,
+            customer_name: name,
           },
           items: items.map(item => ({
             product_id:        item.id,
@@ -190,7 +215,7 @@ export default function CheckoutPage() {
       }
 
       setOrderId(json.order.id);
-      setConfirmedTotal(total);
+      setConfirmedTotal(orderTotal);
       if (appliedCode) localStorage.removeItem('hf_ref_code');
 
       // Sauvegarder la nouvelle adresse si demandé
@@ -254,7 +279,7 @@ export default function CheckoutPage() {
               <div className="bg-[#e8f5e0] border border-[#a8c800] rounded-2xl p-4 mb-6 text-left">
                 <p className="font-semibold text-[#526500] mb-1">📱 Paiement Waafi à effectuer</p>
                 <p className="text-sm text-gray-600 mb-2">
-                  Envoyez <span className="font-bold text-[#526500]">{confirmedTotal.toLocaleString()} Fdj</span> au numéro :
+                  Envoyez <span className="font-bold text-[#526500]">{confirmedTotal.toLocaleString()} Fdj</span> au numéro marchand :
                 </p>
                 <p className="text-2xl font-bold text-[#526500] tracking-widest text-center py-2">
                   {WAAFI_MERCHANT_NUMBER}
@@ -499,6 +524,42 @@ export default function CheckoutPage() {
               )}
             </div>
 
+            {/* Mode de livraison */}
+            {deliveryOptions.length > 0 && (
+              <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-4">
+                <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                  📦 {t('checkout.delivery_mode', 'Mode de livraison')}
+                </h2>
+                <div className="space-y-3">
+                  {deliveryOptions.map(opt => (
+                    <button
+                      key={opt.id}
+                      onClick={() => setSelectedDeliveryId(opt.id)}
+                      className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition text-left ${
+                        selectedDeliveryId === opt.id
+                          ? 'border-[#a8c800] bg-[#ecf4d5]'
+                          : 'border-[#d2e095] bg-white hover:bg-[#faf7e8]'
+                      }`}
+                    >
+                      <span className="text-2xl flex-shrink-0">{opt.emoji}</span>
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-800 text-sm">{opt.name}</p>
+                        {opt.description && (
+                          <p className="text-xs text-gray-400 mt-0.5">{opt.description}</p>
+                        )}
+                      </div>
+                      <span className={`text-sm font-bold flex-shrink-0 ${opt.price === 0 ? 'text-green-500' : 'text-[#526500]'}`}>
+                        {opt.price === 0 ? t('checkout.free', 'Gratuit') : `${opt.price.toLocaleString()} Fdj`}
+                      </span>
+                      {selectedDeliveryId === opt.id && (
+                        <span className="text-[#a8c800] text-xl flex-shrink-0">✓</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-3">
               <button
                 onClick={() => setStep(1)}
@@ -596,7 +657,7 @@ export default function CheckoutPage() {
                     </div>
                     <div className="flex items-center justify-between bg-white rounded-xl p-3 border border-[#d2e095]">
                       <span className="text-sm text-gray-600">{t('checkout.waafi_amount_label', 'Montant à envoyer')}</span>
-                      <span className="text-lg font-bold text-[#526500]">{total.toLocaleString()} Fdj</span>
+                      <span className="text-lg font-bold text-[#526500]">{orderTotal.toLocaleString()} Fdj</span>
                     </div>
                     <p className="text-xs text-gray-400 mt-3 leading-relaxed">
                       {t('checkout.waafi_manual_note', '⚠️ Votre commande sera traitée après confirmation du paiement par notre équipe.')}
@@ -679,12 +740,25 @@ export default function CheckoutPage() {
                   <span className="font-medium">{total.toLocaleString()} Fdj</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">{t('checkout.delivery_label', 'Livraison')}</span>
-                  <span className="font-medium text-green-500">{t('checkout.free', 'Gratuite')}</span>
+                  <span className="text-gray-600">
+                    {t('checkout.delivery_label', 'Livraison')}
+                    {selectedDelivery && <span className="text-gray-400"> — {selectedDelivery.name}</span>}
+                  </span>
+                  {deliveryFee === 0 ? (
+                    <span className="font-medium text-green-500">
+                      {baseFee > 0 ? (
+                        <>{t('checkout.free', 'Offerte')} 🎁</>
+                      ) : (
+                        t('checkout.free', 'Gratuite')
+                      )}
+                    </span>
+                  ) : (
+                    <span className="font-medium">{deliveryFee.toLocaleString()} Fdj</span>
+                  )}
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between pt-1 border-t border-[#f0f0f0]">
                   <span className="font-bold text-gray-800">{t('checkout.total', 'Total')}</span>
-                  <span className="text-xl font-bold text-[#526500]">{total.toLocaleString()} Fdj</span>
+                  <span className="text-xl font-bold text-[#526500]">{orderTotal.toLocaleString()} Fdj</span>
                 </div>
               </div>
             </div>

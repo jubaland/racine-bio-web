@@ -12,8 +12,9 @@ import AdminProducers from '../../components/admin/AdminProducers';
 import AdminOrders from '../../components/admin/AdminOrders';
 import AdminRequests from '../../components/admin/AdminRequests';
 import AdminUsers from '../../components/admin/AdminUsers';
+import AdminDelivery from '../../components/admin/AdminDelivery';
 
-type Section = 'dashboard' | 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'requests' | 'users';
+type Section = 'dashboard' | 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'requests' | 'users' | 'delivery';
 
 export default function AdminPage() {
   const [user, setUser] = useState<any>(null);
@@ -34,6 +35,7 @@ export default function AdminPage() {
     { id: 'orders', emoji: '📦', label: t('admin.nav_orders', 'Commandes') },
     { id: 'requests', emoji: '📋', label: t('admin.nav_requests', 'Demandes producteurs') },
     { id: 'users', emoji: '👥', label: t('admin.nav_users', 'Utilisateurs') },
+    { id: 'delivery', emoji: '🚚', label: t('admin.nav_delivery', 'Livraison') },
   ];
 
   useEffect(() => {
@@ -71,6 +73,7 @@ export default function AdminPage() {
       case 'orders': return <AdminOrders />;
       case 'requests': return <AdminRequests />;
       case 'users': return <AdminUsers />;
+      case 'delivery': return <AdminDelivery />;
     }
   };
 
