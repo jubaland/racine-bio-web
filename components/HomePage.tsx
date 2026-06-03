@@ -201,46 +201,60 @@ export default function HomePage({ products, categories, promos, producers }: {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {featuredProducts.map((p: any) => {
-              const discount = p.old_price ? Math.round((1 - p.price / p.old_price) * 100) : null;
+              const isBio = p.product_type === 'bio';
+              const flag = ORIGIN_FLAGS[p.origin_country] || '🌍';
               return (
-                <div key={p.id} className={`bg-white rounded-2xl overflow-hidden border border-[#d2e095] transition flex flex-col ${(p.stock_qty ?? 0) <= 0 ? 'opacity-75' : 'hover:shadow-md'}`}>
-                  <Link href={`/product/${p.id}`} onClick={(p.stock_qty ?? 0) <= 0 ? (e) => e.preventDefault() : undefined} className={`relative ${(p.stock_qty ?? 0) <= 0 ? 'cursor-default' : ''}`}>
+                <Link key={p.id} href={`/product/${p.id}`} onClick={(p.stock_qty ?? 0) <= 0 ? (e) => e.preventDefault() : undefined}
+                  className={`bg-white rounded-2xl overflow-hidden border border-[#d2e095] transition group ${(p.stock_qty ?? 0) <= 0 ? 'cursor-default opacity-75' : 'hover:shadow-lg'}`}>
+                  <div className="relative h-40 bg-[#ecf4d5]">
                     {p.image_url ? (
-                      <img src={p.image_url} alt={getProductName(p)} className="w-full h-40 object-cover" />
+                      <img src={p.image_url} alt={getProductName(p)} className={`w-full h-full object-cover transition duration-300 ${(p.stock_qty ?? 0) <= 0 ? 'opacity-50' : 'group-hover:scale-105'}`} />
                     ) : (
-                      <div className="w-full h-40 bg-[#ecf4d5] flex items-center justify-center text-5xl opacity-30">
-                        {p.emoji || '📷'}
+                      <div className="w-full h-full flex items-center justify-center text-5xl opacity-20">📷</div>
+                    )}
+                    {(p.stock_qty ?? 0) <= 0 && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                        <span className="bg-white text-gray-700 text-xs font-semibold px-3 py-1 rounded-full shadow">Rupture de stock</span>
                       </div>
                     )}
-                    {p.featured_badge && (
-                      <span className="absolute top-2 left-2 bg-[#526500] text-white text-xs font-semibold px-2.5 py-1 rounded-full">
+                    {(p.stock_qty ?? 0) > 0 && (p.stock_qty ?? 0) <= 5 && (
+                      <div className="absolute bottom-2 left-2 bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">
+                        ⚠️ Plus que {p.stock_qty} {p.unit}
+                      </div>
+                    )}
+                    {p.featured_badge ? (
+                      <div className="absolute top-2 left-2 bg-[#526500] text-white text-xs font-semibold px-2 py-1 rounded-md">
                         {p.featured_badge}
-                      </span>
+                      </div>
+                    ) : isBio && (
+                      <div className="absolute top-2 left-2 text-xs font-bold px-2 py-1 rounded-md bg-[#edf5a0] text-[#526500]">
+                        🌿 {t('product.type_bio', 'Bio')}
+                      </div>
                     )}
-                    {discount && (
-                      <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                        -{discount}%
-                      </span>
-                    )}
-                  </Link>
-                  <div className="p-3 flex flex-col flex-1">
-                    <p className="text-sm font-semibold text-gray-800 line-clamp-2 flex-1">{getProductName(p)}</p>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); e.preventDefault(); isFavorite(p.id) ? removeFavorite(p.id) : addFavorite(p); }}
+                      className="absolute top-2 right-2 w-8 h-8 bg-[#a8c800] rounded-full flex items-center justify-center shadow hover:bg-[#7d9800] hover:scale-110 transition-all text-base"
+                    >{isFavorite(p.id) ? '❤️' : '🤍'}</button>
+                    <div className="absolute bottom-2 right-2 bg-white/80 rounded-full px-2 py-0.5 text-xs backdrop-blur-sm">{flag}</div>
+                  </div>
+                  <div className="p-3">
+                    <h3 className="text-sm font-semibold text-gray-800 truncate">{getProductName(p)}</h3>
                     <p className="text-xs text-gray-400 mt-1">🌱 {p.farm}</p>
                     <div className="flex items-center justify-between mt-3">
                       <div>
-                        <p className="text-base font-bold text-[#526500]">{Number(p.price).toLocaleString()} Fdj</p>
                         {p.old_price && (
-                          <p className="text-xs text-gray-400 line-through">{Number(p.old_price).toLocaleString()} Fdj</p>
+                          <p className="text-xs text-red-400 line-through">{Number(p.old_price).toLocaleString()} Fdj</p>
                         )}
+                        <p className="text-sm font-bold text-[#7d9800]">{Number(p.price).toLocaleString()} Fdj <span className="text-xs font-normal text-gray-400">{p.unit}</span></p>
                       </div>
                       <button
                         disabled={(p.stock_qty ?? 0) <= 0}
-                        onClick={() => { addItem(p); setCartOpen(true); }}
-                        className="w-8 h-8 bg-[#a8c800] rounded-full flex items-center justify-center text-white font-bold text-lg hover:bg-[#7d9800] transition disabled:opacity-30 disabled:cursor-not-allowed"
+                        onClick={(e) => { e.stopPropagation(); e.preventDefault(); addItem(p); setCartOpen(true); }}
+                        className="w-8 h-8 bg-[#a8c800] rounded-full flex items-center justify-center text-white text-lg font-bold hover:bg-[#7d9800] transition disabled:opacity-30 disabled:cursor-not-allowed"
                       >+</button>
                     </div>
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>
@@ -257,37 +271,59 @@ export default function HomePage({ products, categories, promos, producers }: {
             </button>
           </div>
           <div className="flex gap-4 overflow-x-auto pb-4">
-            {localProducts.map((p: any) => (
-              <Link key={p.id} href={`/product/${p.id}`} onClick={(p.stock_qty ?? 0) <= 0 ? (e) => e.preventDefault() : undefined} className={`flex-none w-48 bg-white rounded-2xl overflow-hidden border border-[#d2e095] transition ${(p.stock_qty ?? 0) <= 0 ? 'cursor-default opacity-75' : 'hover:shadow-md'}`}>
-                <div className="relative">
-                  {p.image_url ? (
-                    <img src={p.image_url} alt={getProductName(p)} className="w-full h-36 object-cover" />
-                  ) : (
-                    <div className="w-full h-36 bg-[#ecf4d5] flex items-center justify-center text-4xl opacity-30">📷</div>
-                  )}
-                  {(p.stock_qty ?? 0) <= 0 && (
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                      <span className="bg-white text-gray-700 text-xs font-semibold px-2 py-1 rounded-full">Rupture</span>
-                    </div>
-                  )}
-                  {(p.stock_qty ?? 0) > 0 && (p.stock_qty ?? 0) <= 5 && (
-                    <span className="absolute top-1 right-1 bg-orange-500 text-white text-xs px-1.5 py-0.5 rounded-full">⚠️ {p.stock_qty} {p.unit}</span>
-                  )}
-                </div>
-                <div className="p-3">
-                  <p className="text-sm font-medium text-gray-800">{getProductName(p)}</p>
-                  <p className="text-xs text-gray-400 mt-1">🌱 {p.farm}</p>
-                  <div className="flex items-center justify-between mt-2">
-                    <p className="text-sm font-bold text-[#7d9800]">{Number(p.price).toLocaleString()} Fdj</p>
+            {localProducts.map((p: any) => {
+              const isBio = p.product_type === 'bio';
+              const flag = ORIGIN_FLAGS[p.origin_country] || '🌍';
+              return (
+                <Link key={p.id} href={`/product/${p.id}`} onClick={(p.stock_qty ?? 0) <= 0 ? (e) => e.preventDefault() : undefined}
+                  className={`flex-none w-48 bg-white rounded-2xl overflow-hidden border border-[#d2e095] transition group ${(p.stock_qty ?? 0) <= 0 ? 'cursor-default opacity-75' : 'hover:shadow-md'}`}>
+                  <div className="relative h-36 bg-[#ecf4d5]">
+                    {p.image_url ? (
+                      <img src={p.image_url} alt={getProductName(p)} className={`w-full h-full object-cover transition duration-300 ${(p.stock_qty ?? 0) <= 0 ? 'opacity-50' : 'group-hover:scale-105'}`} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-4xl opacity-30">📷</div>
+                    )}
+                    {(p.stock_qty ?? 0) <= 0 && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                        <span className="bg-white text-gray-700 text-xs font-semibold px-2 py-1 rounded-full shadow">Rupture</span>
+                      </div>
+                    )}
+                    {(p.stock_qty ?? 0) > 0 && (p.stock_qty ?? 0) <= 5 && (
+                      <div className="absolute bottom-2 left-2 bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                        ⚠️ {p.stock_qty} {p.unit}
+                      </div>
+                    )}
+                    {isBio && (
+                      <div className="absolute top-2 left-2 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#edf5a0] text-[#526500]">
+                        🌿 {t('product.type_bio', 'Bio')}
+                      </div>
+                    )}
                     <button
-                      disabled={(p.stock_qty ?? 0) <= 0}
-                      onClick={(e) => { e.stopPropagation(); e.preventDefault(); addItem(p); setCartOpen(true); }}
-                      className="w-7 h-7 bg-[#a8c800] rounded-full flex items-center justify-center text-white font-bold hover:bg-[#7d9800] transition disabled:opacity-30 disabled:cursor-not-allowed"
-                    >+</button>
+                      onClick={(e) => { e.stopPropagation(); e.preventDefault(); isFavorite(p.id) ? removeFavorite(p.id) : addFavorite(p); }}
+                      className="absolute top-2 right-2 w-7 h-7 bg-[#a8c800] rounded-full flex items-center justify-center shadow hover:bg-[#7d9800] transition text-sm"
+                    >{isFavorite(p.id) ? '❤️' : '🤍'}</button>
+                    <div className="absolute bottom-2 right-2 bg-white/80 rounded-full px-1.5 py-0.5 text-xs backdrop-blur-sm">{flag}</div>
                   </div>
-                </div>
-              </Link>
-            ))}
+                  <div className="p-3">
+                    <p className="text-sm font-medium text-gray-800 truncate">{getProductName(p)}</p>
+                    <p className="text-xs text-gray-400 mt-1">🌱 {p.farm}</p>
+                    <div className="flex items-center justify-between mt-2">
+                      <div>
+                        {(p.old_price || p.oldPrice) && (
+                          <p className="text-xs text-red-400 line-through">{Number(p.old_price || p.oldPrice).toLocaleString()} Fdj</p>
+                        )}
+                        <p className="text-sm font-bold text-[#7d9800]">{Number(p.price).toLocaleString()} Fdj <span className="text-xs font-normal text-gray-400">{p.unit}</span></p>
+                      </div>
+                      <button
+                        disabled={(p.stock_qty ?? 0) <= 0}
+                        onClick={(e) => { e.stopPropagation(); e.preventDefault(); addItem(p); setCartOpen(true); }}
+                        className="w-7 h-7 bg-[#a8c800] rounded-full flex items-center justify-center text-white font-bold hover:bg-[#7d9800] transition disabled:opacity-30 disabled:cursor-not-allowed"
+                      >+</button>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </section>
       )}
