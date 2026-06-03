@@ -170,7 +170,6 @@ export default function HomePage({ products, categories, promos, producers }: {
               {[
                 { emoji: '🚚', desc: t('hero.delivery_zone_desc', 'Djibouti-Ville et environs') },
                 { emoji: '⏱', desc: t('hero.delivery_delay_desc', 'À l\'heure qui vous convient') },
-                { emoji: '🆓', desc: t('hero.delivery_free_desc', 'Livraison gratuite') },
               ].map(item => (
                 <div key={item.desc} className="flex items-center gap-1.5">
                   <span className="text-base">{item.emoji}</span>
