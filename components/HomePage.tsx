@@ -437,9 +437,11 @@ export default function HomePage({ products, categories, promos, producers }: {
                         ⚠️ Plus que {product.stock_qty} {product.unit}
                       </div>
                     )}
-                    <div className={`absolute top-2 left-2 text-xs font-bold px-2 py-1 rounded-md ${isBio ? 'bg-[#edf5a0] text-[#526500]' : 'bg-orange-100 text-orange-700'}`}>
-                      {isBio ? `🌿 ${t('product.type_bio', 'Bio')}` : `🥕 ${t('product.type_conv', 'Conv.')}`}
-                    </div>
+                    {isBio && (
+                      <div className="absolute top-2 left-2 text-xs font-bold px-2 py-1 rounded-md bg-[#edf5a0] text-[#526500]">
+                        🌿 {t('product.type_bio', 'Bio')}
+                      </div>
+                    )}
                     {/* Bouton favori sur l'image */}
                     <button
                       onClick={(e) => { e.stopPropagation(); e.preventDefault(); isFavorite(product.id) ? removeFavorite(product.id) : addFavorite(product); }}
