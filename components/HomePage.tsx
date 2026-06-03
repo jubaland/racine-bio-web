@@ -13,7 +13,7 @@ const ORIGIN_FLAGS: Record<string, string> = {
 };
 
 const TYPE_FILTERS = [
-  { id: 'all',           labelKey: 'filter.all',  label: 'Tout',          emoji: '🛒' },
+  { id: 'all',           labelKey: 'filter.all',  label: 'Tout',          emoji: '🌿' },
   { id: 'bio',           labelKey: 'filter.bio',  label: 'Bio',           emoji: '🌿' },
   { id: 'conventionnel', labelKey: 'filter.conv', label: 'Conventionnel', emoji: '🥕' },
 ];
@@ -335,7 +335,7 @@ export default function HomePage({ products, categories, promos, producers }: {
       {/* Tous les produits */}
       <section id="produits" className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800">🛒 {t('allProducts', 'Tous les produits')}</h2>
+          <h2 className="text-2xl font-semibold text-gray-800">🥗 {t('allProducts', 'Tous les produits')}</h2>
           <span className="text-sm text-gray-400">{filteredProducts.length} {t('products', 'produits')}</span>
         </div>
 
