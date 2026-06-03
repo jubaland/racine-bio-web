@@ -72,7 +72,11 @@ export default function CheckoutPage() {
   const [newAddressLabel, setNewAddressLabel] = useState('Maison');
 
   const referralActive = !!(appliedCode || (useReferralCredit && referralCredits > 0));
-  const deliveryFee = referralActive ? 0 : baseFee;
+  const paidOptions = deliveryOptions.filter(o => o.price > 0);
+  const referralDiscount = referralActive && paidOptions.length > 0
+    ? Math.min(...paidOptions.map(o => o.price))
+    : 0;
+  const deliveryFee = Math.max(0, baseFee - referralDiscount);
   const orderTotal = total + deliveryFee;
 
   const showAddressCards = !!(user && savedAddresses.length > 0);
@@ -746,11 +750,12 @@ export default function CheckoutPage() {
                   </span>
                   {deliveryFee === 0 ? (
                     <span className="font-medium text-green-500">
-                      {baseFee > 0 ? (
-                        <>{t('checkout.free', 'Offerte')} 🎁</>
-                      ) : (
-                        t('checkout.free', 'Gratuite')
-                      )}
+                      {baseFee > 0 ? <>{t('checkout.free', 'Offerte')} 🎁</> : t('checkout.free', 'Gratuite')}
+                    </span>
+                  ) : referralDiscount > 0 ? (
+                    <span className="font-medium">
+                      {deliveryFee.toLocaleString()} Fdj
+                      <span className="text-xs text-green-500 ml-1.5">−{referralDiscount.toLocaleString()} 🎁</span>
                     </span>
                   ) : (
                     <span className="font-medium">{deliveryFee.toLocaleString()} Fdj</span>
