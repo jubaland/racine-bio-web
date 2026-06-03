@@ -71,10 +71,15 @@ export default function ProfilePage() {
   const [referralCount, setReferralCount] = useState(0);
   const [referralCopied, setReferralCopied] = useState<'code' | 'link' | null>(null);
 
-  // Notifications
+  // Notifications email
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifPrefs, setNotifPrefs] = useState({ orders: true, status: true, promos: false });
   const [savingNotifs, setSavingNotifs] = useState(false);
+
+  // Push navigateur
+  const [pushSupported, setPushSupported] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
 
   // Sécurité
   const [securityOpen, setSecurityOpen] = useState(false);
@@ -175,6 +180,14 @@ export default function ProfilePage() {
         setNotifPrefs(prev => ({ ...prev, ...session.user.user_metadata.notifications }));
       }
 
+      // Push navigateur
+      if ('serviceWorker' in navigator && 'PushManager' in window) {
+        setPushSupported(true);
+        const reg = await navigator.serviceWorker.register('/sw.js');
+        const existing = await reg.pushManager.getSubscription();
+        setPushEnabled(!!existing);
+      }
+
       const [ordersRes, , referralRes] = await Promise.all([
         fetch('/api/orders/mine', {
           headers: { Authorization: `Bearer ${session.access_token}` },
@@ -227,6 +240,36 @@ export default function ProfilePage() {
     if (error) setPasswordError(error.message);
     else { setPasswordSuccess(true); setNewPassword(''); setConfirmPassword(''); }
     setSavingPassword(false);
+  };
+
+  const togglePush = async () => {
+    setPushLoading(true);
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (pushEnabled) {
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          await fetch('/api/push', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+            body: JSON.stringify({ subscription: sub.toJSON(), action: 'unsubscribe' }) });
+          await sub.unsubscribe();
+        }
+        setPushEnabled(false);
+      } else {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') { setPushLoading(false); return; }
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+        });
+        await fetch('/api/push', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({ subscription: sub.toJSON(), action: 'subscribe' }) });
+        setPushEnabled(true);
+      }
+    } catch (e) { console.error(e); }
+    setPushLoading(false);
   };
 
   const statusMeta = (s: string) =>
@@ -834,6 +877,21 @@ export default function ProfilePage() {
               </button>
               {notifOpen && (
                 <div className="px-4 pb-4 pt-2 space-y-4 bg-white">
+                  {pushSupported && (
+                    <div className="flex items-center justify-between gap-3 pb-3 border-b border-[#f0f7e0]">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-700">🔔 {t('profile.notif_push', 'Notifications navigateur')}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{t('profile.notif_push_desc', 'Alertes instantanées sur cet appareil')}</p>
+                      </div>
+                      <button
+                        onClick={togglePush}
+                        disabled={pushLoading}
+                        className={`relative w-11 h-6 rounded-full transition-colors flex-none ${pushEnabled ? 'bg-[#a8c800]' : 'bg-gray-200'} disabled:opacity-60`}
+                      >
+                        <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${pushEnabled ? 'translate-x-5' : 'translate-x-1'}`} />
+                      </button>
+                    </div>
+                  )}
                   {([
                     { key: 'orders', label: t('profile.notif_orders', 'Confirmation de commande'), desc: t('profile.notif_orders_desc', 'Recevoir un email à chaque nouvelle commande') },
                     { key: 'status', label: t('profile.notif_status', 'Mises à jour de livraison'), desc: t('profile.notif_status_desc', 'Être notifié quand le statut change') },
