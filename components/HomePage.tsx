@@ -116,7 +116,7 @@ export default function HomePage({ products, categories, promos, producers }: {
               <p className="text-xs font-bold text-[#c8e050] uppercase tracking-widest whitespace-nowrap">{t('hero.delivery_info', 'Infos pratiques')}</p>
               {[
                 { emoji: '🚚', desc: t('hero.delivery_zone_desc', 'Djibouti-Ville et environs') },
-                { emoji: '⏱', desc: t('hero.delivery_delay_desc', 'Sous 48h') },
+                { emoji: '⏱', desc: t('hero.delivery_delay_desc', 'À l\'heure qui vous convient') },
                 { emoji: '🆓', desc: t('hero.delivery_free_desc', 'Livraison gratuite') },
               ].map(item => (
                 <div key={item.desc} className="flex items-center gap-1.5">
@@ -518,7 +518,7 @@ export default function HomePage({ products, categories, promos, producers }: {
             { emoji: "🥬", label: t('freshProducts', 'Produits frais'), value: products.length + "+" },
             { emoji: "👨‍🌾", label: t('producers', 'Producteurs'), value: producers.length + "+" },
             { emoji: "🇩🇯", label: t('localProductsCount', 'Produits locaux'), value: localProducts.length + "+" },
-            { emoji: "🚚", label: t('fastDelivery', 'Livraison rapide'), value: "48h" },
+            { emoji: "🚚", label: t('fastDelivery', 'Livraison flexible'), value: "✓" },
           ].map(stat => (
             <div key={stat.label} className="text-center">
               <div className="text-3xl mb-2">{stat.emoji}</div>
