@@ -241,52 +241,6 @@ export default function HomePage({ products, categories, promos, producers }: {
         </section>
       )}
 
-      {/* Promotions */}
-      {promos.length > 0 && (
-        <section id="promos" className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-6">🏷️ {t('promos', 'Promotions')}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {promos.map((promo: any) => {
-              const d = getPromoData(promo);
-              return (
-                <div
-                  key={promo.id}
-                  className="relative rounded-3xl overflow-hidden p-6 flex flex-col justify-between min-h-[160px]"
-                  style={{ background: `linear-gradient(135deg, ${promo.color_start || '#526500'}, ${promo.color_start ? promo.color_start + 'cc' : '#7d9800'})` }}
-                >
-                  <div>
-                    {d.badge && (
-                      <span className="inline-block bg-white/25 text-white text-xs font-bold px-3 py-1 rounded-full mb-3">
-                        {promo.emoji} {d.badge}
-                      </span>
-                    )}
-                    <h3 className="text-lg font-bold text-white leading-tight mb-1">{d.title}</h3>
-                    {d.sub && <p className="text-white/75 text-sm">{d.sub}</p>}
-                  </div>
-                  <div className="mt-4">
-                    {promo.category ? (
-                      <button
-                        onClick={() => setActiveCategory(promo.category)}
-                        className="inline-block bg-white text-[#526500] text-sm font-semibold px-5 py-2 rounded-full hover:bg-[#f0f9e0] transition"
-                      >
-                        {t('seePromo', 'Voir les produits')} →
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => { const el = document.getElementById('produits'); el?.scrollIntoView({ behavior: 'smooth' }); }}
-                        className="inline-block bg-white text-[#526500] text-sm font-semibold px-5 py-2 rounded-full hover:bg-[#f0f9e0] transition"
-                      >
-                        {t('seePromo', 'Voir les produits')} →
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
       {/* Produits locaux */}
       {localProducts.length > 0 && (
         <section className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
