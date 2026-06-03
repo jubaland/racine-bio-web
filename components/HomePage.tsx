@@ -100,7 +100,7 @@ export default function HomePage({ products, categories, promos, producers }: {
               {t('tagline', 'Trouvez vos')} <span className="italic text-[#f5d020]">{t('tagline2', 'légumes')}</span> {t('tagline3', 'et fruits du jour')}
             </h2>
             <p className="text-sm text-white/75 mb-4 hidden md:block">
-              {t('heroSub', 'Bio, conventionnel, local — tous les produits frais livrés directement depuis les fermes djiboutiennes.')}
+              {t('heroSub', 'Fruits et légumes frais, sélectionnés pour leur qualité par nos équipes — locaux en priorité, bio quand c\'est possible. Livrés où vous voulez, quand vous voulez.')}
             </p>
             <div className="flex gap-2 md:gap-4 flex-wrap">
               <a
