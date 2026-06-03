@@ -269,7 +269,14 @@ export default function ProfilePage() {
       } else {
         const permission = await Notification.requestPermission();
         if (permission === 'denied') {
-          setPushError(t('profile.push_permission_denied', 'Notifications bloquées par le navigateur. Autorisez-les dans les paramètres.'));
+          const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+          const isFirefox = /Firefox/.test(navigator.userAgent);
+          const hint = isIOS
+            ? 'Réglages iPhone → Applications → Safari → Réglages pour les sites web → Notifications → hornafresh.com → Autoriser'
+            : isFirefox
+              ? 'Menu Firefox ⋮ → Paramètres → Autorisations de site → Notifications → hornafresh.com → Autoriser'
+              : 'Appuyez sur le 🔒 dans la barre d\'adresse → Autorisations → Notifications → Autoriser';
+          setPushError(`🔕 Notifications bloquées. ${hint}`);
           setPushLoading(false);
           return;
         }
