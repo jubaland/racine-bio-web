@@ -314,9 +314,10 @@ export default function CheckoutPage() {
   }
 
   const STEPS = [
-    { n: 1, label: t('checkout.step_recap',    'Récapitulatif') },
+    { n: 1, label: t('checkout.step_cart',     'Panier') },
     { n: 2, label: t('checkout.step_delivery', 'Livraison') },
     { n: 3, label: t('checkout.step_payment',  'Paiement') },
+    { n: 4, label: t('checkout.step_confirm',  'Confirmation') },
   ];
 
   return (
@@ -339,7 +340,7 @@ export default function CheckoutPage() {
                 </div>
                 <span className={`text-xs text-center ${step >= s.n ? 'text-gray-800 font-medium' : 'text-gray-400'}`}>{s.label}</span>
               </div>
-              {i < 2 && <span className="text-gray-300 mt-2 flex-none">›</span>}
+              {i < 3 && <span className="text-gray-300 mt-2 flex-none">›</span>}
             </div>
           ))}
         </div>
@@ -645,79 +646,6 @@ export default function CheckoutPage() {
         {/* ── Étape 3 : Paiement ──────────────────────────────────────────── */}
         {step === 3 && authChecked && (user || guestMode) && (
           <div>
-
-            {/* Récapitulatif commande */}
-            <div className="bg-[#f4f9e8] rounded-3xl border-2 border-[#a8c800] shadow-sm mb-4 overflow-hidden">
-              <div className="bg-[#526500] px-6 py-3 flex items-center gap-2">
-                <span className="text-white text-base">📋</span>
-                <h2 className="text-base font-bold text-white">{t('checkout.recap_title', 'Récapitulatif de votre commande')}</h2>
-              </div>
-              <div className="p-6">
-
-              {/* Articles */}
-              <div className="space-y-3 mb-4">
-                {items.map(item => (
-                  <div key={item.id} className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl overflow-hidden bg-[#ecf4d5] flex-none">
-                      {item.image_url
-                        ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                        : <div className="w-full h-full flex items-center justify-center text-base opacity-30">📷</div>}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800 truncate">{item.name}</p>
-                      <p className="text-xs text-gray-400">x{item.quantity} · {item.price.toLocaleString()} Fdj {item.unit}</p>
-                    </div>
-                    <p className="text-sm font-bold text-[#7d9800] flex-none">{(item.price * item.quantity).toLocaleString()} Fdj</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Séparateur */}
-              <div className="border-t border-[#f0f0f0] my-4" />
-
-              {/* Adresse */}
-              <div className="flex items-start gap-3 mb-3">
-                <span className="text-lg mt-0.5 flex-none">📍</span>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{t('checkout.delivery_address', 'Adresse de livraison')}</p>
-                  <p className="text-sm font-medium text-gray-800">{name}</p>
-                  <p className="text-xs text-gray-500">77 {(phoneDigits.match(/.{1,2}/g) || []).join(' ')}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{address}</p>
-                </div>
-                <button onClick={() => setStep(2)} className="ml-auto text-xs text-[#7d9800] hover:underline flex-none">
-                  {t('checkout.edit', 'Modifier')}
-                </button>
-              </div>
-
-              {/* Mode de livraison */}
-              {selectedDelivery && (
-                <div className="flex items-center gap-3 mb-3">
-                  <span className="text-lg flex-none">{selectedDelivery.emoji}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{t('checkout.delivery_mode', 'Livraison')}</p>
-                    <p className="text-sm text-gray-800">{selectedDelivery.name}</p>
-                  </div>
-                  <p className="text-sm font-bold flex-none">
-                    {deliveryFee === 0
-                      ? <span className="text-green-500">{baseFee > 0 ? t('checkout.delivery_offered', 'Offerte') + ' 🎁' : t('checkout.free', 'Gratuite')}</span>
-                      : <span className="text-[#526500]">{deliveryFee.toLocaleString()} Fdj</span>}
-                  </p>
-                </div>
-              )}
-
-              {/* Demande spéciale */}
-              {specialInstructions.trim() && (
-                <div className="flex items-start gap-3">
-                  <span className="text-lg flex-none mt-0.5">📝</span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{t('checkout.special_title', 'Demande spéciale')}</p>
-                    <p className="text-xs text-gray-600 leading-relaxed">{specialInstructions}</p>
-                  </div>
-                </div>
-              )}
-              </div>{/* /p-6 */}
-            </div>
-
             <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-4">
               <h2 className="text-lg font-semibold text-gray-800 mb-4">
                 💳 {t('checkout.payment_title', 'Mode de paiement')}
@@ -872,6 +800,150 @@ export default function CheckoutPage() {
               </div>
             </div>
 
+            <div className="flex gap-3">
+              <button
+                onClick={() => setStep(2)}
+                className="flex-1 bg-white text-gray-600 py-4 rounded-2xl font-semibold border border-[#d2e095] hover:bg-[#ecf4d5] transition"
+              >
+                {t('checkout.back', '← Retour')}
+              </button>
+              <button
+                onClick={() => setStep(4)}
+                className="flex-1 bg-[#a8c800] text-white py-4 rounded-2xl font-semibold hover:bg-[#7d9800] transition"
+              >
+                {t('checkout.continue_confirm', 'Continuer →')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Étape 4 : Confirmation ──────────────────────────────────────── */}
+        {step === 4 && (
+          <div>
+            {/* Récapitulatif complet */}
+            <div className="bg-[#f4f9e8] rounded-3xl border-2 border-[#a8c800] shadow-sm mb-4 overflow-hidden">
+              <div className="bg-[#526500] px-6 py-3 flex items-center gap-2">
+                <span className="text-white text-base">📋</span>
+                <h2 className="text-base font-bold text-white">{t('checkout.recap_title', 'Récapitulatif de votre commande')}</h2>
+              </div>
+              <div className="p-6 space-y-4">
+
+                {/* Articles */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">🛒 {t('checkout.your_order', 'Articles')}</p>
+                    <button onClick={() => setStep(1)} className="text-xs text-[#7d9800] hover:underline">{t('checkout.edit', 'Modifier')}</button>
+                  </div>
+                  <div className="space-y-2">
+                    {items.map(item => (
+                      <div key={item.id} className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl overflow-hidden bg-[#ecf4d5] flex-none">
+                          {item.image_url
+                            ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                            : <div className="w-full h-full flex items-center justify-center text-base opacity-30">📷</div>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-800 truncate">{item.name}</p>
+                          <p className="text-xs text-gray-400">x{item.quantity} · {item.price.toLocaleString()} Fdj {item.unit}</p>
+                        </div>
+                        <p className="text-sm font-bold text-[#7d9800] flex-none">{(item.price * item.quantity).toLocaleString()} Fdj</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border-t border-[#d2e095]" />
+
+                {/* Adresse */}
+                <div className="flex items-start gap-3">
+                  <span className="text-base mt-0.5 flex-none">📍</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{t('checkout.delivery_address', 'Adresse de livraison')}</p>
+                    <p className="text-sm font-medium text-gray-800">{name}</p>
+                    <p className="text-xs text-gray-500">77 {(phoneDigits.match(/.{1,2}/g) || []).join(' ')}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{address}</p>
+                  </div>
+                  <button onClick={() => setStep(2)} className="text-xs text-[#7d9800] hover:underline flex-none">{t('checkout.edit', 'Modifier')}</button>
+                </div>
+
+                {/* Mode de livraison */}
+                {selectedDelivery && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-base flex-none">{selectedDelivery.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{t('checkout.delivery_mode', 'Livraison')}</p>
+                      <p className="text-sm text-gray-800">{selectedDelivery.name}</p>
+                    </div>
+                    <p className="text-sm font-bold flex-none">
+                      {deliveryFee === 0
+                        ? <span className="text-green-500">{baseFee > 0 ? t('checkout.delivery_offered', 'Offerte') + ' 🎁' : t('checkout.free', 'Gratuite')}</span>
+                        : <span className="text-[#526500]">{deliveryFee.toLocaleString()} Fdj</span>}
+                    </p>
+                  </div>
+                )}
+
+                {/* Demande spéciale */}
+                {specialInstructions.trim() && (
+                  <div className="flex items-start gap-3">
+                    <span className="text-base flex-none mt-0.5">📝</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{t('checkout.special_title', 'Demande spéciale')}</p>
+                      <p className="text-xs text-gray-600 leading-relaxed">{specialInstructions}</p>
+                    </div>
+                    <button onClick={() => setStep(2)} className="text-xs text-[#7d9800] hover:underline flex-none">{t('checkout.edit', 'Modifier')}</button>
+                  </div>
+                )}
+
+                <div className="border-t border-[#d2e095]" />
+
+                {/* Mode de paiement */}
+                <div className="flex items-center gap-3">
+                  <span className="text-base flex-none">{PAYMENT_METHODS.find(p => p.id === paymentMethod)?.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{t('checkout.payment_method_label', 'Paiement')}</p>
+                    <p className="text-sm text-gray-800">{PAYMENT_METHODS.find(p => p.id === paymentMethod)?.label}</p>
+                  </div>
+                  <button onClick={() => setStep(3)} className="text-xs text-[#7d9800] hover:underline flex-none">{t('checkout.edit', 'Modifier')}</button>
+                </div>
+
+                {/* Promo / crédit */}
+                {(appliedCode || (useReferralCredit && referralCredits > 0)) && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-base flex-none">🎁</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{t('checkout.referral_code_label', 'Avantage')}</p>
+                      <p className="text-sm text-[#526500] font-medium">
+                        {appliedCode ? `Code ${appliedCode}` : t('checkout.use_credit', 'Crédit parrainage')} — {t('checkout.delivery_offered', 'Livraison offerte')} 🎁
+                      </p>
+                    </div>
+                    <button onClick={() => setStep(3)} className="text-xs text-[#7d9800] hover:underline flex-none">{t('checkout.edit', 'Modifier')}</button>
+                  </div>
+                )}
+
+                <div className="border-t border-[#d2e095]" />
+
+                {/* Total */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-500">{t('checkout.subtotal', 'Sous-total')}</span>
+                    <span className="font-medium">{total.toLocaleString()} Fdj</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-500">{t('checkout.delivery_label', 'Livraison')}{selectedDelivery && <span className="text-gray-400"> — {selectedDelivery.name}</span>}</span>
+                    {deliveryFee === 0
+                      ? <span className="font-medium text-green-500">{baseFee > 0 ? <>{t('checkout.delivery_offered', 'Offerte')} 🎁</> : t('checkout.free', 'Gratuite')}</span>
+                      : referralDiscount > 0
+                        ? <span className="font-medium flex items-center gap-1.5"><span className="line-through text-gray-400">{baseFee.toLocaleString()} Fdj</span><span className="text-[#526500]">{deliveryFee.toLocaleString()} Fdj</span><span>🎁</span></span>
+                        : <span className="font-medium">{deliveryFee.toLocaleString()} Fdj</span>}
+                  </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-[#d2e095]">
+                    <span className="font-bold text-gray-800 text-base">{t('checkout.total', 'Total')}</span>
+                    <span className="text-2xl font-bold text-[#526500]">{orderTotal.toLocaleString()} Fdj</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Erreur stock */}
             {stockError && (
               <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-2">
@@ -889,7 +961,7 @@ export default function CheckoutPage() {
 
             <div className="flex gap-3">
               <button
-                onClick={() => setStep(2)}
+                onClick={() => setStep(3)}
                 className="flex-1 bg-white text-gray-600 py-4 rounded-2xl font-semibold border border-[#d2e095] hover:bg-[#ecf4d5] transition"
               >
                 {t('checkout.back', '← Retour')}
