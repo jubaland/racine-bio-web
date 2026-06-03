@@ -71,6 +71,19 @@ export default function ProfilePage() {
   const [referralCount, setReferralCount] = useState(0);
   const [referralCopied, setReferralCopied] = useState<'code' | 'link' | null>(null);
 
+  // Notifications
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifPrefs, setNotifPrefs] = useState({ orders: true, status: true, promos: false });
+  const [savingNotifs, setSavingNotifs] = useState(false);
+
+  // Sécurité
+  const [securityOpen, setSecurityOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState<number | null>(null);
@@ -158,6 +171,9 @@ export default function ProfilePage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { window.location.href = '/login'; return; }
       setUser(session.user);
+      if (session.user.user_metadata?.notifications) {
+        setNotifPrefs(prev => ({ ...prev, ...session.user.user_metadata.notifications }));
+      }
 
       const [ordersRes, , referralRes] = await Promise.all([
         fetch('/api/orders/mine', {
@@ -187,6 +203,30 @@ export default function ProfilePage() {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     window.location.href = '/';
+  };
+
+  const saveNotifs = async (prefs: typeof notifPrefs) => {
+    setSavingNotifs(true);
+    await supabase.auth.updateUser({ data: { notifications: prefs } });
+    setSavingNotifs(false);
+  };
+
+  const toggleNotif = (key: keyof typeof notifPrefs) => {
+    const updated = { ...notifPrefs, [key]: !notifPrefs[key] };
+    setNotifPrefs(updated);
+    saveNotifs(updated);
+  };
+
+  const changePassword = async () => {
+    setPasswordError('');
+    setPasswordSuccess(false);
+    if (newPassword.length < 8) { setPasswordError(t('profile.pwd_too_short', 'Minimum 8 caractères')); return; }
+    if (newPassword !== confirmPassword) { setPasswordError(t('profile.pwd_mismatch', 'Les mots de passe ne correspondent pas')); return; }
+    setSavingPassword(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) setPasswordError(error.message);
+    else { setPasswordSuccess(true); setNewPassword(''); setConfirmPassword(''); }
+    setSavingPassword(false);
   };
 
   const statusMeta = (s: string) =>
@@ -781,16 +821,82 @@ export default function ProfilePage() {
         <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">⚙️ {t('profile.settings', 'Paramètres')}</h3>
           <div className="space-y-3">
-            <button className="w-full flex items-center gap-3 p-4 bg-[#faf7e8] rounded-2xl hover:bg-[#ecf4d5] transition text-left">
-              <span className="text-xl">🔔</span>
-              <span className="text-sm font-medium text-gray-700">{t('profile.notifications', 'Notifications')}</span>
-              <span className="ml-auto text-gray-400">›</span>
-            </button>
-            <button className="w-full flex items-center gap-3 p-4 bg-[#faf7e8] rounded-2xl hover:bg-[#ecf4d5] transition text-left">
-              <span className="text-xl">🔒</span>
-              <span className="text-sm font-medium text-gray-700">{t('profile.security', 'Sécurité')}</span>
-              <span className="ml-auto text-gray-400">›</span>
-            </button>
+
+            {/* Notifications */}
+            <div className="rounded-2xl border border-[#d2e095] overflow-hidden">
+              <button
+                onClick={() => setNotifOpen(o => !o)}
+                className="w-full flex items-center gap-3 p-4 bg-[#faf7e8] hover:bg-[#ecf4d5] transition text-left"
+              >
+                <span className="text-xl">🔔</span>
+                <span className="text-sm font-medium text-gray-700">{t('profile.notifications', 'Notifications')}</span>
+                <span className="ml-auto text-gray-400 transition-transform" style={{ transform: notifOpen ? 'rotate(90deg)' : 'none' }}>›</span>
+              </button>
+              {notifOpen && (
+                <div className="px-4 pb-4 pt-2 space-y-4 bg-white">
+                  {([
+                    { key: 'orders', label: t('profile.notif_orders', 'Confirmation de commande'), desc: t('profile.notif_orders_desc', 'Recevoir un email à chaque nouvelle commande') },
+                    { key: 'status', label: t('profile.notif_status', 'Mises à jour de livraison'), desc: t('profile.notif_status_desc', 'Être notifié quand le statut change') },
+                    { key: 'promos', label: t('profile.notif_promos', 'Offres et promotions'), desc: t('profile.notif_promos_desc', 'Recevoir les bons plans et nouveautés') },
+                  ] as { key: keyof typeof notifPrefs; label: string; desc: string }[]).map(({ key, label, desc }) => (
+                    <div key={key} className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-700">{label}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{desc}</p>
+                      </div>
+                      <button
+                        onClick={() => toggleNotif(key)}
+                        disabled={savingNotifs}
+                        className={`relative w-11 h-6 rounded-full transition-colors flex-none ${notifPrefs[key] ? 'bg-[#a8c800]' : 'bg-gray-200'} disabled:opacity-60`}
+                      >
+                        <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${notifPrefs[key] ? 'translate-x-5' : 'translate-x-1'}`} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Sécurité */}
+            <div className="rounded-2xl border border-[#d2e095] overflow-hidden">
+              <button
+                onClick={() => { setSecurityOpen(o => !o); setPasswordError(''); setPasswordSuccess(false); }}
+                className="w-full flex items-center gap-3 p-4 bg-[#faf7e8] hover:bg-[#ecf4d5] transition text-left"
+              >
+                <span className="text-xl">🔒</span>
+                <span className="text-sm font-medium text-gray-700">{t('profile.security', 'Sécurité')}</span>
+                <span className="ml-auto text-gray-400 transition-transform" style={{ transform: securityOpen ? 'rotate(90deg)' : 'none' }}>›</span>
+              </button>
+              {securityOpen && (
+                <div className="px-4 pb-4 pt-2 space-y-3 bg-white">
+                  <p className="text-xs text-gray-400">{t('profile.pwd_change_label', 'Changer de mot de passe')}</p>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                    placeholder={t('profile.pwd_new', 'Nouveau mot de passe')}
+                    className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm bg-[#faf7e8] focus:outline-none focus:border-[#a8c800]"
+                  />
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                    placeholder={t('profile.pwd_confirm', 'Confirmer le mot de passe')}
+                    className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm bg-[#faf7e8] focus:outline-none focus:border-[#a8c800]"
+                  />
+                  {passwordError && <p className="text-xs text-red-500">⚠️ {passwordError}</p>}
+                  {passwordSuccess && <p className="text-xs text-green-600">✅ {t('profile.pwd_success', 'Mot de passe mis à jour avec succès')}</p>}
+                  <button
+                    onClick={changePassword}
+                    disabled={savingPassword || !newPassword || !confirmPassword}
+                    className="w-full py-3 bg-[#a8c800] text-white text-sm font-semibold rounded-xl hover:bg-[#7d9800] transition disabled:opacity-50"
+                  >
+                    {savingPassword ? '⏳ ' + t('profile.pwd_saving', 'Enregistrement...') : '🔒 ' + t('profile.pwd_save', 'Mettre à jour le mot de passe')}
+                  </button>
+                </div>
+              )}
+            </div>
+
           </div>
         </div>
       </div>
