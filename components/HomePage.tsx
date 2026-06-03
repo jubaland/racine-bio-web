@@ -222,11 +222,7 @@ export default function HomePage({ products, categories, promos, producers }: {
                         ⚠️ Plus que {p.stock_qty} {p.unit}
                       </div>
                     )}
-                    {p.featured_badge ? (
-                      <div className="absolute top-2 left-2 bg-[#526500] text-white text-xs font-semibold px-2 py-1 rounded-md">
-                        {p.featured_badge}
-                      </div>
-                    ) : isBio && (
+                    {isBio && (
                       <div className="absolute top-2 left-2 text-xs font-bold px-2 py-1 rounded-md bg-[#edf5a0] text-[#526500]">
                         🌿 {t('product.type_bio', 'Bio')}
                       </div>
@@ -239,6 +235,11 @@ export default function HomePage({ products, categories, promos, producers }: {
                   </div>
                   <div className="p-3">
                     <h3 className="text-sm font-semibold text-gray-800 truncate">{getProductName(p)}</h3>
+                    {p.featured_badge && (
+                      <span className="inline-block text-[10px] bg-[#ecf4d5] border border-[#d2e095] text-[#526500] font-semibold px-2 py-0.5 rounded-full mt-1">
+                        ⭐ {p.featured_badge}
+                      </span>
+                    )}
                     <p className="text-xs text-gray-400 mt-1">🌱 {p.farm}</p>
                     <div className="flex items-center justify-between mt-3">
                       <div>
