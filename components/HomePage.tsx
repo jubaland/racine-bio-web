@@ -235,7 +235,10 @@ export default function HomePage({ products, categories, promos, producers }: {
                   </div>
                   <div className="p-3">
                     <h3 className="text-sm font-semibold text-gray-800 truncate">{getProductName(p)}</h3>
-                    <p className="text-xs text-gray-400 mt-1">🌱 {p.farm} · {flag}</p>
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-xs text-gray-400 truncate">🌱 {p.farm}</p>
+                      <span className="text-base flex-none ml-1">{flag}</span>
+                    </div>
                     <div className="flex items-center justify-between mt-3">
                       <div>
                         {p.old_price && (
@@ -301,7 +304,10 @@ export default function HomePage({ products, categories, promos, producers }: {
                   </div>
                   <div className="p-3">
                     <p className="text-sm font-medium text-gray-800 truncate">{getProductName(p)}</p>
-                    <p className="text-xs text-gray-400 mt-1">🌱 {p.farm} · {flag}</p>
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-xs text-gray-400 truncate">🌱 {p.farm}</p>
+                      <span className="text-base flex-none ml-1">{flag}</span>
+                    </div>
                     <div className="flex items-center justify-between mt-2">
                       <div>
                         {(p.old_price || p.oldPrice) && (
@@ -484,7 +490,10 @@ export default function HomePage({ products, categories, promos, producers }: {
                   </div>
                   <div className="p-3">
                     <h3 className="text-sm font-semibold text-gray-800 truncate">{getProductName(product)}</h3>
-                    <p className="text-xs text-gray-400 mt-1">🌱 {product.farm} · {origin.flag}</p>
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-xs text-gray-400 truncate">🌱 {product.farm}</p>
+                      <span className="text-base flex-none ml-1">{origin.flag}</span>
+                    </div>
                     <div className="flex items-center justify-between mt-3">
                       <div>
                         {(product.old_price || product.oldPrice) && (
