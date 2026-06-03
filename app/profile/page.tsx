@@ -273,6 +273,12 @@ export default function ProfilePage() {
                 <span className="bg-[#ecf4d5] text-[#526500] text-xs font-semibold px-3 py-1 rounded-full">
                   {t('profile.verified', '✅ Compte vérifié')}
                 </span>
+                <button
+                  onClick={handleSignOut}
+                  className="text-xs font-semibold px-3 py-1 rounded-full bg-red-50 text-red-500 hover:bg-red-100 transition"
+                >
+                  🚪 {t('profile.signout', 'Se déconnecter')}
+                </button>
               </div>
             </div>
           </div>
@@ -784,13 +790,6 @@ export default function ProfilePage() {
               <span className="text-xl">🔒</span>
               <span className="text-sm font-medium text-gray-700">{t('profile.security', 'Sécurité')}</span>
               <span className="ml-auto text-gray-400">›</span>
-            </button>
-            <button
-              onClick={handleSignOut}
-              className="w-full flex items-center gap-3 p-4 bg-red-50 rounded-2xl hover:bg-red-100 transition text-left"
-            >
-              <span className="text-xl">🚪</span>
-              <span className="text-sm font-medium text-red-500">{t('profile.signout', 'Se déconnecter')}</span>
             </button>
           </div>
         </div>
