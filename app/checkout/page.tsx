@@ -5,6 +5,7 @@ import { useCart } from '../../context/CartContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
 import Header from '../../components/Header';
+import CartDrawer from '../../components/CartDrawer';
 import Link from 'next/link';
 
 const WAAFI_MERCHANT_NUMBER = '77432615';
@@ -31,6 +32,7 @@ export default function CheckoutPage() {
     { id: 'cash',  label: t('checkout.cash_label',  'Espèces'), emoji: '💵', desc: t('checkout.cash_desc',  'Paiement à la livraison') },
   ];
 
+  const [cartOpen, setCartOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [guestMode, setGuestMode] = useState(false);
@@ -251,7 +253,8 @@ export default function CheckoutPage() {
   if (items.length === 0 && !success) {
     return (
       <div className="min-h-screen bg-[#faf7e8]">
-        <Header onCartOpen={() => {}} />
+        <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+        <Header onCartOpen={() => setCartOpen(true)} />
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <p className="text-6xl mb-4 opacity-20">🛒</p>
@@ -269,7 +272,8 @@ export default function CheckoutPage() {
   if (success) {
     return (
       <div className="min-h-screen bg-[#faf7e8]">
-        <Header onCartOpen={() => {}} />
+        <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+        <Header onCartOpen={() => setCartOpen(true)} />
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center max-w-md mx-auto px-6">
             <p className="text-7xl mb-6">🎉</p>
@@ -317,7 +321,8 @@ export default function CheckoutPage() {
 
   return (
     <div className="min-h-screen bg-[#faf7e8]">
-      <Header onCartOpen={() => {}} />
+      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+      <Header onCartOpen={() => setCartOpen(true)} />
 
       <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 md:py-8">
         <h1 className="text-2xl font-bold text-gray-800 mb-6">
