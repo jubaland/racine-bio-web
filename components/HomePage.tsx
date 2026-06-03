@@ -37,6 +37,15 @@ export default function HomePage({ products, categories, promos, producers }: {
 
   useEffect(() => {
     setReferralBarDismissed(localStorage.getItem('hf_referral_bar') === '1');
+    // Capturer le code parrainage depuis l'URL (?ref=XXXXXX)
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) {
+      localStorage.setItem('hf_ref_code', ref.toUpperCase());
+      const url = new URL(window.location.href);
+      url.searchParams.delete('ref');
+      window.history.replaceState({}, '', url.toString());
+    }
   }, []);
 
   const dismissReferralBar = () => {

@@ -65,6 +65,12 @@ export default function ProfilePage() {
   const t = (key: string, fallback: string) => ui[key] || fallback;
 
   // Adresses
+  // Parrainage
+  const [referralCode, setReferralCode] = useState('');
+  const [referralCredits, setReferralCredits] = useState(0);
+  const [referralCount, setReferralCount] = useState(0);
+  const [referralCopied, setReferralCopied] = useState<'code' | 'link' | null>(null);
+
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState<number | null>(null);
@@ -153,16 +159,25 @@ export default function ProfilePage() {
       if (!session) { window.location.href = '/login'; return; }
       setUser(session.user);
 
-      const [ordersRes] = await Promise.all([
+      const [ordersRes, , referralRes] = await Promise.all([
         fetch('/api/orders/mine', {
           headers: { Authorization: `Bearer ${session.access_token}` },
         }),
         loadAddresses(session.user.id),
+        fetch('/api/referral', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        }),
       ]);
 
       if (ordersRes.ok) {
         const json = await ordersRes.json();
         setOrders(json.orders || []);
+      }
+      if (referralRes.ok) {
+        const json = await referralRes.json();
+        setReferralCode(json.code ?? '');
+        setReferralCredits(json.credits ?? 0);
+        setReferralCount(json.referrals_count ?? 0);
       }
       setLoading(false);
     };
@@ -428,6 +443,78 @@ export default function ProfilePage() {
             </div>
           )}
         </div>
+
+        {/* Parrainage */}
+        {referralCode && (
+          <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6">
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-lg font-semibold text-gray-800">🎁 {t('profile.referral_title', 'Parrainage')}</h3>
+              {referralCredits > 0 && (
+                <span className="bg-[#c8e050] text-[#1c3a05] text-xs font-bold px-3 py-1 rounded-full">
+                  🎁 {referralCredits} crédit{referralCredits > 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-gray-400 mb-5">
+              {t('profile.referral_desc', 'Partagez votre code — votre ami reçoit la livraison offerte, et vous aussi sur votre prochaine commande.')}
+            </p>
+
+            {/* Code */}
+            <div className="mb-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                {t('profile.referral_your_code', 'Votre code unique')}
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 bg-[#ecf4d5] border border-[#d2e095] rounded-xl px-5 py-3 text-center">
+                  <span className="text-2xl font-bold text-[#526500] tracking-[0.25em]">{referralCode}</span>
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(referralCode);
+                    setReferralCopied('code');
+                    setTimeout(() => setReferralCopied(null), 2000);
+                  }}
+                  className="px-4 py-3 bg-[#a8c800] text-white text-sm font-semibold rounded-xl hover:bg-[#7d9800] transition whitespace-nowrap"
+                >
+                  {referralCopied === 'code' ? '✓ Copié' : t('profile.referral_copy', 'Copier')}
+                </button>
+              </div>
+            </div>
+
+            {/* Partager le lien */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  const link = `${window.location.origin}/?ref=${referralCode}`;
+                  navigator.clipboard.writeText(link);
+                  setReferralCopied('link');
+                  setTimeout(() => setReferralCopied(null), 2000);
+                }}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 border border-[#d2e095] rounded-xl text-sm text-gray-600 hover:bg-[#ecf4d5] transition"
+              >
+                📋 {referralCopied === 'link' ? 'Lien copié !' : t('profile.referral_copy_link', 'Copier le lien')}
+              </button>
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(`Je commande mes fruits et légumes frais sur Hornafresh à Djibouti. Utilise mon code ${referralCode} pour recevoir la livraison offerte sur ta 1ère commande ! ${window.location.origin}/?ref=${referralCode}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#25d366] text-white rounded-xl text-sm font-semibold hover:bg-[#1da851] transition"
+              >
+                💬 WhatsApp
+              </a>
+            </div>
+
+            {/* Stats */}
+            {referralCount > 0 && (
+              <div className="mt-5 pt-4 border-t border-[#d2e095] flex items-center gap-2 text-sm text-gray-500">
+                <span>👥</span>
+                <span>
+                  {referralCount} filleul{referralCount > 1 ? 's' : ''} {t('profile.referral_invited', 'invité')}{referralCount > 1 ? 's' : ''}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Commandes */}
         <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6">

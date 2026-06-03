@@ -5,7 +5,7 @@ import { sendOrderConfirmation, sendNewOrderAlert, sendStatusUpdate } from '../.
 // POST — crée commande + articles avec vérification et décrémentation du stock
 export async function POST(request: Request) {
   try {
-    const { order, items } = await request.json();
+    const { order, items, ref_code, use_referral_credit } = await request.json();
 
     // Vérifier le stock disponible pour chaque article
     const productIds = items.map((i: any) => i.product_id);
@@ -85,6 +85,54 @@ export async function POST(request: Request) {
         .update({ stock_qty: newStock })
         .eq('id', item.product_id);
     }));
+
+    // Consommer un crédit parrainage si demandé
+    if (use_referral_credit && createdOrder.user_id) {
+      try {
+        const { data: rc } = await supabaseAdmin
+          .from('referral_codes')
+          .select('credits')
+          .eq('user_id', createdOrder.user_id)
+          .maybeSingle();
+        if (rc && rc.credits > 0) {
+          await supabaseAdmin
+            .from('referral_codes')
+            .update({ credits: rc.credits - 1 })
+            .eq('user_id', createdOrder.user_id);
+        }
+      } catch (_) {}
+    }
+
+    // Attribuer un crédit au parrain — fire-and-forget
+    if (ref_code && createdOrder.user_id) {
+      (async () => {
+        try {
+          const { data: refRecord } = await supabaseAdmin
+            .from('referral_codes')
+            .select('user_id, credits')
+            .eq('code', String(ref_code).toUpperCase())
+            .maybeSingle();
+          if (!refRecord || refRecord.user_id === createdOrder.user_id) return;
+
+          const { count } = await supabaseAdmin
+            .from('referrals')
+            .select('id', { count: 'exact', head: true })
+            .eq('referee_id', createdOrder.user_id);
+          if (count && count > 0) return; // déjà parrainé
+
+          await supabaseAdmin.from('referrals').insert({
+            code:        String(ref_code).toUpperCase(),
+            referrer_id: refRecord.user_id,
+            referee_id:  createdOrder.user_id,
+            order_id:    createdOrder.id,
+          });
+          await supabaseAdmin
+            .from('referral_codes')
+            .update({ credits: refRecord.credits + 1 })
+            .eq('user_id', refRecord.user_id);
+        } catch (_) {}
+      })();
+    }
 
     // Emails — fire-and-forget, never block the order response
     (async () => {

@@ -50,6 +50,11 @@ export default function CheckoutPage() {
   const [confirmedTotal, setConfirmedTotal] = useState(0);
   const [stockError, setStockError] = useState<{ name: string; available: number; unit: string; requested: number }[] | null>(null);
 
+  // Parrainage
+  const [refCode, setRefCode] = useState<string | null>(null);
+  const [referralCredits, setReferralCredits] = useState(0);
+  const [useReferralCredit, setUseReferralCredit] = useState(false);
+
   // Adresses sauvegardées
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
   const [addressesLoaded, setAddressesLoaded] = useState(false);
@@ -73,9 +78,21 @@ export default function CheckoutPage() {
   };
 
   useEffect(() => {
+    // Lire le code parrainage depuis localStorage
+    const code = localStorage.getItem('hf_ref_code');
+    if (code) setRefCode(code);
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user || null);
       setAuthChecked(true);
+      // Récupérer les crédits parrainage si connecté
+      if (session?.access_token) {
+        fetch('/api/referral', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        }).then(r => r.ok ? r.json() : null).then(json => {
+          if (json?.credits > 0) setReferralCredits(json.credits);
+        }).catch(() => {});
+      }
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       setUser(session?.user || null);
@@ -132,6 +149,8 @@ export default function CheckoutPage() {
             product_unit:      item.unit,
             product_farm:      item.farm ?? null,
           })),
+          ref_code:             refCode || undefined,
+          use_referral_credit:  useReferralCredit && referralCredits > 0,
         }),
       });
 
@@ -144,6 +163,7 @@ export default function CheckoutPage() {
 
       setOrderId(json.order.id);
       setConfirmedTotal(total);
+      if (refCode) localStorage.removeItem('hf_ref_code');
 
       // Sauvegarder la nouvelle adresse si demandé
       if (saveNewAddress && user && showNewAddressForm) {
@@ -555,6 +575,38 @@ export default function CheckoutPage() {
                     </p>
                   </div>
                 </div>
+              )}
+
+              {/* Parrainage — code détecté */}
+              {refCode && (
+                <div className="mt-4 bg-[#ecf4d5] border border-[#a8c800] rounded-2xl p-4 flex items-center gap-3">
+                  <span className="text-2xl">🎁</span>
+                  <div className="flex-1">
+                    <p className="font-semibold text-[#526500] text-sm">{t('checkout.referral_applied', 'Code parrainage appliqué')}</p>
+                    <p className="text-xs text-gray-500">{t('checkout.referral_applied_desc', 'Livraison offerte sur votre première commande.')}</p>
+                  </div>
+                  <span className="text-[#a8c800] text-xl font-bold">✓</span>
+                </div>
+              )}
+
+              {/* Parrainage — crédit disponible */}
+              {!refCode && referralCredits > 0 && (
+                <label className="mt-4 flex items-center gap-3 p-4 bg-[#ecf4d5] border border-[#a8c800] rounded-2xl cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={useReferralCredit}
+                    onChange={e => setUseReferralCredit(e.target.checked)}
+                    className="w-4 h-4 accent-[#a8c800] flex-shrink-0"
+                  />
+                  <div>
+                    <p className="font-semibold text-[#526500] text-sm">
+                      🎁 {t('checkout.use_credit', 'Utiliser mon crédit parrainage')}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {referralCredits} {t('checkout.credit_available', referralCredits > 1 ? 'livraisons offertes disponibles' : 'livraison offerte disponible')}
+                    </p>
+                  </div>
+                </label>
               )}
 
               {/* Récapitulatif montant */}
