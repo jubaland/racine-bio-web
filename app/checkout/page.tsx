@@ -403,7 +403,7 @@ export default function CheckoutPage() {
                           <div className="flex items-center gap-2 mb-0.5">
                             <p className="font-semibold text-gray-800 text-sm">{addr.label}</p>
                             {addr.is_default && (
-                              <span className="text-xs bg-[#d2e095] text-[#526500] px-2 py-0.5 rounded-full">Par défaut</span>
+                              <span className="text-xs bg-[#d2e095] text-[#526500] px-2 py-0.5 rounded-full">{t('checkout.address_default', 'Par défaut')}</span>
                             )}
                           </div>
                           <p className="text-sm text-gray-600">{addr.recipient_name}</p>
@@ -433,7 +433,7 @@ export default function CheckoutPage() {
                   >
                     <div className="flex items-center gap-3">
                       <span className="text-xl">➕</span>
-                      <p className="font-medium text-gray-600 text-sm">Nouvelle adresse</p>
+                      <p className="font-medium text-gray-600 text-sm">{t('checkout.new_address', 'Nouvelle adresse')}</p>
                       {selectedAddressId === 'new' && (
                         <span className="ml-auto text-[#a8c800] text-xl">✓</span>
                       )}
@@ -497,7 +497,7 @@ export default function CheckoutPage() {
                       />
                     </div>
                     {!phoneFocused && phoneDigits.length > 0 && !phoneValid && (
-                      <p className="text-xs text-red-500 mt-1.5">⚠️ Le numéro doit contenir 8 chiffres au total (77 + 6 chiffres)</p>
+                      <p className="text-xs text-red-500 mt-1.5">⚠️ {t('checkout.phone_error', 'Le numéro doit contenir 8 chiffres au total (77 + 6 chiffres)')}</p>
                     )}
                   </div>
 
@@ -523,7 +523,7 @@ export default function CheckoutPage() {
                         onChange={e => setSaveNewAddress(e.target.checked)}
                         className="w-4 h-4 accent-[#a8c800]"
                       />
-                      <span className="text-sm text-gray-600">Sauvegarder cette adresse</span>
+                      <span className="text-sm text-gray-600">{t('checkout.save_address', 'Sauvegarder cette adresse')}</span>
                     </label>
                   )}
                 </div>
@@ -773,7 +773,7 @@ export default function CheckoutPage() {
                   </span>
                   {deliveryFee === 0 ? (
                     <span className="font-medium text-green-500">
-                      {baseFee > 0 ? <>{t('checkout.free', 'Offerte')} 🎁</> : t('checkout.free', 'Gratuite')}
+                      {baseFee > 0 ? <>{t('checkout.delivery_offered', 'Offerte')} 🎁</> : t('checkout.free', 'Gratuite')}
                     </span>
                   ) : referralDiscount > 0 ? (
                     <span className="font-medium flex items-center gap-1.5">
