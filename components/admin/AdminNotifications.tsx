@@ -66,7 +66,11 @@ export default function AdminNotifications() {
         <div>
           <h2 className="text-xl font-bold text-gray-800">🔔 Notifications</h2>
           <p className="text-sm text-gray-400 mt-0.5">
-            {unread > 0 ? `${unread} non lue${unread > 1 ? 's' : ''}` : 'Tout est lu'}
+            {notifs.length === 0
+              ? 'Aucune notification'
+              : unread > 0
+                ? `${unread} non lue${unread > 1 ? 's' : ''}`
+                : 'Tout est lu'}
           </p>
         </div>
         {unread > 0 && (
