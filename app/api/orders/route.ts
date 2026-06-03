@@ -144,12 +144,18 @@ export async function POST(request: Request) {
       // Alertes stock bas (seuil : 5 unités)
       const LOW = 5;
       const lowStock = items
-        .map((item: any) => ({
-          name:     stockMap[item.product_id]?.name ?? `Produit #${item.product_id}`,
-          newStock: Math.max(0, (stockMap[item.product_id]?.stock_qty ?? 0) - item.quantity),
-          wasAbove: (stockMap[item.product_id]?.stock_qty ?? 0) > LOW,
-        }))
+        .map((item: any) => {
+          const current = stockMap[item.product_id]?.stock_qty ?? 0;
+          const newStock = Math.max(0, current - item.quantity);
+          console.log(`[stock] product_id=${item.product_id} current=${current} qty=${item.quantity} newStock=${newStock} wasAbove=${current > LOW}`);
+          return {
+            name:     stockMap[item.product_id]?.name ?? `Produit #${item.product_id}`,
+            newStock,
+            wasAbove: current > LOW,
+          };
+        })
         .filter(p => p.newStock <= LOW && p.wasAbove);
+      console.log('[stock] lowStock items:', lowStock.length, JSON.stringify(lowStock));
 
       if (lowStock.length === 1) {
         const p = lowStock[0];
