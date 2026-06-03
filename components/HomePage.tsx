@@ -227,19 +227,15 @@ export default function HomePage({ products, categories, promos, producers }: {
                         🌿 {t('product.type_bio', 'Bio')}
                       </div>
                     )}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); e.preventDefault(); isFavorite(p.id) ? removeFavorite(p.id) : addFavorite(p); }}
-                      className="absolute top-2 right-2 w-8 h-8 bg-[#a8c800] rounded-full flex items-center justify-center shadow hover:bg-[#7d9800] hover:scale-110 transition-all text-base"
-                    >{isFavorite(p.id) ? '❤️' : '🤍'}</button>
+                    {p.featured_badge && (
+                      <div className="absolute top-2 right-2 bg-[#526500] text-white text-xs font-semibold px-2 py-1 rounded-md">
+                        {p.featured_badge}
+                      </div>
+                    )}
                     <div className="absolute bottom-2 right-2 bg-white/80 rounded-full px-2 py-0.5 text-xs backdrop-blur-sm">{flag}</div>
                   </div>
                   <div className="p-3">
                     <h3 className="text-sm font-semibold text-gray-800 truncate">{getProductName(p)}</h3>
-                    {p.featured_badge && (
-                      <span className="inline-block text-[10px] bg-[#ecf4d5] border border-[#d2e095] text-[#526500] font-semibold px-2 py-0.5 rounded-full mt-1">
-                        ⭐ {p.featured_badge}
-                      </span>
-                    )}
                     <p className="text-xs text-gray-400 mt-1">🌱 {p.farm}</p>
                     <div className="flex items-center justify-between mt-3">
                       <div>
