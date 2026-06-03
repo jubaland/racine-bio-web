@@ -753,9 +753,10 @@ export default function CheckoutPage() {
                       {baseFee > 0 ? <>{t('checkout.free', 'Offerte')} 🎁</> : t('checkout.free', 'Gratuite')}
                     </span>
                   ) : referralDiscount > 0 ? (
-                    <span className="font-medium">
-                      {deliveryFee.toLocaleString()} Fdj
-                      <span className="text-xs text-green-500 ml-1.5">−{referralDiscount.toLocaleString()} 🎁</span>
+                    <span className="font-medium flex items-center gap-1.5">
+                      <span className="line-through text-gray-400">{baseFee.toLocaleString()} Fdj</span>
+                      <span className="text-[#526500]">{deliveryFee.toLocaleString()} Fdj</span>
+                      <span>🎁</span>
                     </span>
                   ) : (
                     <span className="font-medium">{deliveryFee.toLocaleString()} Fdj</span>
