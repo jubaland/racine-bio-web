@@ -9,6 +9,18 @@ import Link from 'next/link';
 
 const WAAFI_MERCHANT_NUMBER = '77432615';
 
+interface SavedAddress {
+  id: number;
+  label: string;
+  recipient_name: string;
+  phone: string;
+  address: string;
+  is_default: boolean;
+}
+
+const LABEL_ICONS: Record<string, string> = { Maison: '🏠', Bureau: '🏢', Autre: '📍' };
+const ADDRESS_LABELS = ['Maison', 'Bureau', 'Autre'];
+
 export default function CheckoutPage() {
   const { items, total, clearCart } = useCart();
   const { ui } = useLanguage();
@@ -25,7 +37,7 @@ export default function CheckoutPage() {
 
   const [step, setStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState('cash');
-  const [phoneDigits, setPhoneDigits] = useState(''); // 6 chiffres bruts après le 77
+  const [phoneDigits, setPhoneDigits] = useState('');
   const [phoneFocused, setPhoneFocused] = useState(false);
   const phoneDisplay = phoneFocused
     ? phoneDigits
@@ -38,6 +50,27 @@ export default function CheckoutPage() {
   const [confirmedTotal, setConfirmedTotal] = useState(0);
   const [stockError, setStockError] = useState<{ name: string; available: number; unit: string; requested: number }[] | null>(null);
 
+  // Adresses sauvegardées
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [addressesLoaded, setAddressesLoaded] = useState(false);
+  const [selectedAddressId, setSelectedAddressId] = useState<number | 'new' | null>(null);
+  const [saveNewAddress, setSaveNewAddress] = useState(false);
+  const [newAddressLabel, setNewAddressLabel] = useState('Maison');
+
+  const showAddressCards = !!(user && savedAddresses.length > 0);
+  const showNewAddressForm = !showAddressCards || selectedAddressId === 'new';
+  const formFilled = name.trim().length > 0 && phoneDigits.length > 0 && address.trim().length > 0;
+  const canContinueStep2 = showAddressCards && selectedAddressId !== 'new'
+    ? selectedAddressId !== null
+    : formFilled;
+
+  const selectSavedAddress = (addr: SavedAddress) => {
+    setSelectedAddressId(addr.id);
+    setName(addr.recipient_name);
+    setPhoneDigits(addr.phone.replace(/\D/g, '').slice(2));
+    setAddress(addr.address);
+  };
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user || null);
@@ -48,6 +81,27 @@ export default function CheckoutPage() {
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  // Charger les adresses sauvegardées quand on arrive à l'étape 2
+  useEffect(() => {
+    if (step !== 2 || !user || addressesLoaded) return;
+    setAddressesLoaded(true);
+    supabase
+      .from('addresses')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('is_default', { ascending: false })
+      .order('created_at', { ascending: true })
+      .then(({ data }) => {
+        const addrs = (data || []) as SavedAddress[];
+        setSavedAddresses(addrs);
+        if (addrs.length > 0) {
+          selectSavedAddress(addrs[0]);
+        } else {
+          setSelectedAddressId('new');
+        }
+      });
+  }, [step, user, addressesLoaded]);
 
   const handleOrder = async () => {
     setLoading(true);
@@ -89,6 +143,21 @@ export default function CheckoutPage() {
 
       setOrderId(json.order.id);
       setConfirmedTotal(total);
+
+      // Sauvegarder la nouvelle adresse si demandé
+      if (saveNewAddress && user && showNewAddressForm) {
+        try {
+          await supabase.from('addresses').insert({
+            user_id:        user.id,
+            label:          newAddressLabel,
+            recipient_name: name,
+            phone:          '77' + phoneDigits,
+            address,
+            is_default:     savedAddresses.length === 0,
+          });
+        } catch (_) {}
+      }
+
       clearCart();
       setSuccess(true);
     } catch (e) {
@@ -132,7 +201,6 @@ export default function CheckoutPage() {
               {t('checkout.thanks', 'Merci pour votre commande. Vous serez contacté pour la livraison.')}
             </p>
 
-            {/* Rappel paiement Waafi */}
             {paymentMethod === 'waafi' && (
               <div className="bg-[#e8f5e0] border border-[#a8c800] rounded-2xl p-4 mb-6 text-left">
                 <p className="font-semibold text-[#526500] mb-1">📱 Paiement Waafi à effectuer</p>
@@ -233,55 +301,152 @@ export default function CheckoutPage() {
           <div>
             <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-4">
               <h2 className="text-lg font-semibold text-gray-800 mb-4">
-                🚚 {t('checkout.delivery_info', 'Informations de livraison')}
+                🚚 {t('checkout.delivery_info', 'Adresse de livraison')}
               </h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-600 mb-1 block">
-                    {t('checkout.full_name', 'Nom complet *')}
-                  </label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    placeholder={t('checkout.name_placeholder', 'Ex: Ahmed Hassan')}
-                    className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] bg-[#faf7e8]"
-                  />
+
+              {/* Cartes d'adresses sauvegardées */}
+              {showAddressCards && (
+                <div className="space-y-3 mb-5">
+                  {savedAddresses.map(addr => (
+                    <button
+                      key={addr.id}
+                      onClick={() => selectSavedAddress(addr)}
+                      className={`w-full text-left p-4 rounded-2xl border-2 transition ${
+                        selectedAddressId === addr.id
+                          ? 'border-[#a8c800] bg-[#ecf4d5]'
+                          : 'border-[#d2e095] bg-white hover:bg-[#faf7e8]'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl mt-0.5">{LABEL_ICONS[addr.label] ?? '📍'}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <p className="font-semibold text-gray-800 text-sm">{addr.label}</p>
+                            {addr.is_default && (
+                              <span className="text-xs bg-[#d2e095] text-[#526500] px-2 py-0.5 rounded-full">Par défaut</span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600">{addr.recipient_name}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">📞 {addr.phone}</p>
+                          <p className="text-xs text-gray-400 mt-0.5 truncate">📍 {addr.address}</p>
+                        </div>
+                        {selectedAddressId === addr.id && (
+                          <span className="text-[#a8c800] text-xl flex-shrink-0">✓</span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+
+                  {/* Carte "Nouvelle adresse" */}
+                  <button
+                    onClick={() => {
+                      setSelectedAddressId('new');
+                      setName('');
+                      setPhoneDigits('');
+                      setAddress('');
+                    }}
+                    className={`w-full text-left p-4 rounded-2xl border-2 transition ${
+                      selectedAddressId === 'new'
+                        ? 'border-[#a8c800] bg-[#ecf4d5]'
+                        : 'border-dashed border-[#d2e095] bg-white hover:bg-[#faf7e8]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">➕</span>
+                      <p className="font-medium text-gray-600 text-sm">Nouvelle adresse</p>
+                      {selectedAddressId === 'new' && (
+                        <span className="ml-auto text-[#a8c800] text-xl">✓</span>
+                      )}
+                    </div>
+                  </button>
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600 mb-1 block">
-                    {t('checkout.phone', 'Téléphone *')}
-                  </label>
-                  <div className="flex border border-[#d2e095] rounded-xl overflow-hidden focus-within:border-[#a8c800] bg-[#faf7e8] transition">
-                    <span className="flex items-center px-4 text-sm font-semibold text-gray-700 bg-[#ecf4d5] border-r border-[#d2e095] select-none">
-                      77
-                    </span>
+              )}
+
+              {/* Formulaire (nouvelle adresse ou pas d'adresses sauvegardées) */}
+              {showNewAddressForm && (
+                <div className="space-y-4">
+                  {/* Type d'adresse (utilisateurs connectés uniquement) */}
+                  {user && (
+                    <div className="flex gap-2">
+                      {ADDRESS_LABELS.map(lbl => (
+                        <button
+                          key={lbl}
+                          onClick={() => setNewAddressLabel(lbl)}
+                          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-sm font-medium transition ${
+                            newAddressLabel === lbl
+                              ? 'border-[#a8c800] bg-[#ecf4d5] text-[#526500]'
+                              : 'border-[#d2e095] text-gray-500 hover:bg-[#faf7e8]'
+                          }`}
+                        >
+                          {LABEL_ICONS[lbl]} {lbl}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-600 mb-1 block">
+                      {t('checkout.full_name', 'Nom complet *')}
+                    </label>
                     <input
-                      type="tel"
-                      value={phoneDisplay}
-                      onChange={e => setPhoneDigits(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      onFocus={() => setPhoneFocused(true)}
-                      onBlur={() => setPhoneFocused(false)}
-                      placeholder="XX XX XX"
-                      maxLength={8}
-                      className="flex-1 px-4 py-3 text-sm text-gray-800 bg-transparent focus:outline-none"
+                      type="text"
+                      value={name}
+                      onChange={e => setName(e.target.value)}
+                      placeholder={t('checkout.name_placeholder', 'Ex: Ahmed Hassan')}
+                      className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] bg-[#faf7e8]"
                     />
                   </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-600 mb-1 block">
+                      {t('checkout.phone', 'Téléphone *')}
+                    </label>
+                    <div className="flex border border-[#d2e095] rounded-xl overflow-hidden focus-within:border-[#a8c800] bg-[#faf7e8] transition">
+                      <span className="flex items-center px-4 text-sm font-semibold text-gray-700 bg-[#ecf4d5] border-r border-[#d2e095] select-none">
+                        77
+                      </span>
+                      <input
+                        type="tel"
+                        value={phoneDisplay}
+                        onChange={e => setPhoneDigits(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        onFocus={() => setPhoneFocused(true)}
+                        onBlur={() => setPhoneFocused(false)}
+                        placeholder="XX XX XX"
+                        maxLength={8}
+                        className="flex-1 px-4 py-3 text-sm text-gray-800 bg-transparent focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-600 mb-1 block">
+                      {t('checkout.delivery_address', 'Adresse *')}
+                    </label>
+                    <textarea
+                      value={address}
+                      onChange={e => setAddress(e.target.value)}
+                      placeholder={t('checkout.address_placeholder', 'Ex: Quartier 4, Rue de la Paix, Djibouti-Ville')}
+                      rows={3}
+                      className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] bg-[#faf7e8] resize-none"
+                    />
+                  </div>
+
+                  {/* Checkbox sauvegarder (connectés uniquement) */}
+                  {user && (
+                    <label className="flex items-center gap-3 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={saveNewAddress}
+                        onChange={e => setSaveNewAddress(e.target.checked)}
+                        className="w-4 h-4 accent-[#a8c800]"
+                      />
+                      <span className="text-sm text-gray-600">Sauvegarder cette adresse</span>
+                    </label>
+                  )}
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600 mb-1 block">
-                    {t('checkout.delivery_address', 'Adresse de livraison *')}
-                  </label>
-                  <textarea
-                    value={address}
-                    onChange={e => setAddress(e.target.value)}
-                    placeholder={t('checkout.address_placeholder', 'Ex: Quartier 4, Rue de la Paix, Djibouti-Ville')}
-                    rows={3}
-                    className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] bg-[#faf7e8] resize-none"
-                  />
-                </div>
-              </div>
+              )}
             </div>
+
             <div className="flex gap-3">
               <button
                 onClick={() => setStep(1)}
@@ -291,7 +456,7 @@ export default function CheckoutPage() {
               </button>
               <button
                 onClick={() => setStep(3)}
-                disabled={!name || phoneDigits.length === 0 || !address}
+                disabled={!canContinueStep2}
                 className="flex-1 bg-[#a8c800] text-white py-4 rounded-2xl font-semibold hover:bg-[#7d9800] transition disabled:opacity-50"
               >
                 {t('checkout.continue_payment', 'Continuer → Paiement')}
@@ -318,7 +483,7 @@ export default function CheckoutPage() {
                 {t('checkout.auth_signin', "🔑 Se connecter / S'inscrire")}
               </Link>
               <button
-                onClick={() => setGuestMode(true)}
+                onClick={() => { setGuestMode(true); setSelectedAddressId('new'); }}
                 className="w-full bg-white border border-[#d2e095] text-gray-600 py-3.5 rounded-2xl font-semibold hover:bg-[#ecf4d5] transition"
               >
                 {t('checkout.auth_guest', 'Continuer sans compte →')}
@@ -361,15 +526,13 @@ export default function CheckoutPage() {
                 ))}
               </div>
 
-              {/* Instructions Waafi manuel */}
+              {/* Instructions Waafi */}
               {paymentMethod === 'waafi' && (
                 <div className="mt-4 rounded-2xl overflow-hidden border border-[#a8c800]">
-                  {/* En-tête vert Waafi */}
                   <div className="bg-[#526500] px-5 py-3 flex items-center gap-3">
                     <span className="text-2xl">📱</span>
                     <span className="text-white font-bold text-lg tracking-wide">WAAFI</span>
                   </div>
-                  {/* Corps */}
                   <div className="bg-[#f0f8e8] px-5 py-4">
                     <p className="text-sm text-gray-600 mb-3">
                       {t('checkout.waafi_manual_instructions', 'Envoyez le montant total à notre compte Waafi, puis confirmez votre commande.')}
