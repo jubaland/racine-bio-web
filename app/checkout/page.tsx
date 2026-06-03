@@ -417,7 +417,7 @@ export default function CheckoutPage() {
                         className="flex-1 px-4 py-3 text-sm text-gray-800 bg-transparent focus:outline-none"
                       />
                     </div>
-                    {phoneDigits.length > 0 && !phoneValid && (
+                    {!phoneFocused && phoneDigits.length > 0 && !phoneValid && (
                       <p className="text-xs text-red-500 mt-1.5">⚠️ Le numéro doit contenir 8 chiffres au total (77 + 6 chiffres)</p>
                     )}
                   </div>
