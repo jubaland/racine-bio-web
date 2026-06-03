@@ -26,6 +26,7 @@ interface Order {
   phone: string;
   address: string;
   customer_name: string;
+  special_instructions: string | null;
   created_at: string;
   order_items: OrderItem[];
 }
@@ -173,6 +174,11 @@ WHERE oi.product_id = p.id
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-500">
                       {order.phone   && <span>📞 {order.phone}</span>}
                       {order.address && <span>📍 {order.address}</span>}
+                      {order.special_instructions && (
+                        <span className="w-full mt-1 text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 block">
+                          📝 {order.special_instructions}
+                        </span>
+                      )}
                       <span>{PAYMENT_LABELS[order.payment_method] || order.payment_method}</span>
                       <span>🕐 {new Date(order.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</span>
                     </div>

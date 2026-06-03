@@ -50,6 +50,9 @@ export default function CheckoutPage() {
   const [confirmedTotal, setConfirmedTotal] = useState(0);
   const [stockError, setStockError] = useState<{ name: string; available: number; unit: string; requested: number }[] | null>(null);
 
+  // Demande spéciale
+  const [specialInstructions, setSpecialInstructions] = useState('');
+
   // Options de livraison
   const [deliveryOptions, setDeliveryOptions] = useState<{ id: number; name: string; description: string; price: number; emoji: string; is_standard: boolean }[]>([]);
   const [selectedDeliveryId, setSelectedDeliveryId] = useState<number | null>(null);
@@ -187,8 +190,9 @@ export default function CheckoutPage() {
           order: {
             user_id:              session?.user?.id || null,
             total:                orderTotal,
-            delivery_fee:         deliveryFee,
-            delivery_option_name: selectedDelivery?.name ?? null,
+            delivery_fee:          deliveryFee,
+            delivery_option_name:  selectedDelivery?.name ?? null,
+            special_instructions:  specialInstructions.trim() || null,
             status:               'pending',
             payment_method:       paymentMethod,
             phone:   '77' + phoneDigits,
@@ -523,6 +527,27 @@ export default function CheckoutPage() {
                     </label>
                   )}
                 </div>
+              )}
+            </div>
+
+            {/* Demande spéciale */}
+            <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-4">
+              <h2 className="text-lg font-semibold text-gray-800 mb-1">
+                📝 {t('checkout.special_title', 'Demande spéciale')}
+              </h2>
+              <p className="text-xs text-gray-400 mb-4">
+                {t('checkout.special_desc', 'Maturité des fruits, préférences de découpe, allergies… précisez tout ce qui compte pour vous.')}
+              </p>
+              <textarea
+                value={specialInstructions}
+                onChange={e => setSpecialInstructions(e.target.value)}
+                placeholder={t('checkout.special_placeholder', 'Ex : tomates très mûres, oignons en demi-lune, éviter les bananes trop vertes…')}
+                rows={3}
+                maxLength={500}
+                className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] bg-white resize-none"
+              />
+              {specialInstructions.length > 0 && (
+                <p className="text-xs text-gray-300 text-right mt-1">{specialInstructions.length}/500</p>
               )}
             </div>
 
