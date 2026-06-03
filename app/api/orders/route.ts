@@ -134,7 +134,15 @@ export async function POST(request: Request) {
       })();
     }
 
-    // Emails — fire-and-forget, never block the order response
+    // Push — awaité avant la réponse (< 200ms, serverless-safe)
+    try {
+      const { sendPushToUser, sendPushToAdmin } = await import('../../../lib/push');
+      const shortId = String(createdOrder.id).slice(0, 8).toUpperCase();
+      if (createdOrder.user_id) await sendPushToUser(createdOrder.user_id, { title: '✅ Commande confirmée', body: `Commande #${shortId} — ${Number(createdOrder.total).toLocaleString('fr-FR')} Fdj`, url: '/profile' });
+      await sendPushToAdmin({ title: '🛍️ Nouvelle commande', body: `#${shortId} — ${createdOrder.customer_name} — ${Number(createdOrder.total).toLocaleString('fr-FR')} Fdj`, url: '/admin' });
+    } catch (_) {}
+
+    // Emails — fire-and-forget (Resend peut prendre ~1s)
     (async () => {
       try {
         let customerEmail: string | null = null;
@@ -157,12 +165,6 @@ export async function POST(request: Request) {
       } catch (err) {
         console.error('[email] ERROR:', err);
       }
-      try {
-        const { sendPushToUser, sendPushToAdmin } = await import('../../../lib/push');
-        const shortId = String(createdOrder.id).slice(0, 8).toUpperCase();
-        if (createdOrder.user_id) await sendPushToUser(createdOrder.user_id, { title: '✅ Commande confirmée', body: `Commande #${shortId} — ${Number(createdOrder.total).toLocaleString('fr-FR')} Fdj`, url: '/profile' });
-        await sendPushToAdmin({ title: '🛍️ Nouvelle commande', body: `#${shortId} — ${createdOrder.customer_name} — ${Number(createdOrder.total).toLocaleString('fr-FR')} Fdj`, url: '/admin' });
-      } catch (_) {}
     })();
 
     return NextResponse.json({ order: createdOrder });
