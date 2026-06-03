@@ -536,7 +536,7 @@ export default function CheckoutPage() {
                 📝 {t('checkout.special_title', 'Demande spéciale')}
               </h2>
               <p className="text-xs text-gray-400 mb-4">
-                {t('checkout.special_desc', 'Maturité des fruits, préférences de découpe, allergies… précisez tout ce qui compte pour vous.')}
+                {t('checkout.special_desc', 'Maturité des fruits, calibre des oignons… précisez tout ce qui compte pour vous.')}
               </p>
               <textarea
                 value={specialInstructions}
