@@ -51,7 +51,10 @@ export default function CheckoutPage() {
   const [stockError, setStockError] = useState<{ name: string; available: number; unit: string; requested: number }[] | null>(null);
 
   // Parrainage
-  const [refCode, setRefCode] = useState<string | null>(null);
+  const [refCodeInput, setRefCodeInput] = useState('');
+  const [appliedCode, setAppliedCode] = useState<string | null>(null);
+  const [codeValidating, setCodeValidating] = useState(false);
+  const [codeError, setCodeError] = useState('');
   const [referralCredits, setReferralCredits] = useState(0);
   const [useReferralCredit, setUseReferralCredit] = useState(false);
 
@@ -78,9 +81,9 @@ export default function CheckoutPage() {
   };
 
   useEffect(() => {
-    // Lire le code parrainage depuis localStorage
-    const code = localStorage.getItem('hf_ref_code');
-    if (code) setRefCode(code);
+    // Pré-remplir le code depuis localStorage (lien de parrainage)
+    const saved = localStorage.getItem('hf_ref_code');
+    if (saved) { setRefCodeInput(saved); setAppliedCode(saved); }
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user || null);
@@ -121,6 +124,31 @@ export default function CheckoutPage() {
       });
   }, [step, user, addressesLoaded]);
 
+  const applyCode = async () => {
+    const code = refCodeInput.trim().toUpperCase();
+    if (!code) return;
+    setCodeValidating(true);
+    setCodeError('');
+    try {
+      const res = await fetch('/api/referral', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, user_id: user?.id }),
+      });
+      const json = await res.json();
+      if (json.valid) {
+        setAppliedCode(code);
+      } else {
+        setCodeError(json.error || 'Code invalide');
+        setAppliedCode(null);
+      }
+    } catch {
+      setCodeError('Erreur réseau, réessayez.');
+    } finally {
+      setCodeValidating(false);
+    }
+  };
+
   const handleOrder = async () => {
     setLoading(true);
     setStockError(null);
@@ -149,7 +177,7 @@ export default function CheckoutPage() {
             product_unit:      item.unit,
             product_farm:      item.farm ?? null,
           })),
-          ref_code:             refCode || undefined,
+          ref_code:             appliedCode || undefined,
           use_referral_credit:  useReferralCredit && referralCredits > 0,
         }),
       });
@@ -163,7 +191,7 @@ export default function CheckoutPage() {
 
       setOrderId(json.order.id);
       setConfirmedTotal(total);
-      if (refCode) localStorage.removeItem('hf_ref_code');
+      if (appliedCode) localStorage.removeItem('hf_ref_code');
 
       // Sauvegarder la nouvelle adresse si demandé
       if (saveNewAddress && user && showNewAddressForm) {
@@ -577,21 +605,56 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              {/* Parrainage — code détecté */}
-              {refCode && (
-                <div className="mt-4 bg-[#ecf4d5] border border-[#a8c800] rounded-2xl p-4 flex items-center gap-3">
-                  <span className="text-2xl">🎁</span>
-                  <div className="flex-1">
-                    <p className="font-semibold text-[#526500] text-sm">{t('checkout.referral_applied', 'Code parrainage appliqué')}</p>
-                    <p className="text-xs text-gray-500">{t('checkout.referral_applied_desc', 'Livraison offerte sur votre première commande.')}</p>
+              {/* Code parrainage */}
+              <div className="mt-5 pt-5 border-t border-[#d2e095]">
+                <p className="text-sm font-medium text-gray-600 mb-3">
+                  🎁 {t('checkout.referral_code_label', 'Code parrainage')}
+                </p>
+                {appliedCode ? (
+                  <div className="flex items-center gap-3 p-3.5 bg-[#ecf4d5] border border-[#a8c800] rounded-xl">
+                    <span className="text-[#a8c800] text-xl font-bold flex-shrink-0">✓</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-[#526500]">
+                        {t('checkout.referral_applied', 'Code')} <span className="tracking-widest">{appliedCode}</span> {t('checkout.referral_applied2', 'appliqué')}
+                      </p>
+                      <p className="text-xs text-gray-500">{t('checkout.referral_applied_desc', 'Livraison offerte sur cette commande.')}</p>
+                    </div>
+                    <button
+                      onClick={() => { setAppliedCode(null); setRefCodeInput(''); setCodeError(''); }}
+                      className="text-gray-400 hover:text-gray-600 transition text-lg leading-none"
+                      aria-label="Retirer le code"
+                    >✕</button>
                   </div>
-                  <span className="text-[#a8c800] text-xl font-bold">✓</span>
-                </div>
-              )}
+                ) : (
+                  <div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={refCodeInput}
+                        onChange={e => { setRefCodeInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')); setCodeError(''); }}
+                        onKeyDown={e => e.key === 'Enter' && applyCode()}
+                        placeholder={t('checkout.referral_placeholder', 'Ex: R4K7NP')}
+                        maxLength={8}
+                        className="flex-1 border border-[#d2e095] rounded-xl px-4 py-3 text-sm bg-white focus:outline-none focus:border-[#a8c800] tracking-widest uppercase"
+                      />
+                      <button
+                        onClick={applyCode}
+                        disabled={!refCodeInput.trim() || codeValidating}
+                        className="px-5 py-3 bg-[#a8c800] text-white text-sm font-semibold rounded-xl hover:bg-[#7d9800] transition disabled:opacity-40 whitespace-nowrap"
+                      >
+                        {codeValidating ? '⏳' : t('checkout.referral_apply', 'Appliquer')}
+                      </button>
+                    </div>
+                    {codeError && (
+                      <p className="text-xs text-red-500 mt-1.5">⚠️ {codeError}</p>
+                    )}
+                  </div>
+                )}
+              </div>
 
-              {/* Parrainage — crédit disponible */}
-              {!refCode && referralCredits > 0 && (
-                <label className="mt-4 flex items-center gap-3 p-4 bg-[#ecf4d5] border border-[#a8c800] rounded-2xl cursor-pointer">
+              {/* Crédit parrainage (utilisateurs avec crédits gagnés) */}
+              {referralCredits > 0 && !appliedCode && (
+                <label className="mt-3 flex items-center gap-3 p-3.5 bg-[#ecf4d5] border border-[#a8c800] rounded-xl cursor-pointer">
                   <input
                     type="checkbox"
                     checked={useReferralCredit}

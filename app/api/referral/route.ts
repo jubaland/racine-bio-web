@@ -57,3 +57,26 @@ export async function GET(request: NextRequest) {
     referrals_count: count ?? 0,
   });
 }
+
+// Valider un code parrainage (pas d'auth requise)
+export async function POST(request: NextRequest) {
+  try {
+    const { code, user_id } = await request.json();
+    if (!code) return NextResponse.json({ valid: false, error: 'Code requis' });
+
+    const { data } = await supabaseAdmin
+      .from('referral_codes')
+      .select('user_id')
+      .eq('code', String(code).toUpperCase().trim())
+      .maybeSingle();
+
+    if (!data) return NextResponse.json({ valid: false, error: 'Code invalide' });
+    if (user_id && data.user_id === user_id) {
+      return NextResponse.json({ valid: false, error: 'Vous ne pouvez pas utiliser votre propre code' });
+    }
+
+    return NextResponse.json({ valid: true });
+  } catch {
+    return NextResponse.json({ valid: false, error: 'Erreur serveur' }, { status: 500 });
+  }
+}
