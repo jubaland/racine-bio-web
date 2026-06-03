@@ -236,7 +236,7 @@ export default function HomePage({ products, categories, promos, producers }: {
                   <div className="p-3">
                     <h3 className="text-sm font-semibold text-gray-800 truncate">{getProductName(p)}</h3>
                     <div className="flex items-center justify-between mt-1">
-                      <p className="text-xs text-gray-400 truncate">🌱 {p.farm}</p>
+                      <p className="text-xs text-gray-400">{t('product.origin_label', 'Origine')}</p>
                       <span className="text-base flex-none ml-1">{flag}</span>
                     </div>
                     <div className="flex items-center justify-between mt-3">
@@ -305,7 +305,7 @@ export default function HomePage({ products, categories, promos, producers }: {
                   <div className="p-3">
                     <p className="text-sm font-medium text-gray-800 truncate">{getProductName(p)}</p>
                     <div className="flex items-center justify-between mt-1">
-                      <p className="text-xs text-gray-400 truncate">🌱 {p.farm}</p>
+                      <p className="text-xs text-gray-400">{t('product.origin_label', 'Origine')}</p>
                       <span className="text-base flex-none ml-1">{flag}</span>
                     </div>
                     <div className="flex items-center justify-between mt-2">
@@ -491,7 +491,7 @@ export default function HomePage({ products, categories, promos, producers }: {
                   <div className="p-3">
                     <h3 className="text-sm font-semibold text-gray-800 truncate">{getProductName(product)}</h3>
                     <div className="flex items-center justify-between mt-1">
-                      <p className="text-xs text-gray-400 truncate">🌱 {product.farm}</p>
+                      <p className="text-xs text-gray-400">{t('product.origin_label', 'Origine')}</p>
                       <span className="text-base flex-none ml-1">{origin.flag}</span>
                     </div>
                     <div className="flex items-center justify-between mt-3">
