@@ -1,13 +1,17 @@
 import webpush from 'web-push';
 import { supabaseAdmin } from './supabase-admin';
 
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT!,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-);
+function initVapid() {
+  const subject = process.env.VAPID_SUBJECT;
+  const pub     = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const priv    = process.env.VAPID_PRIVATE_KEY;
+  if (!subject || !pub || !priv) return false;
+  webpush.setVapidDetails(subject, pub, priv);
+  return true;
+}
 
 export async function sendPushToUser(userId: string, payload: { title: string; body: string; url?: string }) {
+  if (!initVapid()) return;
   const { data: subs } = await supabaseAdmin
     .from('push_subscriptions')
     .select('endpoint, p256dh, auth')
@@ -26,6 +30,7 @@ export async function sendPushToUser(userId: string, payload: { title: string; b
 }
 
 export async function sendPushToAdmin(payload: { title: string; body: string; url?: string }) {
+  if (!initVapid()) return;
   const { data: subs } = await supabaseAdmin
     .from('push_subscriptions')
     .select('endpoint, p256dh, auth')
