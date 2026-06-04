@@ -154,7 +154,7 @@ export async function POST(request: Request) {
             wasAbove: current > LOW,
           };
         })
-        .filter(p => p.newStock <= LOW && p.wasAbove);
+        .filter((p: { name: string; newStock: number; wasAbove: boolean }) => p.newStock <= LOW && p.wasAbove);
       console.log('[stock] lowStock items:', lowStock.length, JSON.stringify(lowStock));
 
       if (lowStock.length === 1) {
