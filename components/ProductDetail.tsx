@@ -86,6 +86,9 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
             {/* Info */}
             <div className="p-4 sm:p-6 md:p-8">
               <h1 className="text-2xl font-bold text-gray-800 mb-2">{getProductName(product)}</h1>
+              <p className="text-gray-400 text-sm mb-1">
+                <span className="text-gray-400">{t('product.origin_label', 'Origine')} ·</span> {origin.flag} {origin.label}
+              </p>
               <p className="text-gray-400 text-sm mb-4">🌱 {product.farm} · {product.region}</p>
 
               {getProductDesc(product) && (
