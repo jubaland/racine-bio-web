@@ -113,7 +113,7 @@ export default function AdminCategories() {
         >
           <div className="space-y-4">
             {error && <div className="bg-orange-50 text-[#f97316] text-sm px-4 py-3 rounded-xl">{error}</div>}
-            <FormField label={t('admin.field_emoji', 'Emoji *')}>
+            <FormField label={t('admin.field_category_emoji', 'Emoji *')}>
               <input value={form.emoji} onChange={e => set('emoji', e.target.value)} className={inputClass} placeholder="🥕" />
             </FormField>
             <FormField label={t('admin.field_label', 'Label (nom affiché) *')}>

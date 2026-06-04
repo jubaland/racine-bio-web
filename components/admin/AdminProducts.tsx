@@ -302,7 +302,7 @@ export default function AdminProducts() {
                         placeholder="0"
                       />
                     </FormField>
-                    <FormField label={t('admin.field_unit', 'Unité (stock = prix)')}>
+                    <FormField label={t('admin.field_unit', 'Unité (stock = prix) *')}>
                       <input value={form.unit} onChange={e => set('unit', e.target.value)} className={inputClass} placeholder="kg, L, boîte..." />
                     </FormField>
                   </div>
