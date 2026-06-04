@@ -9,6 +9,7 @@ interface CartItem {
   unit: string;
   image_url: string | null;
   farm: string;
+  origin_country?: string | null;
   quantity: number;
   stock_qty: number;
 }
