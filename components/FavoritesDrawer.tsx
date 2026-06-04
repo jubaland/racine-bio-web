@@ -60,7 +60,7 @@ export default function FavoritesDrawer({ open, onClose }: { open: boolean; onCl
                       <Link href={`/product/${product.id}`} onClick={onClose}>
                         <p className="text-sm font-semibold text-gray-800 truncate hover:text-[#526500] transition">{product.name}</p>
                       </Link>
-                      {product.farm && <p className="text-xs text-gray-400">🌱 {product.farm}</p>}
+                      {product.origin_country === 'DJ' && product.farm && <p className="text-xs text-gray-400">🌱 {product.farm}</p>}
                       <p className="text-sm font-bold text-[#7d9800] mt-0.5">
                         {product.price?.toLocaleString()} Fdj <span className="text-xs font-normal text-gray-400">{product.unit}</span>
                       </p>

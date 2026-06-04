@@ -378,7 +378,7 @@ export default function HomePage({ products, categories, promos, producers }: {
                     </div>
                     <div className="text-left flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-800 truncate">{getProductName(p)}</p>
-                      <p className="text-xs text-gray-400 truncate">🌱 {p.farm}</p>
+                      {p.origin_country === 'DJ' && p.farm && <p className="text-xs text-gray-400 truncate">🌱 {p.farm}</p>}
                     </div>
                     <span className="text-xs text-[#a8c800] font-semibold flex-none">{Number(p.price).toLocaleString()} Fdj</span>
                   </button>

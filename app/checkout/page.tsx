@@ -38,7 +38,7 @@ export default function CheckoutPage() {
   const [guestMode, setGuestMode] = useState(false);
 
   const [step, setStep] = useState(1);
-  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [paymentMethod, setPaymentMethod] = useState('waafi');
   const [phoneDigits, setPhoneDigits] = useState('');
   const [phoneFocused, setPhoneFocused] = useState(false);
   const phoneDisplay = phoneFocused
@@ -697,7 +697,7 @@ export default function CheckoutPage() {
                     <div className="bg-white rounded-xl p-3 border border-[#d2e095] text-center mb-3">
                       <p className="text-xs text-gray-400 mb-1">{t('checkout.waafi_merchant_label', 'Numéro Waafi marchand')}</p>
                       <p className="text-3xl font-bold text-[#526500] tracking-widest">{WAAFI_MERCHANT_NUMBER}</p>
-                      <p className="text-xs text-gray-400 mt-1">Salah Omar ( Hornafresh — Djibouti)</p>
+                      <p className="text-xs text-gray-400 mt-1">Salah Omar (Hornafresh — Djibouti)</p>
                     </div>
                     <div className="flex items-center justify-between bg-white rounded-xl p-3 border border-[#d2e095]">
                       <span className="text-sm text-gray-600">{t('checkout.waafi_amount_label', 'Montant à envoyer')}</span>
