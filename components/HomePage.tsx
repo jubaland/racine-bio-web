@@ -651,6 +651,34 @@ export default function HomePage({ products, categories, promos, producers }: {
         </div>
       </section>
 
+      {/* Bannière app Android */}
+      <section className="bg-gradient-to-r from-[#1c3a05] to-[#2d6410] py-6 px-4 md:px-6">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center flex-shrink-0">
+              <svg viewBox="0 0 24 24" className="w-7 h-7" fill="#a8c800">
+                <path d="M17.523 15.341a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-9.046 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM2.307 8.4l1.738 3.01A9.957 9.957 0 0 0 2 16h20a9.957 9.957 0 0 0-2.045-4.59l1.738-3.01a.5.5 0 0 0-.866-.5l-1.7 2.945A9.965 9.965 0 0 0 12 9c-1.99 0-3.842.583-5.397 1.585L4.903 7.9a.5.5 0 0 0-.866.5z"/>
+              </svg>
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                <p className="text-white font-bold text-base">Application Android</p>
+                <span className="bg-[#a8c800] text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">Bientôt</span>
+              </div>
+              <p className="text-white/70 text-sm">
+                {t('android.desc', 'Commandez encore plus facilement depuis votre téléphone.')}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <svg viewBox="0 0 24 24" className="w-5 h-5 text-white/40" fill="currentColor">
+              <path d="M3.18 23.76a1 1 0 0 0 1.36.4L12 20.03l7.46 4.13a1 1 0 0 0 1.36-.4 1 1 0 0 0-.03-1.03L12 4 3.21 22.73a1 1 0 0 0-.03 1.03z" opacity=".4"/>
+            </svg>
+            <span className="text-white/50 text-sm italic">{t('android.coming', 'En cours de développement...')}</span>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="bg-white border-t border-[#d2e095] py-6 md:py-8 px-4 md:px-6">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 md:gap-4">
