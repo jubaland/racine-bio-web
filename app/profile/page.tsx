@@ -44,7 +44,7 @@ const STATUS_META: Record<string, { label: string; cls: string }> = {
   processing: { label: '🚚 En cours',   cls: 'bg-blue-100 text-blue-700' },
   shipping:   { label: '📦 Expédié',    cls: 'bg-purple-100 text-purple-700' },
   delivered:  { label: '✅ Livré',       cls: 'bg-green-100 text-green-700' },
-  cancelled:  { label: '❌ Annulé',      cls: 'bg-red-100 text-red-600' },
+  cancelled:  { label: '❌ Annulé',      cls: 'bg-orange-100 text-[#f97316]' },
 };
 
 const PAYMENT_LABELS: Record<string, string> = {
@@ -388,7 +388,7 @@ export default function ProfilePage() {
                 </span>
                 <button
                   onClick={handleSignOut}
-                  className="text-xs font-semibold px-3 py-1 rounded-full bg-red-50 text-red-500 hover:bg-red-100 transition"
+                  className="text-xs font-semibold px-3 py-1 rounded-full bg-orange-50 text-[#f97316] hover:bg-orange-100 transition"
                 >
                   🚪 {t('profile.signout', 'Se déconnecter')}
                 </button>
@@ -621,7 +621,7 @@ export default function ProfilePage() {
                     <button
                       onClick={() => deleteAddress(addr.id)}
                       disabled={deletingAddressId === addr.id}
-                      className="text-xs text-red-400 hover:text-red-600 disabled:opacity-50"
+                      className="text-xs text-orange-300 hover:text-[#f97316] disabled:opacity-50"
                     >
                       🗑️ Supprimer
                     </button>
@@ -680,7 +680,7 @@ export default function ProfilePage() {
                   />
                 </div>
                 {!addrPhoneFocused && addrPhoneDigits.length > 0 && !addrPhoneValid && (
-                  <p className="text-xs text-red-500 mt-1.5">⚠️ Le numéro doit contenir 8 chiffres au total (77 + 6 chiffres)</p>
+                  <p className="text-xs text-[#f97316] mt-1.5">⚠️ Le numéro doit contenir 8 chiffres au total (77 + 6 chiffres)</p>
                 )}
               </div>
 
@@ -929,7 +929,7 @@ export default function ProfilePage() {
                     </div>
                   )}
                   {pushError && (
-                    <p className={`text-xs rounded-lg px-3 py-2 ${pushError.startsWith('✅') ? 'text-green-700 bg-green-50' : 'text-red-500 bg-red-50'}`}>{pushError}</p>
+                    <p className={`text-xs rounded-lg px-3 py-2 ${pushError.startsWith('✅') ? 'text-green-700 bg-green-50' : 'text-[#f97316] bg-orange-50'}`}>{pushError}</p>
                   )}
                   {([
                     { key: 'orders', label: t('profile.notif_orders', 'Confirmation de commande'), desc: t('profile.notif_orders_desc', 'Recevoir un email à chaque nouvelle commande') },
@@ -981,7 +981,7 @@ export default function ProfilePage() {
                     placeholder={t('profile.pwd_confirm', 'Confirmer le mot de passe')}
                     className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm bg-[#faf7e8] focus:outline-none focus:border-[#a8c800]"
                   />
-                  {passwordError && <p className="text-xs text-red-500">⚠️ {passwordError}</p>}
+                  {passwordError && <p className="text-xs text-[#f97316]">⚠️ {passwordError}</p>}
                   {passwordSuccess && <p className="text-xs text-green-600">✅ {t('profile.pwd_success', 'Mot de passe mis à jour avec succès')}</p>}
                   <button
                     onClick={changePassword}

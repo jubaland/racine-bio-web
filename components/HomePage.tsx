@@ -217,8 +217,8 @@ export default function HomePage({ products, categories, promos, producers }: {
                       </div>
                     )}
                     {(p.stock_qty ?? 0) > 0 && (p.stock_qty ?? 0) <= 5 && (
-                      <div className="absolute bottom-2 left-2 bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">
-                        ⚠️ Plus que {p.stock_qty} {p.unit?.replace(/^\//, '')}
+                      <div className="absolute bottom-2 left-2 bg-amber-900/80 text-amber-100 text-xs px-2.5 py-0.5 rounded-full backdrop-blur-sm">
+                        🔥 Plus que {p.stock_qty} {p.unit?.replace(/^\//, '')}
                       </div>
                     )}
                     {isBio && (
@@ -288,7 +288,7 @@ export default function HomePage({ products, categories, promos, producers }: {
                     )}
                     {(p.stock_qty ?? 0) > 0 && (p.stock_qty ?? 0) <= 5 && (
                       <div className="absolute bottom-2 left-2 bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
-                        ⚠️ {p.stock_qty} {p.unit?.replace(/^\//, '')}
+                        🔥 {p.stock_qty} {p.unit?.replace(/^\//, '')}
                       </div>
                     )}
                     {isBio && (
@@ -298,8 +298,12 @@ export default function HomePage({ products, categories, promos, producers }: {
                     )}
                     <button
                       onClick={(e) => { e.stopPropagation(); e.preventDefault(); isFavorite(p.id) ? removeFavorite(p.id) : addFavorite(p); }}
-                      className="absolute top-2 right-2 w-7 h-7 bg-[#a8c800] rounded-full flex items-center justify-center shadow hover:bg-[#7d9800] transition text-sm"
-                    >{isFavorite(p.id) ? '❤️' : '🤍'}</button>
+                      className="absolute top-2 right-2 w-7 h-7 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center shadow hover:scale-110 transition-all"
+                    >
+                      <svg viewBox="0 0 24 24" className="w-4 h-4" fill={isFavorite(p.id) ? '#f97316' : 'none'} stroke={isFavorite(p.id) ? '#f97316' : '#9ca3af'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                      </svg>
+                    </button>
                   </div>
                   <div className="p-3">
                     <p className="text-sm font-medium text-gray-800 truncate">{getProductName(p)}</p>
@@ -469,8 +473,8 @@ export default function HomePage({ products, categories, promos, producers }: {
                       </div>
                     )}
                     {(product.stock_qty ?? 0) > 0 && (product.stock_qty ?? 0) <= 5 && (
-                      <div className="absolute bottom-2 left-2 bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">
-                        ⚠️ Plus que {product.stock_qty} {product.unit?.replace(/^\//, '')}
+                      <div className="absolute bottom-2 left-2 bg-amber-900/80 text-amber-100 text-xs px-2.5 py-0.5 rounded-full backdrop-blur-sm">
+                        🔥 Plus que {product.stock_qty} {product.unit?.replace(/^\//, '')}
                       </div>
                     )}
                     {isBio && (
@@ -481,10 +485,12 @@ export default function HomePage({ products, categories, promos, producers }: {
                     {/* Bouton favori sur l'image */}
                     <button
                       onClick={(e) => { e.stopPropagation(); e.preventDefault(); isFavorite(product.id) ? removeFavorite(product.id) : addFavorite(product); }}
-                      className="absolute top-2 right-2 w-8 h-8 bg-[#a8c800] rounded-full flex items-center justify-center shadow hover:bg-[#7d9800] hover:scale-110 transition-all text-base"
+                      className="absolute top-2 right-2 w-8 h-8 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center shadow hover:scale-110 transition-all"
                       title={isFavorite(product.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
                     >
-                      {isFavorite(product.id) ? '❤️' : '🤍'}
+                      <svg viewBox="0 0 24 24" className="w-4 h-4" fill={isFavorite(product.id) ? '#f97316' : 'none'} stroke={isFavorite(product.id) ? '#f97316' : '#9ca3af'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                      </svg>
                     </button>
                   </div>
                   <div className="p-3">
