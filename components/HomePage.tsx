@@ -25,7 +25,7 @@ export default function HomePage({ products, categories, promos, producers }: {
   producers: any[];
 }) {
   const { ui, productTranslations, categoryTranslations, promoTranslations, currentLang } = useLanguage();
-  const { addItem } = useCart();
+  const { addItem, count, total } = useCart();
   const { isFavorite, addFavorite, removeFavorite } = useFavorites();
   const [activeCategory, setActiveCategory] = useState('all');
   const [activeType, setActiveType] = useState('all');
@@ -141,6 +141,22 @@ export default function HomePage({ products, categories, promos, producers }: {
       )}
 
       <Header onCartOpen={() => setCartOpen(true)} />
+
+      {/* Bannière commande en cours */}
+      {count > 0 && (
+        <Link href="/checkout" className="block bg-[#526500] text-white hover:bg-[#3f4f00] transition">
+          <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-center gap-3 text-sm font-medium flex-wrap">
+            <span>
+              🛒 {t('cart.resume_text', 'Vous avez une commande en cours')}
+              {' — '}
+              {count} {count > 1 ? t('cart.items', 'articles') : t('cart.item', 'article')} · {total.toLocaleString()} Fdj
+            </span>
+            <span className="shrink-0 bg-white text-[#526500] text-xs font-semibold px-4 py-1.5 rounded-full">
+              {t('cart.resume_cta', 'Reprendre →')}
+            </span>
+          </div>
+        </Link>
+      )}
 
       {/* Hero */}
       <section className="bg-gradient-to-br from-[#1c3a05] via-[#2d6410] to-[#7a5800] text-white py-3 px-4 md:px-6">
