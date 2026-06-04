@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { useCart } from '../../context/CartContext';
@@ -514,7 +514,7 @@ export default function CheckoutPage() {
                       />
                     </div>
                     {!phoneFocused && phoneDigits.length > 0 && !phoneValid && (
-                      <p className="text-xs text-red-500 mt-1.5">⚠️ {t('checkout.phone_error', 'Le numéro doit contenir 8 chiffres au total (77 + 6 chiffres)')}</p>
+                      <p className="text-xs text-[#f97316] mt-1.5">⚠️ {t('checkout.phone_error', 'Le numéro doit contenir 8 chiffres au total (77 + 6 chiffres)')}</p>
                     )}
                   </div>
 
@@ -751,7 +751,7 @@ export default function CheckoutPage() {
                       </button>
                     </div>
                     {codeError && (
-                      <p className="text-xs text-red-500 mt-1.5">⚠️ {codeError}</p>
+                      <p className="text-xs text-[#f97316] mt-1.5">⚠️ {codeError}</p>
                     )}
                   </div>
                 )}
@@ -955,16 +955,16 @@ export default function CheckoutPage() {
 
             {/* Erreur stock */}
             {stockError && (
-              <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-2">
-                <p className="text-red-700 font-semibold text-sm mb-2">⚠️ {t('checkout.stock_error', 'Stock insuffisant pour certains articles :')}</p>
+              <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-2">
+                <p className="text-[#f97316] font-semibold text-sm mb-2">⚠️ {t('checkout.stock_error', 'Stock insuffisant pour certains articles :')}</p>
                 <ul className="space-y-1">
                   {stockError.map((item, i) => (
-                    <li key={i} className="text-sm text-red-600">
+                    <li key={i} className="text-sm text-[#f97316]">
                       <span className="font-medium">{item.name}</span> — demandé : {item.requested} {item.unit}, disponible : {item.available} {item.unit}
                     </li>
                   ))}
                 </ul>
-                <p className="text-xs text-red-400 mt-2">{t('checkout.stock_adjust', 'Ajustez les quantités dans votre panier.')}</p>
+                <p className="text-xs text-orange-400 mt-2">{t('checkout.stock_adjust', 'Ajustez les quantités dans votre panier.')}</p>
               </div>
             )}
 
