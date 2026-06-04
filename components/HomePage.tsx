@@ -238,6 +238,9 @@ export default function HomePage({ products, categories, promos, producers }: {
                       <p className="text-xs text-gray-400">{t('product.origin_label', 'Origine')}</p>
                       <span className="text-base flex-none ml-1">{flag}</span>
                     </div>
+                    {p.origin_country === 'DJ' && p.farm && (
+                      <p className="text-xs text-gray-400 truncate mt-0.5">🌱 {p.farm}</p>
+                    )}
                     <div className="flex items-center justify-between mt-3">
                       <div>
                         {p.old_price && (
@@ -311,6 +314,9 @@ export default function HomePage({ products, categories, promos, producers }: {
                       <p className="text-xs text-gray-400">{t('product.origin_label', 'Origine')}</p>
                       <span className="text-base flex-none ml-1">{flag}</span>
                     </div>
+                    {p.origin_country === 'DJ' && p.farm && (
+                      <p className="text-xs text-gray-400 truncate mt-0.5">🌱 {p.farm}</p>
+                    )}
                     <div className="flex items-center justify-between mt-2">
                       <div>
                         {(p.old_price || p.oldPrice) && (
@@ -499,6 +505,9 @@ export default function HomePage({ products, categories, promos, producers }: {
                       <p className="text-xs text-gray-400">{t('product.origin_label', 'Origine')}</p>
                       <span className="text-base flex-none ml-1">{origin.flag}</span>
                     </div>
+                    {product.origin_country === 'DJ' && product.farm && (
+                      <p className="text-xs text-gray-400 truncate mt-0.5">🌱 {product.farm}</p>
+                    )}
                     <div className="flex items-center justify-between mt-3">
                       <div>
                         {(product.old_price || product.oldPrice) && (

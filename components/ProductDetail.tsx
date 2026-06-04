@@ -65,83 +65,89 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
         </div>
 
         {/* Product */}
-        <div className="bg-white rounded-3xl overflow-hidden border border-[#d2e095] shadow-sm mb-8">
+        <div className="bg-white rounded-3xl overflow-hidden border border-[#d2e095] shadow-md mb-8">
           <div className="grid md:grid-cols-2 gap-0">
 
             {/* Image */}
-            <div className="relative h-52 sm:h-64 md:h-auto bg-[#ecf4d5]">
+            <div className="relative h-72 sm:h-96 md:h-auto min-h-[320px] bg-[#ecf4d5]">
               {product.image_url ? (
                 <img src={product.image_url} alt={getProductName(product)} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-8xl opacity-20">📷</div>
               )}
-              <div className={`absolute top-4 left-4 text-xs font-bold px-3 py-1 rounded-full ${isBio ? 'bg-[#edf5a0] text-[#526500]' : 'bg-orange-100 text-orange-700'}`}>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent" />
+              <div className={`absolute top-4 left-4 text-xs font-bold px-3 py-1.5 rounded-full backdrop-blur-sm shadow-sm ${isBio ? 'bg-[#edf5a0]/90 text-[#526500]' : 'bg-orange-100/90 text-orange-700'}`}>
                 {isBio ? `🌿 ${t('product.type_bio', 'Bio')}` : `🥕 ${t('product.type_conv', 'Conventionnel')}`}
               </div>
-              <div className="absolute top-4 right-4 bg-white shadow rounded-full px-3 py-1 text-sm font-medium text-gray-700">
+              <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm shadow-sm rounded-full px-3 py-1.5 text-sm font-medium text-gray-700">
                 {origin.flag} {origin.label}
               </div>
+              {(product.stock_qty ?? 0) > 0 && (product.stock_qty ?? 0) <= 5 && (
+                <div className="absolute bottom-4 left-4 bg-amber-900/80 text-amber-100 text-xs px-3 py-1 rounded-full backdrop-blur-sm">
+                  ⚠️ {t('product.stock_low_prefix', 'Plus que')} {product.stock_qty} {product.unit?.replace(/^\//, '')}
+                </div>
+              )}
             </div>
 
             {/* Info */}
-            <div className="p-4 sm:p-6 md:p-8">
-              <h1 className="text-2xl font-bold text-gray-800 mb-2">{getProductName(product)}</h1>
-              {product.origin_country === 'DJ' && product.farm && (
-                <p className="text-gray-400 text-sm mb-4">🌱 {product.farm}{product.region ? ` · ${product.region}` : ''}</p>
-              )}
+            <div className="flex flex-col p-5 sm:p-7">
 
-              {getProductDesc(product) && (
-                <p className="text-gray-600 text-sm leading-relaxed mb-6">{getProductDesc(product)}</p>
-              )}
-
-              <div className="mb-6">
-                {(product.old_price || product.oldPrice) && (
-                  <p className="text-sm text-red-400 line-through">{Number(product.old_price || product.oldPrice).toLocaleString()} Fdj</p>
+              {/* Nom + ferme */}
+              <div className="mb-4">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight mb-1">{getProductName(product)}</h1>
+                {product.origin_country === 'DJ' && product.farm && (
+                  <p className="text-sm text-[#7d9800] font-medium">🌱 {product.farm}{product.region ? ` · ${product.region}` : ''}</p>
                 )}
-                <p className="text-3xl font-bold text-[#526500]">
-                  {Number(product.price).toLocaleString()} Fdj
-                  <span className="text-base font-normal text-gray-400 ml-1">{product.unit}</span>
-                </p>
               </div>
 
-              {/* Quantité */}
-              <div className="flex items-center gap-4 mb-6">
-                <span className="text-sm font-medium text-gray-600">{t('product.quantity', 'Quantité :')}</span>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-9 h-9 rounded-full bg-[#ecf4d5] border border-[#d2e095] flex items-center justify-center text-gray-600 hover:bg-[#d2e095] transition"
-                  >−</button>
-                  <span className="text-lg font-semibold w-8 text-center">{quantity}</span>
-                  <button
-                    onClick={() => setQuantity(quantity + 1)}
-                    className="w-9 h-9 rounded-full bg-[#a8c800] flex items-center justify-center text-white hover:bg-[#7d9800] transition"
-                  >+</button>
+              {/* Description */}
+              {getProductDesc(product) && (
+                <p className="text-gray-500 text-sm leading-relaxed pb-4 mb-4 border-b border-[#f0f4e0]">{getProductDesc(product)}</p>
+              )}
+
+              {/* Prix */}
+              <div className="mb-5">
+                {(product.old_price || product.oldPrice) && (
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-sm text-gray-400 line-through">{Number(product.old_price || product.oldPrice).toLocaleString()} Fdj</p>
+                    <span className="text-xs font-bold text-[#f97316] bg-orange-50 px-2 py-0.5 rounded-full">
+                      -{Math.round((1 - Number(product.price) / Number(product.old_price || product.oldPrice)) * 100)}%
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-end gap-1.5">
+                  <span className="text-4xl font-bold text-[#526500]">{Number(product.price).toLocaleString()}</span>
+                  <span className="text-lg text-gray-500 mb-0.5">Fdj <span className="text-sm">{product.unit}</span></span>
                 </div>
               </div>
 
-              {/* Total ligne */}
-              <div className="bg-[#faf7e8] rounded-2xl p-4 mb-6">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">{t('product.total', 'Total')}</span>
-                  <span className="text-xl font-bold text-[#526500]">
-                    {(Number(product.price) * quantity).toLocaleString()} Fdj
-                  </span>
+              {/* Quantité + Total */}
+              <div className="bg-[#f8faf0] rounded-2xl p-4 mb-5 border border-[#e8f0d0]">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-gray-600">{t('product.quantity', 'Quantité')}</span>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      className="w-8 h-8 rounded-full bg-white border border-[#d2e095] flex items-center justify-center text-gray-600 hover:bg-[#d2e095] transition shadow-sm">−</button>
+                    <span className="text-lg font-bold text-gray-800 w-6 text-center">{quantity}</span>
+                    <button onClick={() => setQuantity(Math.min(product.stock_qty ?? 99, quantity + 1))}
+                      className="w-8 h-8 rounded-full bg-[#a8c800] flex items-center justify-center text-white hover:bg-[#7d9800] transition shadow-sm">+</button>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-3 border-t border-[#e8f0d0]">
+                  <span className="text-sm text-gray-500">{t('product.total', 'Total')}</span>
+                  <span className="text-xl font-bold text-[#526500]">{(Number(product.price) * quantity).toLocaleString()} Fdj</span>
                 </div>
               </div>
 
-              <div className="flex gap-3">
-                <button
-                  onClick={handleAddToCart}
-                  className="flex-1 bg-[#a8c800] text-white py-4 rounded-2xl font-semibold text-lg hover:bg-[#7d9800] transition"
-                >
-                  🛒 {t('product.add_to_cart', 'Ajouter au panier')}
+              {/* Boutons */}
+              <div className="flex gap-3 mb-4">
+                <button onClick={handleAddToCart} disabled={(product.stock_qty ?? 0) <= 0}
+                  className="flex-1 bg-[#a8c800] text-white py-4 rounded-2xl font-bold text-base hover:bg-[#7d9800] transition shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                  <span>🛒</span><span>{t('product.add_to_cart', 'Ajouter au panier')}</span>
                 </button>
-                <button
-                  onClick={() => isFavorite(product.id) ? removeFavorite(product.id) : addFavorite(product)}
+                <button onClick={() => isFavorite(product.id) ? removeFavorite(product.id) : addFavorite(product)}
                   className={`w-14 flex items-center justify-center rounded-2xl border-2 transition ${isFavorite(product.id) ? 'bg-[#fff3e8] border-[#f97316]' : 'bg-white border-[#d2e095] hover:bg-[#fff3e8] hover:border-[#f97316]'}`}
-                  title={isFavorite(product.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-                >
+                  title={isFavorite(product.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}>
                   <svg viewBox="0 0 24 24" className="w-6 h-6" fill={isFavorite(product.id) ? '#f97316' : 'none'} stroke={isFavorite(product.id) ? '#f97316' : '#9ca3af'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                   </svg>
@@ -149,18 +155,18 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
               </div>
 
               {/* Badges */}
-              <div className="flex flex-wrap gap-2 mt-4">
+              <div className="flex flex-wrap gap-2">
                 {product.is_local && (
-                  <span className="bg-[#e6f0ff] text-[#0066cc] text-xs px-3 py-1 rounded-full">
+                  <span className="bg-[#e6f0ff] text-[#0066cc] text-xs px-3 py-1.5 rounded-full font-medium">
                     🇩🇯 {t('product.local_badge', 'Produit local')}
                   </span>
                 )}
                 {isBio && (
-                  <span className="bg-[#ecf4d5] text-[#526500] text-xs px-3 py-1 rounded-full">
+                  <span className="bg-[#ecf4d5] text-[#526500] text-xs px-3 py-1.5 rounded-full font-medium">
                     🌿 {t('product.bio_badge', 'Certifié Bio')}
                   </span>
                 )}
-                <span className="bg-[#fff3e0] text-[#e65100] text-xs px-3 py-1 rounded-full">
+                <span className="bg-[#fff3e0] text-[#c25000] text-xs px-3 py-1.5 rounded-full font-medium">
                   🚚 {t('product.delivery_badge', 'Livraison 24h')}
                 </span>
               </div>
