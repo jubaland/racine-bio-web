@@ -114,8 +114,8 @@ export default function AdminProducts() {
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.price || !form.unit || !form.farm) {
-      setError(t('admin.error_products', 'Nom, prix, unité et ferme sont requis.'));
+    if (!form.name || !form.price || !form.unit) {
+      setError(t('admin.error_products', 'Nom, prix et unité sont requis.'));
       return;
     }
     setSaving(true);
@@ -221,7 +221,7 @@ export default function AdminProducts() {
                           <div className="w-10 h-10 rounded-lg bg-[#ecf4d5] flex items-center justify-center text-xl">🥬</div>
                         )}
                         <div>
-                          <p className="font-medium text-gray-800">{p.name}</p>
+                          <p className="font-medium text-gray-800">{p.name} {p.is_featured && <span className="text-amber-400 text-xs">⭐</span>}</p>
                           <p className="text-xs text-gray-400">{p.origin_country} · {p.unit}</p>
                         </div>
                       </div>
@@ -269,8 +269,6 @@ export default function AdminProducts() {
           onClose={() => setShowModal(false)}
         >
           <div className="space-y-4">
-            {error && <div className="bg-orange-50 text-[#f97316] text-sm px-4 py-3 rounded-xl">{error}</div>}
-
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
                 <FormField label={t('admin.field_product_name', 'Nom du produit *')}>
@@ -432,6 +430,7 @@ export default function AdminProducts() {
               )}
             </div>
 
+            {error && <div className="bg-orange-50 text-[#f97316] text-sm px-4 py-3 rounded-xl">{error}</div>}
             <div className="flex gap-3 pt-2">
               <button onClick={() => setShowModal(false)} className="flex-1 py-3 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 transition">
                 {t('admin.cancel', 'Annuler')}
