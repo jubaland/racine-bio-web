@@ -8,13 +8,11 @@ interface OrderItem {
   product_id: number;
   quantity: number;
   price: number;
-  // Colonnes snapshot (après migration SQL)
+  // Snapshot produit au moment de la commande
   product_name?:      string | null;
   product_image_url?: string | null;
   product_unit?:      string | null;
   product_farm?:      string | null;
-  // Fallback join products (avant migration)
-  products?: { name: string; unit: string; image_url: string | null; farm: string } | null;
 }
 
 interface Order {
@@ -123,25 +121,7 @@ export default function AdminOrders() {
       ) : fetchError ? (
         <div className="bg-orange-50 border border-orange-200 rounded-2xl p-6">
           <p className="text-[#f97316] font-semibold mb-1">⚠️ Erreur de chargement</p>
-          <p className="text-[#f97316] text-sm font-mono mb-4">{fetchError}</p>
-          <p className="text-sm text-gray-600 mb-2">
-            Si l'erreur mentionne <code className="bg-orange-100 px-1 rounded">product_name</code>, tu dois d'abord exécuter la migration dans Supabase SQL Editor :
-          </p>
-          <pre className="bg-white border border-orange-200 rounded-xl p-4 text-xs text-gray-700 overflow-x-auto">{`ALTER TABLE order_items
-  ADD COLUMN IF NOT EXISTS product_name      text,
-  ADD COLUMN IF NOT EXISTS product_image_url text,
-  ADD COLUMN IF NOT EXISTS product_unit      text,
-  ADD COLUMN IF NOT EXISTS product_farm      text;
-
-UPDATE order_items oi
-SET
-  product_name      = p.name,
-  product_image_url = p.image_url,
-  product_unit      = p.unit,
-  product_farm      = p.farm
-FROM products p
-WHERE oi.product_id = p.id
-  AND oi.product_name IS NULL;`}</pre>
+          <p className="text-[#f97316] text-sm font-mono">{fetchError}</p>
         </div>
       ) : orders.length === 0 ? (
         <div className="text-center py-12 text-gray-400 bg-white rounded-2xl border border-[#d2e095]">
@@ -215,10 +195,10 @@ WHERE oi.product_id = p.id
                   <div className="divide-y divide-[#f0f7e0]">
                     {items.map(item => {
                       const subtotal = item.price * item.quantity;
-                      const name  = item.product_name  || item.products?.name  || `Produit #${item.product_id}`;
-                      const unit  = item.product_unit  || item.products?.unit  || 'u';
-                      const farm  = item.product_farm  || item.products?.farm  || null;
-                      const image = item.product_image_url ?? item.products?.image_url ?? null;
+                      const name  = item.product_name || `Produit #${item.product_id}`;
+                      const unit  = item.product_unit || 'u';
+                      const farm  = item.product_farm || null;
+                      const image = item.product_image_url ?? null;
 
                       return (
                         <div key={item.id} className="flex gap-4 p-4 items-start">

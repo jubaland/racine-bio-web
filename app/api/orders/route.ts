@@ -46,7 +46,7 @@ export async function POST(request: Request) {
 
     if (orderError) return NextResponse.json({ error: orderError.message }, { status: 400 });
 
-    // Insérer les articles (snapshot)
+    // Insérer les articles (snapshot produit)
     const { error: snapshotError } = await supabaseAdmin
       .from('order_items')
       .insert(
@@ -62,19 +62,7 @@ export async function POST(request: Request) {
         }))
       );
 
-    if (snapshotError) {
-      const { error: basicError } = await supabaseAdmin
-        .from('order_items')
-        .insert(
-          items.map((item: any) => ({
-            order_id:   createdOrder.id,
-            product_id: item.product_id,
-            quantity:   item.quantity,
-            price:      item.price,
-          }))
-        );
-      if (basicError) return NextResponse.json({ error: basicError.message }, { status: 400 });
-    }
+    if (snapshotError) return NextResponse.json({ error: snapshotError.message }, { status: 400 });
 
     // Décrémenter le stock pour chaque article
     await Promise.all(items.map((item: any) => {
@@ -204,30 +192,15 @@ export async function GET() {
   const { data, error } = await supabaseAdmin
     .from('orders')
     .select(`
-      id, user_id, total, status, payment_method, phone, address, customer_name, created_at,
+      id, user_id, total, status, payment_method, phone, address, customer_name, special_instructions, created_at,
       order_items (
         id, product_id, quantity, price,
-        product_name, product_image_url, product_unit, product_farm,
-        products ( name, unit, image_url, farm )
+        product_name, product_image_url, product_unit, product_farm
       )
     `)
     .order('created_at', { ascending: false });
 
-  if (error) {
-    const { data: data2, error: error2 } = await supabaseAdmin
-      .from('orders')
-      .select(`
-        id, user_id, total, status, payment_method, phone, address, customer_name, created_at,
-        order_items (
-          id, product_id, quantity, price,
-          products ( name, unit, image_url, farm )
-        )
-      `)
-      .order('created_at', { ascending: false });
-
-    if (error2) return NextResponse.json({ error: error2.message }, { status: 400 });
-    return NextResponse.json({ orders: data2 });
-  }
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
   return NextResponse.json({ orders: data });
 }

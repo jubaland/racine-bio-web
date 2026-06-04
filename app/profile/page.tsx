@@ -15,7 +15,6 @@ interface OrderItem {
   product_image_url?: string | null;
   product_unit?:      string | null;
   product_farm?:      string | null;
-  products?: { name: string; unit: string; image_url: string | null; farm: string } | null;
 }
 
 interface Order {
@@ -720,9 +719,9 @@ export default function ProfilePage() {
                     {items.length > 0 && (
                       <div className="divide-y divide-[#f0f7e0]">
                         {items.map(item => {
-                          const name  = item.product_name  || item.products?.name  || `Produit #${item.product_id}`;
-                          const unit  = item.product_unit  || item.products?.unit  || 'u';
-                          const image = item.product_image_url ?? item.products?.image_url ?? null;
+                          const name  = item.product_name || `Produit #${item.product_id}`;
+                          const unit  = item.product_unit || 'u';
+                          const image = item.product_image_url ?? null;
                           const subtotal = item.price * item.quantity;
 
                           return (

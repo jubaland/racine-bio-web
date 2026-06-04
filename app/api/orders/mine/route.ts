@@ -31,30 +31,13 @@ export async function GET(request: Request) {
       id, total, status, payment_method, phone, address, customer_name, created_at,
       order_items (
         id, product_id, quantity, price,
-        product_name, product_image_url, product_unit, product_farm,
-        products ( name, unit, image_url, farm )
+        product_name, product_image_url, product_unit, product_farm
       )
     `)
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
-  if (error) {
-    // Fallback si colonnes snapshot absentes
-    const { data: data2, error: error2 } = await supabaseAdmin
-      .from('orders')
-      .select(`
-        id, total, status, payment_method, phone, address, customer_name, created_at,
-        order_items (
-          id, product_id, quantity, price,
-          products ( name, unit, image_url, farm )
-        )
-      `)
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-
-    if (error2) return NextResponse.json({ error: error2.message }, { status: 400 });
-    return NextResponse.json({ orders: data2 });
-  }
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
   return NextResponse.json({ orders: data });
 }
