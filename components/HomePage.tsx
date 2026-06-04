@@ -18,6 +18,9 @@ const TYPE_FILTERS = [
   { id: 'conventionnel', labelKey: 'filter.conv', label: 'Conventionnel', emoji: '🥕' },
 ];
 
+// Bloc "Nos producteurs" masqué temporairement — passer à true pour le réafficher.
+const SHOW_PRODUCERS = false;
+
 export default function HomePage({ products, categories, promos, producers }: {
   products: any[];
   categories: any[];
@@ -546,7 +549,7 @@ export default function HomePage({ products, categories, promos, producers }: {
       </section>
 
       {/* Producteurs */}
-      {producers.length > 0 && (
+      {SHOW_PRODUCERS && producers.length > 0 && (
         <section id="producteurs" className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12">
           <h2 className="text-2xl font-semibold text-gray-800 mb-6">👨‍🌾 {t('ourProducers', 'Nos producteurs')}</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
