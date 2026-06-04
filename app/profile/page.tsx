@@ -362,17 +362,35 @@ export default function ProfilePage() {
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-6">
-          {[
-            { emoji: '📦', label: t('profile.stat_orders', 'Commandes'), value: orders.length, anchor: 'section-orders' },
-            { emoji: '❤️', label: t('profile.stat_favorites', 'Favoris'), value: favCount, anchor: 'section-favorites' },
-            { emoji: '📍', label: t('profile.stat_addresses', 'Adresses'), value: addresses.length, anchor: 'section-addresses' },
-          ].map(stat => (
+          {([
+            {
+              icon: <span className="text-2xl">📦</span>,
+              label: t('profile.stat_orders', 'Commandes'), value: orders.length, anchor: 'section-orders',
+            },
+            {
+              icon: (
+                <svg viewBox="0 0 24 24" className="w-7 h-7" fill="#f97316" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
+              ),
+              label: t('profile.stat_favorites', 'Favoris'), value: favCount, anchor: 'section-favorites',
+            },
+            {
+              icon: (
+                <svg viewBox="0 0 24 24" className="w-7 h-7" fill="#f97316" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                  <circle cx="12" cy="10" r="3" fill="white" stroke="white"/>
+                </svg>
+              ),
+              label: t('profile.stat_addresses', 'Adresses'), value: addresses.length, anchor: 'section-addresses',
+            },
+          ] as { icon: React.ReactNode; label: string; value: number; anchor: string }[]).map(stat => (
             <button
               key={stat.label}
               onClick={() => document.getElementById(stat.anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
               className="bg-white rounded-2xl p-4 text-center border border-[#d2e095] hover:border-[#a8c800] hover:shadow-sm transition"
             >
-              <p className="text-2xl mb-1">{stat.emoji}</p>
+              <div className="flex justify-center mb-1">{stat.icon}</div>
               <p className="text-xl font-bold text-[#526500]">{stat.value}</p>
               <p className="text-xs text-gray-400">{stat.label}</p>
             </button>
@@ -382,14 +400,21 @@ export default function ProfilePage() {
         {/* Favoris */}
         <div id="section-favorites" className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">❤️ {t('profile.my_favorites', 'Mes favoris')}</h3>
+            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+              <svg viewBox="0 0 24 24" className="w-5 h-5 flex-shrink-0" fill="#f97316" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
+              {t('profile.my_favorites', 'Mes favoris')}
+            </h3>
             <Link href="/favorites" className="text-sm text-[#7d9800] hover:underline">
               {t('profile.see_all', 'Voir tout')} →
             </Link>
           </div>
           {favCount === 0 ? (
             <div className="text-center py-6">
-              <p className="text-3xl mb-2 opacity-20">❤️</p>
+              <svg viewBox="0 0 24 24" className="w-10 h-10 mx-auto mb-2 opacity-20" fill="#f97316" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
               <p className="text-gray-400 text-sm">{t('profile.no_favorites', 'Aucun favori pour le moment')}</p>
               <Link href="/" className="mt-3 inline-block text-sm text-[#7d9800] hover:underline">
                 {t('profile.browse_products', 'Parcourir les produits')}
@@ -397,7 +422,9 @@ export default function ProfilePage() {
             </div>
           ) : (
             <Link href="/favorites" className="flex items-center gap-4 p-4 bg-[#faf7e8] rounded-2xl hover:bg-[#ecf4d5] transition">
-              <span className="text-3xl">❤️</span>
+              <svg viewBox="0 0 24 24" className="w-9 h-9 flex-shrink-0" fill="#f97316" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
               <div>
                 <p className="font-semibold text-gray-800">{favCount} {t('profile.favorites_count', favCount > 1 ? 'produits favoris' : 'produit favori')}</p>
                 <p className="text-sm text-gray-400">{t('profile.favorites_desc', 'Retrouvez tous vos produits sauvegardés')}</p>
