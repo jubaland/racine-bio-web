@@ -20,12 +20,19 @@ interface SavedAddress {
 }
 
 const LABEL_ICONS: Record<string, string> = { Maison: '🏠', Bureau: '🏢', Autre: '📍' };
+// La valeur stockée en DB reste la canonique FR ; seul l'affichage est traduit.
 const ADDRESS_LABELS = ['Maison', 'Bureau', 'Autre'];
+const ADDR_LABEL_TKEYS: Record<string, string> = {
+  Maison: 'checkout.label_home',
+  Bureau: 'checkout.label_office',
+  Autre:  'checkout.label_other',
+};
 
 export default function CheckoutPage() {
   const { items, total, clearCart, updateQuantity, removeItem } = useCart();
   const { ui } = useLanguage();
   const t = (key: string, fallback: string) => ui[key] || fallback;
+  const addrLabelText = (lbl: string) => ADDR_LABEL_TKEYS[lbl] ? t(ADDR_LABEL_TKEYS[lbl], lbl) : lbl;
 
   const PAYMENT_METHODS = [
     { id: 'waafi', label: t('checkout.waafi_label', 'Waafi'),   emoji: '📱', desc: t('checkout.waafi_desc', 'Paiement mobile Waafi') },
@@ -169,11 +176,11 @@ export default function CheckoutPage() {
       if (json.valid) {
         setAppliedCode(code);
       } else {
-        setCodeError(json.error || 'Code invalide');
+        setCodeError(json.error || t('checkout.code_invalid', 'Code invalide'));
         setAppliedCode(null);
       }
     } catch {
-      setCodeError('Erreur réseau, réessayez.');
+      setCodeError(t('checkout.code_network_error', 'Erreur réseau, réessayez.'));
     } finally {
       setCodeValidating(false);
     }
@@ -453,7 +460,7 @@ export default function CheckoutPage() {
                         <span className="text-2xl mt-0.5">{LABEL_ICONS[addr.label] ?? '📍'}</span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-0.5">
-                            <p className="font-semibold text-gray-800 text-sm">{addr.label}</p>
+                            <p className="font-semibold text-gray-800 text-sm">{addrLabelText(addr.label)}</p>
                             {addr.is_default && (
                               <span className="text-xs bg-[#d2e095] text-[#526500] px-2 py-0.5 rounded-full">{t('checkout.address_default', 'Par défaut')}</span>
                             )}
@@ -510,7 +517,7 @@ export default function CheckoutPage() {
                               : 'border-[#d2e095] text-gray-500 hover:bg-[#faf7e8]'
                           }`}
                         >
-                          {LABEL_ICONS[lbl]} {lbl}
+                          {LABEL_ICONS[lbl]} {addrLabelText(lbl)}
                         </button>
                       ))}
                     </div>
@@ -762,7 +769,7 @@ export default function CheckoutPage() {
                     <button
                       onClick={() => { setAppliedCode(null); setRefCodeInput(''); setCodeError(''); }}
                       className="text-gray-400 hover:text-gray-600 transition text-lg leading-none"
-                      aria-label="Retirer le code"
+                      aria-label={t('checkout.remove_code', 'Retirer le code')}
                     >✕</button>
                   </div>
                 ) : (
@@ -957,7 +964,7 @@ export default function CheckoutPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{t('checkout.referral_code_label', 'Avantage')}</p>
                       <p className="text-sm text-[#526500] font-medium">
-                        {appliedCode ? `Code ${appliedCode}` : t('checkout.use_credit', 'Crédit parrainage')} — {t('checkout.delivery_offered', 'Livraison offerte')} 🎁
+                        {appliedCode ? `${t('checkout.referral_applied', 'Code')} ${appliedCode}` : t('checkout.use_credit', 'Crédit parrainage')} — {t('checkout.delivery_offered', 'Livraison offerte')} 🎁
                       </p>
                     </div>
                     <button onClick={() => setStep(3)} className="text-xs text-[#7d9800] hover:underline flex-none">{t('checkout.edit', 'Modifier')}</button>
@@ -995,7 +1002,7 @@ export default function CheckoutPage() {
                 <ul className="space-y-1">
                   {stockError.map((item, i) => (
                     <li key={i} className="text-sm text-[#f97316]">
-                      <span className="font-medium">{item.name}</span> — demandé : {item.requested} {item.unit}, disponible : {item.available} {item.unit}
+                      <span className="font-medium">{item.name}</span> — {t('checkout.qty_requested', 'demandé')} : {item.requested} {item.unit}, {t('checkout.qty_available', 'disponible')} : {item.available} {item.unit}
                     </li>
                   ))}
                 </ul>
