@@ -60,6 +60,7 @@ export default function ProfilePage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
   const { ui } = useLanguage();
   const { count: favCount } = useFavorites();
   const t = (key: string, fallback: string) => ui[key] || fallback;
@@ -202,6 +203,9 @@ export default function ProfilePage() {
       if (ordersRes.ok) {
         const json = await ordersRes.json();
         setOrders(json.orders || []);
+      } else {
+        const json = await ordersRes.json().catch(() => ({}));
+        setOrdersError(`${ordersRes.status} — ${json.error || 'Erreur inconnue'}`);
       }
       if (referralRes.ok) {
         const json = await referralRes.json();
@@ -671,7 +675,11 @@ export default function ProfilePage() {
         <div id="section-orders" className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">📦 {t('profile.my_orders', 'Mes commandes')}</h3>
 
-          {orders.length === 0 ? (
+          {ordersError ? (
+            <div className="text-center py-6 text-xs text-[#f97316] bg-[#fff3e8] rounded-2xl px-4 font-mono">
+              ⚠️ {ordersError}
+            </div>
+          ) : orders.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-4xl mb-3 opacity-20">📦</p>
               <p className="text-gray-400">{t('profile.no_orders', 'Aucune commande pour le moment')}</p>
