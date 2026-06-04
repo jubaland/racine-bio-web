@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { fetchUITranslations, fetchProductTranslations, fetchCategoryTranslations, fetchPromoTranslations } from '../lib/supabase';
+import { fetchUITranslations, fetchProductTranslations, fetchCategoryTranslations, fetchPromoTranslations, fetchDeliveryOptionTranslations } from '../lib/supabase';
 
 const LANGUAGES = [
   { code: "fr", flag: "🇫🇷", label: "Français" },
@@ -19,6 +19,7 @@ interface LanguageContextType {
   productTranslations: Record<number, { name: string; description: string }>;
   categoryTranslations: Record<number, string>;
   promoTranslations: Record<number, { badge: string; title: string; sub: string }>;
+  deliveryOptionTranslations: Record<number, { name: string; description: string }>;
   languages: typeof LANGUAGES;
   loading: boolean;
 }
@@ -30,6 +31,7 @@ const LanguageContext = createContext<LanguageContextType>({
   productTranslations: {},
   categoryTranslations: {},
   promoTranslations: {},
+  deliveryOptionTranslations: {},
   languages: LANGUAGES,
   loading: false,
 });
@@ -40,6 +42,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [productTranslations, setProductTranslations] = useState<Record<number, { name: string; description: string }>>({});
   const [categoryTranslations, setCategoryTranslations] = useState<Record<number, string>>({});
   const [promoTranslations, setPromoTranslations] = useState<Record<number, { badge: string; title: string; sub: string }>>({});
+  const [deliveryOptionTranslations, setDeliveryOptionTranslations] = useState<Record<number, { name: string; description: string }>>({});
   const [loading, setLoading] = useState(false);
 
   const loadTranslations = async (lang: string) => {
@@ -48,20 +51,23 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       setProductTranslations({});
       setCategoryTranslations({});
       setPromoTranslations({});
+      setDeliveryOptionTranslations({});
       return;
     }
     setLoading(true);
     try {
-      const [uiData, prodData, catData, promoData] = await Promise.all([
+      const [uiData, prodData, catData, promoData, deliveryData] = await Promise.all([
         fetchUITranslations(lang),
         fetchProductTranslations(lang),
         fetchCategoryTranslations(lang),
         fetchPromoTranslations(lang),
+        fetchDeliveryOptionTranslations(lang),
       ]);
       setUi(uiData);
       setProductTranslations(prodData);
       setCategoryTranslations(catData);
       setPromoTranslations(promoData);
+      setDeliveryOptionTranslations(deliveryData);
     } catch (e) {
       console.error(e);
     } finally {
@@ -84,7 +90,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   return (
     <LanguageContext.Provider value={{
       currentLang, setCurrentLang, ui,
-      productTranslations, categoryTranslations, promoTranslations,
+      productTranslations, categoryTranslations, promoTranslations, deliveryOptionTranslations,
       languages: LANGUAGES, loading,
     }}>
       {children}

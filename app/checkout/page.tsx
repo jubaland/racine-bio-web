@@ -30,9 +30,12 @@ const ADDR_LABEL_TKEYS: Record<string, string> = {
 
 export default function CheckoutPage() {
   const { items, total, clearCart, updateQuantity, removeItem } = useCart();
-  const { ui } = useLanguage();
+  const { ui, deliveryOptionTranslations } = useLanguage();
   const t = (key: string, fallback: string) => ui[key] || fallback;
   const addrLabelText = (lbl: string) => ADDR_LABEL_TKEYS[lbl] ? t(ADDR_LABEL_TKEYS[lbl], lbl) : lbl;
+  // Affichage traduit des options de livraison (la valeur FR de la DB reste le fallback / la source)
+  const deliveryName = (opt: { id: number; name: string }) => deliveryOptionTranslations[opt.id]?.name || opt.name;
+  const deliveryDesc = (opt: { id: number; description: string }) => deliveryOptionTranslations[opt.id]?.description || opt.description;
 
   const PAYMENT_METHODS = [
     { id: 'waafi', label: t('checkout.waafi_label', 'Waafi'),   emoji: '📱', desc: t('checkout.waafi_desc', 'Paiement mobile Waafi') },
@@ -629,9 +632,9 @@ export default function CheckoutPage() {
                     >
                       <span className="text-2xl flex-shrink-0">{opt.emoji}</span>
                       <div className="flex-1">
-                        <p className="font-semibold text-gray-800 text-sm">{opt.name}</p>
+                        <p className="font-semibold text-gray-800 text-sm">{deliveryName(opt)}</p>
                         {opt.description && (
-                          <p className="text-xs text-gray-400 mt-0.5">{opt.description}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{deliveryDesc(opt)}</p>
                         )}
                       </div>
                       <span className={`text-sm font-bold flex-shrink-0 ${opt.price === 0 ? 'text-green-500' : 'text-[#526500]'}`}>
@@ -828,7 +831,7 @@ export default function CheckoutPage() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">
                     {t('checkout.delivery_label', 'Livraison')}
-                    {selectedDelivery && <span className="text-gray-400"> — {selectedDelivery.name}</span>}
+                    {selectedDelivery && <span className="text-gray-400"> — {deliveryName(selectedDelivery)}</span>}
                   </span>
                   {deliveryFee === 0 ? (
                     <span className="font-medium text-green-500">
@@ -923,7 +926,7 @@ export default function CheckoutPage() {
                     <span className="text-base flex-none">{selectedDelivery.emoji}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{t('checkout.delivery_mode', 'Livraison')}</p>
-                      <p className="text-sm text-gray-800">{selectedDelivery.name}</p>
+                      <p className="text-sm text-gray-800">{deliveryName(selectedDelivery)}</p>
                     </div>
                     <p className="text-sm font-bold flex-none">
                       {deliveryFee === 0
@@ -980,7 +983,7 @@ export default function CheckoutPage() {
                     <span className="font-medium">{total.toLocaleString()} Fdj</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">{t('checkout.delivery_label', 'Livraison')}{selectedDelivery && <span className="text-gray-400"> — {selectedDelivery.name}</span>}</span>
+                    <span className="text-gray-500">{t('checkout.delivery_label', 'Livraison')}{selectedDelivery && <span className="text-gray-400"> — {deliveryName(selectedDelivery)}</span>}</span>
                     {deliveryFee === 0
                       ? <span className="font-medium text-green-500">{baseFee > 0 ? <>{t('checkout.delivery_offered', 'Offerte')} 🎁</> : t('checkout.free', 'Gratuite')}</span>
                       : referralDiscount > 0

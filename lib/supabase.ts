@@ -65,6 +65,16 @@ export async function fetchPromoTranslations(languageCode: string) {
   return map;
 }
 
+export async function fetchDeliveryOptionTranslations(languageCode: string) {
+  const { data } = await supabase
+    .from('delivery_option_translations')
+    .select('delivery_option_id, name, description')
+    .eq('language_code', languageCode);
+  const map: Record<number, { name: string; description: string }> = {};
+  if (data) data.forEach((item: any) => { map[item.delivery_option_id] = { name: item.name, description: item.description }; });
+  return map;
+}
+
 export async function fetchLanguages() {
   const { data } = await supabase.from('languages').select('*').order('id', { ascending: true });
   return data || [];
