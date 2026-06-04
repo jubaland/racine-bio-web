@@ -23,7 +23,7 @@ const LABEL_ICONS: Record<string, string> = { Maison: '🏠', Bureau: '🏢', Au
 const ADDRESS_LABELS = ['Maison', 'Bureau', 'Autre'];
 
 export default function CheckoutPage() {
-  const { items, total, clearCart } = useCart();
+  const { items, total, clearCart, updateQuantity, removeItem } = useCart();
   const { ui } = useLanguage();
   const t = (key: string, fallback: string) => ui[key] || fallback;
 
@@ -361,9 +361,9 @@ export default function CheckoutPage() {
               <h2 className="text-lg font-semibold text-gray-800 mb-4">
                 🛒 {t('checkout.your_order', 'Votre commande')}
               </h2>
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {items.map(item => (
-                  <div key={item.id} className="flex items-center gap-4">
+                  <div key={item.id} className="flex items-center gap-3">
                     <div className="w-14 h-14 rounded-xl overflow-hidden bg-[#ecf4d5] flex-none">
                       {item.image_url ? (
                         <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
@@ -371,11 +371,40 @@ export default function CheckoutPage() {
                         <div className="w-full h-full flex items-center justify-center text-xl opacity-30">📷</div>
                       )}
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-800">{item.name}</p>
-                      <p className="text-xs text-gray-400">x{item.quantity} · {item.price.toLocaleString()} Fdj {item.unit}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">{item.name}</p>
+                      <p className="text-xs text-gray-400">{item.price.toLocaleString()} Fdj {item.unit}</p>
+
+                      {/* Sélecteur de quantité + retrait */}
+                      <div className="flex items-center gap-2 mt-2">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            className="w-7 h-7 rounded-full border border-[#d2e095] text-[#526500] flex items-center justify-center hover:bg-[#ecf4d5] transition leading-none text-lg"
+                            aria-label={t('checkout.decrease', 'Diminuer la quantité')}
+                          >−</button>
+                          <span className="w-6 text-center text-sm font-semibold text-gray-700">{item.quantity}</span>
+                          <button
+                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            disabled={item.quantity >= item.stock_qty}
+                            className="w-7 h-7 rounded-full border border-[#d2e095] text-[#526500] flex items-center justify-center hover:bg-[#ecf4d5] transition leading-none text-lg disabled:opacity-30 disabled:cursor-not-allowed"
+                            aria-label={t('checkout.increase', 'Augmenter la quantité')}
+                          >+</button>
+                        </div>
+                        <button
+                          onClick={() => removeItem(item.id)}
+                          className="text-gray-300 hover:text-[#f97316] transition p-1"
+                          aria-label={t('checkout.remove_item', 'Retirer du panier')}
+                          title={t('checkout.remove_item', 'Retirer')}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        </button>
+                        {item.quantity >= item.stock_qty && (
+                          <span className="text-[10px] text-[#f97316] font-medium">{t('checkout.max_stock', 'Stock max')}</span>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-sm font-bold text-[#7d9800]">{(item.price * item.quantity).toLocaleString()} Fdj</p>
+                    <p className="text-sm font-bold text-[#7d9800] flex-none">{(item.price * item.quantity).toLocaleString()} Fdj</p>
                   </div>
                 ))}
               </div>
