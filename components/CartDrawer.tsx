@@ -83,6 +83,13 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
               >
                 ✅ {t('cart.checkout', 'Commander')}
               </Link>
+              <Link
+                href="/"
+                onClick={onClose}
+                className="w-full block text-center text-sm font-semibold text-[#526500] hover:underline mb-3"
+              >
+                ＋ {t('cart.continue', 'Continuer mes achats')}
+              </Link>
               <button onClick={clearCart} className="w-full text-sm text-gray-400 hover:text-red-400 transition">
                 🗑 {t('cart.clear', 'Vider le panier')}
               </button>
