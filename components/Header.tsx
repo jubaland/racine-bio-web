@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../context/LanguageContext';
 import { useCart } from '../context/CartContext';
+import { useFavorites } from '../context/FavoritesContext';
 import LanguageSelector from './LanguageSelector';
 
 export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
@@ -12,6 +13,7 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { ui } = useLanguage();
   const { count } = useCart();
+  const { count: favCount } = useFavorites();
   const t = (key: string, fallback: string) => ui[key] || fallback;
 
   useEffect(() => {
@@ -71,6 +73,26 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
               </Link>
             </>
           )}
+
+          {/* Favoris */}
+          <Link href="/profile" className="relative p-2 flex items-center justify-center" title={t('nav.favorites', 'Mes favoris')}>
+            <svg
+              viewBox="0 0 24 24"
+              className="w-6 h-6 transition-all duration-200"
+              fill={favCount > 0 ? '#e05555' : 'none'}
+              stroke={favCount > 0 ? '#e05555' : '#9ca3af'}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+            </svg>
+            {favCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-[#e05555] text-white text-xs w-4.5 h-4.5 min-w-[18px] min-h-[18px] rounded-full flex items-center justify-center font-bold leading-none px-0.5">
+                {favCount > 9 ? '9+' : favCount}
+              </span>
+            )}
+          </Link>
 
           {/* Panier */}
           <button onClick={onCartOpen} className="relative p-2">

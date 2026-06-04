@@ -157,7 +157,7 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
                   </span>
                 )}
                 <span className="bg-[#fff3e0] text-[#e65100] text-xs px-3 py-1 rounded-full">
-                  🚚 {t('product.delivery_badge', 'Livraison 48h')}
+                  🚚 {t('product.delivery_badge', 'Livraison 24h')}
                 </span>
               </div>
             </div>
