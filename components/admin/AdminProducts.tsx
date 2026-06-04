@@ -82,10 +82,10 @@ export default function AdminProducts() {
   const openEdit = (p: Product) => {
     setEditingId(p.id);
     setForm({
-      name: p.name, price: String(p.price), old_price: String(p.old_price ?? ''),
-      unit: p.unit, farm: p.farm, category: p.category, product_type: p.product_type,
-      origin_country: p.origin_country, image_url: p.image_url ?? '',
-      description: p.description, is_local: p.is_local, region: p.region,
+      name: p.name ?? '', price: String(p.price), old_price: String(p.old_price ?? ''),
+      unit: p.unit ?? '', farm: p.farm ?? '', category: p.category ?? '', product_type: p.product_type ?? 'bio',
+      origin_country: p.origin_country ?? '', image_url: p.image_url ?? '',
+      description: p.description ?? '', is_local: p.is_local, region: p.region ?? '',
       emoji: p.emoji ?? '', bg_color: p.bg_color ?? '#ecf4d5',
       tag: p.tag ?? '', tag_label: p.tag_label ?? '',
       rating: String(p.rating ?? ''), reviews_count: String(p.reviews_count ?? ''),
@@ -120,34 +120,40 @@ export default function AdminProducts() {
     }
     setSaving(true);
     setError('');
-    const badgesArr = form.badges.trim()
-      ? form.badges.split(',').map((b: string) => b.trim()).filter(Boolean)
-      : null;
-    const payload = {
-      name: form.name.trim(), price: parseFloat(form.price),
-      old_price: form.old_price ? parseFloat(form.old_price) : null,
-      unit: form.unit.trim(), farm: form.farm.trim(), category: form.category.trim(),
-      product_type: form.product_type, origin_country: form.origin_country.trim(),
-      image_url: form.image_url.trim() || null, description: form.description.trim(),
-      is_local: form.is_local, region: form.region.trim(),
-      emoji: form.emoji.trim() || null, bg_color: form.bg_color || null,
-      tag: form.tag.trim() || null, tag_label: form.tag_label.trim() || null,
-      rating: form.rating ? parseFloat(form.rating) : null,
-      reviews_count: form.reviews_count ? parseInt(form.reviews_count) : null,
-      badges: badgesArr,
-      in_stock: form.in_stock, status: form.status,
-      producer_account_id: form.producer_account_id.trim() || null,
-      is_featured: form.is_featured,
-      featured_badge: form.featured_badge.trim() || null,
-      stock_qty: form.stock_qty !== '' ? parseFloat(form.stock_qty) : 0,
-    };
-    const { error: err } = editingId
-      ? await supabase.from('products').update(payload).eq('id', editingId)
-      : await supabase.from('products').insert(payload);
-    if (err) { setError(err.message); setSaving(false); return; }
-    setSaving(false);
-    setShowModal(false);
-    fetchAll();
+    try {
+      const s = (v: any) => (v ?? '').toString().trim();
+      const badgesArr = s(form.badges)
+        ? s(form.badges).split(',').map((b: string) => b.trim()).filter(Boolean)
+        : null;
+      const payload = {
+        name: s(form.name), price: parseFloat(form.price),
+        old_price: form.old_price ? parseFloat(form.old_price) : null,
+        unit: s(form.unit), farm: s(form.farm), category: s(form.category),
+        product_type: form.product_type, origin_country: s(form.origin_country),
+        image_url: s(form.image_url) || null, description: s(form.description),
+        is_local: form.is_local, region: s(form.region),
+        emoji: s(form.emoji) || null, bg_color: form.bg_color || null,
+        tag: s(form.tag) || null, tag_label: s(form.tag_label) || null,
+        rating: form.rating ? parseFloat(form.rating) : null,
+        reviews_count: form.reviews_count ? parseInt(form.reviews_count) : null,
+        badges: badgesArr,
+        in_stock: form.in_stock, status: form.status,
+        producer_account_id: s(form.producer_account_id) || null,
+        is_featured: form.is_featured,
+        featured_badge: s(form.featured_badge) || null,
+        stock_qty: form.stock_qty !== '' ? parseFloat(form.stock_qty) : 0,
+      };
+      const { error: err } = editingId
+        ? await supabase.from('products').update(payload).eq('id', editingId)
+        : await supabase.from('products').insert(payload);
+      if (err) { setError(err.message); setSaving(false); return; }
+      setSaving(false);
+      setShowModal(false);
+      fetchAll();
+    } catch (e: any) {
+      setError(e?.message || 'Erreur inattendue');
+      setSaving(false);
+    }
   };
 
   const handleDelete = async () => {
