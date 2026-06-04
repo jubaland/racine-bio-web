@@ -413,6 +413,12 @@ export default function CheckoutPage() {
                 <span className="text-xl font-bold text-[#526500]">{total.toLocaleString()} Fdj</span>
               </div>
             </div>
+            <Link
+              href="/"
+              className="w-full block text-center border-2 border-[#d2e095] text-[#526500] py-3 rounded-2xl font-semibold hover:bg-[#ecf4d5] transition mb-3"
+            >
+              {t('checkout.add_more', '＋ Ajouter d\'autres produits')}
+            </Link>
             <button
               onClick={() => setStep(2)}
               className="w-full bg-[#a8c800] text-white py-4 rounded-2xl font-semibold text-lg hover:bg-[#7d9800] transition"
