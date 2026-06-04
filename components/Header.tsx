@@ -37,9 +37,9 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 min-w-0">
           <span className="text-3xl flex-none">🌿</span>
-          <div className="min-w-0">
+          <div className="hidden md:block min-w-0">
             <h1 className="text-xl font-bold text-[#526500] leading-tight">Hornafresh</h1>
-            <p className="text-xs text-gray-400 hidden md:block truncate">{t('footer', 'Le marché premium, frais, bio, local et régional de Djibouti')}</p>
+            <p className="text-xs text-gray-400 truncate">{t('footer', 'Le marché premium, frais, bio, local et régional de Djibouti')}</p>
           </div>
         </Link>
 
