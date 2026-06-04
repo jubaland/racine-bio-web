@@ -113,6 +113,16 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
       {/* Menu mobile déroulant */}
       {menuOpen && (
         <div className="md:hidden border-t border-[#d2e095] bg-white px-4 py-3 flex flex-col gap-1">
+          <button
+            onClick={() => { setFavOpen(true); setMenuOpen(false); }}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-[#fff3e8] hover:text-[#f97316] transition w-full text-left"
+          >
+            <svg viewBox="0 0 24 24" className="w-5 h-5 flex-none" fill={favCount > 0 ? '#f97316' : 'none'} stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+            </svg>
+            <span>{t('nav.favorites', 'Mes favoris')}</span>
+            {favCount > 0 && <span className="ml-auto bg-[#f97316] text-white text-xs px-2 py-0.5 rounded-full font-bold">{favCount}</span>}
+          </button>
           {!user && (
             <Link href="/login" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 hover:bg-[#ecf4d5] hover:text-[#526500] transition">
               👤 {t('login', 'Se connecter')}
