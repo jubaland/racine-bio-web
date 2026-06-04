@@ -44,7 +44,7 @@ const STATUS_META: Record<string, { label: string; cls: string }> = {
   processing: { label: '🚚 En cours',   cls: 'bg-blue-100 text-blue-700' },
   shipping:   { label: '📦 Expédié',    cls: 'bg-purple-100 text-purple-700' },
   delivered:  { label: '✅ Livré',       cls: 'bg-green-100 text-green-700' },
-  cancelled:  { label: '❌ Annulé',      cls: 'bg-orange-100 text-[#f97316]' },
+  cancelled:  { label: '❌ Annulé',      cls: 'bg-[#fff3e8] text-[#f97316]' },
 };
 
 const PAYMENT_LABELS: Record<string, string> = {
@@ -351,7 +351,7 @@ export default function ProfilePage() {
                 </span>
                 <button
                   onClick={handleSignOut}
-                  className="text-xs font-semibold px-3 py-1 rounded-full bg-orange-50 text-[#f97316] hover:bg-orange-100 transition"
+                  className="text-xs font-semibold px-3 py-1 rounded-full bg-[#fff3e8] text-[#f97316] hover:bg-[#ffe0c8] transition"
                 >
                   🚪 {t('profile.signout', 'Se déconnecter')}
                 </button>
@@ -476,7 +476,7 @@ export default function ProfilePage() {
                     <button
                       onClick={() => deleteAddress(addr.id)}
                       disabled={deletingAddressId === addr.id}
-                      className="text-xs text-orange-300 hover:text-[#f97316] disabled:opacity-50"
+                      className="text-xs text-[#f97316] opacity-60 hover:opacity-100 disabled:opacity-30 transition"
                     >
                       🗑️ Supprimer
                     </button>
