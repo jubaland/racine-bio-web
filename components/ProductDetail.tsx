@@ -40,7 +40,7 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
   const isBio = product.product_type === 'bio';
 
   const relatedProducts = allProducts
-    .filter(p => p.id !== product.id && p.category === product.category)
+    .filter(p => p.id !== product.id && p.category === product.category && (p.stock_qty ?? 0) > 0)
     .slice(0, 4);
 
   const handleAddToCart = () => {
