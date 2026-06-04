@@ -148,11 +148,9 @@ export async function POST(request: Request) {
         .map((item: any) => {
           const current = stockMap[item.product_id]?.stock_qty ?? 0;
           const newStock = Math.max(0, current - item.quantity);
-          console.log(`[stock] product_id=${item.product_id} current=${current} qty=${item.quantity} newStock=${newStock} wasAbove=${current > LOW}`);
           return { name: stockMap[item.product_id]?.name ?? `Produit #${item.product_id}`, newStock, wasAbove: current > LOW };
         })
         .filter((p: StockItem) => p.newStock <= LOW && p.wasAbove);
-      console.log('[stock] lowStock items:', lowStock.length, JSON.stringify(lowStock));
 
       if (lowStock.length === 1) {
         const p = lowStock[0];
