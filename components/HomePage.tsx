@@ -670,35 +670,40 @@ export default function HomePage({ products, categories, promos, producers }: {
         </div>
       </section>
 
-      {/* Bannière app Android */}
+      {/* Bannière apps mobiles (Android + iOS) */}
       {(() => {
-        const ANDROID_I18N: Record<string, { title: string; desc: string; badge: string; wip: string }> = {
-          fr: { title: 'Application Android',       badge: 'Bientôt',  desc: 'Commandez encore plus facilement depuis votre téléphone.',          wip: 'En cours de développement...' },
-          en: { title: 'Android App',               badge: 'Coming',   desc: 'Order even more easily from your phone.',                            wip: 'Under development...' },
-          zh: { title: 'Android 应用程序',           badge: '即将推出', desc: '更轻松地从手机下单。',                                               wip: '开发中...' },
-          so: { title: 'App-ka Android',             badge: 'Dhawaan',  desc: 'Ka dalbo si fudud oo dheeraad ah telefoonkaaga.',                    wip: 'Waxaa la horumarinayaa...' },
-          aa: { title: 'Android Application',       badge: 'Inniye',   desc: 'Telefoono xiinaanteen qaafileele abuurri.',                          wip: 'Hoqollannoo...' },
-          am: { title: 'አንድሮይድ መተግበሪያ',           badge: 'በቅርቡ',    desc: 'ከስልክዎ ይበልጥ በቀላሉ ያዝዙ።',                                         wip: 'በልማት ላይ...' },
+        const APP_I18N: Record<string, { android: string; ios: string; desc: string; badge: string }> = {
+          fr: { android: 'Application Android', ios: 'Application iOS', badge: 'Bientôt disponible',    desc: 'Commandez encore plus facilement depuis votre téléphone.' },
+          en: { android: 'Android App',         ios: 'iOS App',         badge: 'Coming soon',           desc: 'Order even more easily from your phone.' },
+          zh: { android: 'Android 应用程序',     ios: 'iOS 应用程序',     badge: '即将推出',              desc: '更轻松地从手机下单。' },
+          so: { android: 'App-ka Android',       ios: 'App-ka iOS',       badge: 'Dhawaan la heli doono', desc: 'Ka dalbo si fudud oo dheeraad ah telefoonkaaga.' },
+          aa: { android: 'Android Application',  ios: 'iOS Application',  badge: 'Dhiyeenyatti argama',   desc: 'Telefoono xiinaanteen qaafileele abuurri.' },
+          am: { android: 'አንድሮይድ መተግበሪያ',      ios: 'iOS መተግበሪያ',      badge: 'በቅርቡ ይገኛል',           desc: 'ከስልክዎ ይበልጥ በቀላሉ ያዝዙ።' },
         };
-        const i = ANDROID_I18N[currentLang] ?? ANDROID_I18N.fr;
+        const i = APP_I18N[currentLang] ?? APP_I18N.fr;
+        const ANDROID_PATH = 'M17.523 15.341a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-9.046 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM2.307 8.4l1.738 3.01A9.957 9.957 0 0 0 2 16h20a9.957 9.957 0 0 0-2.045-4.59l1.738-3.01a.5.5 0 0 0-.866-.5l-1.7 2.945A9.965 9.965 0 0 0 12 9c-1.99 0-3.842.583-5.397 1.585L4.903 7.9a.5.5 0 0 0-.866.5z';
+        const APPLE_PATH = 'M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z';
+        const platforms = [
+          { name: i.android, path: ANDROID_PATH },
+          { name: i.ios,     path: APPLE_PATH },
+        ];
         return (
           <section className="bg-gradient-to-r from-[#1c3a05] to-[#2d6410] py-6 px-4 md:px-6">
-            <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center flex-shrink-0">
-                  <svg viewBox="0 0 24 24" className="w-7 h-7" fill="#a8c800">
-                    <path d="M17.523 15.341a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-9.046 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM2.307 8.4l1.738 3.01A9.957 9.957 0 0 0 2 16h20a9.957 9.957 0 0 0-2.045-4.59l1.738-3.01a.5.5 0 0 0-.866-.5l-1.7 2.945A9.965 9.965 0 0 0 12 9c-1.99 0-3.842.583-5.397 1.585L4.903 7.9a.5.5 0 0 0-.866.5z"/>
-                  </svg>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <p className="text-white font-bold text-base">{i.title}</p>
-                    <span className="bg-[#a8c800] text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">{i.badge}</span>
+            <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+              <p className="text-white/80 text-sm text-center md:text-left md:max-w-xs">{i.desc}</p>
+              <div className="flex flex-col sm:flex-row items-stretch gap-3">
+                {platforms.map(p => (
+                  <div key={p.name} className="flex items-center gap-3 bg-white/10 rounded-2xl px-4 py-2.5 flex-1">
+                    <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <svg viewBox="0 0 24 24" className="w-6 h-6" fill="#a8c800"><path d={p.path}/></svg>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-white font-bold text-sm truncate">{p.name}</p>
+                      <span className="inline-block bg-[#a8c800] text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide mt-0.5">{i.badge}</span>
+                    </div>
                   </div>
-                  <p className="text-white/70 text-sm">{i.desc}</p>
-                </div>
+                ))}
               </div>
-              <span className="text-white/50 text-sm italic flex-shrink-0">{i.wip}</span>
             </div>
           </section>
         );
