@@ -7,10 +7,12 @@ import { useLanguage } from '../context/LanguageContext';
 import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
 import LanguageSelector from './LanguageSelector';
+import FavoritesDrawer from './FavoritesDrawer';
 
 export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
   const [user, setUser] = useState<any>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [favOpen, setFavOpen] = useState(false);
   const { ui } = useLanguage();
   const { count } = useCart();
   const { count: favCount } = useFavorites();
@@ -27,6 +29,8 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
   }, []);
 
   return (
+    <>
+    <FavoritesDrawer open={favOpen} onClose={() => setFavOpen(false)} />
     <header className="bg-white border-b border-[#d2e095] sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3">
@@ -75,12 +79,12 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
           )}
 
           {/* Favoris */}
-          <Link href="/profile" className="relative p-2 flex items-center justify-center" title={t('nav.favorites', 'Mes favoris')}>
+          <button onClick={() => setFavOpen(true)} className="relative p-2 flex items-center justify-center" title={t('nav.favorites', 'Mes favoris')}>
             <svg
               viewBox="0 0 24 24"
               className="w-6 h-6 transition-all duration-200"
-              fill={favCount > 0 ? '#e05555' : 'none'}
-              stroke={favCount > 0 ? '#e05555' : '#9ca3af'}
+              fill={favCount > 0 ? '#f97316' : 'none'}
+              stroke={favCount > 0 ? '#f97316' : '#9ca3af'}
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -88,11 +92,11 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
             </svg>
             {favCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-[#e05555] text-white text-xs w-4.5 h-4.5 min-w-[18px] min-h-[18px] rounded-full flex items-center justify-center font-bold leading-none px-0.5">
+              <span className="absolute -top-1 -right-1 bg-[#f97316] text-white text-xs w-4.5 h-4.5 min-w-[18px] min-h-[18px] rounded-full flex items-center justify-center font-bold leading-none px-0.5">
                 {favCount > 9 ? '9+' : favCount}
               </span>
             )}
-          </Link>
+          </button>
 
           {/* Panier */}
           <button onClick={onCartOpen} className="relative p-2">
@@ -117,5 +121,6 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
         </div>
       )}
     </header>
+    </>
   );
 }

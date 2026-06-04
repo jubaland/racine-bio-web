@@ -218,7 +218,7 @@ export default function HomePage({ products, categories, promos, producers }: {
                     )}
                     {(p.stock_qty ?? 0) > 0 && (p.stock_qty ?? 0) <= 5 && (
                       <div className="absolute bottom-2 left-2 bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">
-                        ⚠️ Plus que {p.stock_qty} {p.unit}
+                        ⚠️ Plus que {p.stock_qty} {p.unit?.replace(/^\//, '')}
                       </div>
                     )}
                     {isBio && (
@@ -288,7 +288,7 @@ export default function HomePage({ products, categories, promos, producers }: {
                     )}
                     {(p.stock_qty ?? 0) > 0 && (p.stock_qty ?? 0) <= 5 && (
                       <div className="absolute bottom-2 left-2 bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
-                        ⚠️ {p.stock_qty} {p.unit}
+                        ⚠️ {p.stock_qty} {p.unit?.replace(/^\//, '')}
                       </div>
                     )}
                     {isBio && (
@@ -470,7 +470,7 @@ export default function HomePage({ products, categories, promos, producers }: {
                     )}
                     {(product.stock_qty ?? 0) > 0 && (product.stock_qty ?? 0) <= 5 && (
                       <div className="absolute bottom-2 left-2 bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">
-                        ⚠️ Plus que {product.stock_qty} {product.unit}
+                        ⚠️ Plus que {product.stock_qty} {product.unit?.replace(/^\//, '')}
                       </div>
                     )}
                     {isBio && (
