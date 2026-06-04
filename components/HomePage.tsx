@@ -217,8 +217,8 @@ export default function HomePage({ products, categories, promos, producers }: {
                       </div>
                     )}
                     {(p.stock_qty ?? 0) > 0 && (p.stock_qty ?? 0) <= 5 && (
-                      <div className="absolute bottom-2 left-2 bg-amber-900/80 text-amber-100 text-xs px-2.5 py-0.5 rounded-full backdrop-blur-sm">
-                        🔥 Plus que {p.stock_qty} {p.unit?.replace(/^\//, '')}
+                      <div title={`Stock limité : il ne reste que ${p.stock_qty} ${p.unit?.replace(/^\//, '')} disponibles. Commandez vite !`} className="absolute bottom-2 left-2 bg-amber-900/80 text-amber-100 text-xs px-2.5 py-0.5 rounded-full backdrop-blur-sm cursor-help">
+                        ⚠️ Plus que {p.stock_qty} {p.unit?.replace(/^\//, '')}
                       </div>
                     )}
                     {isBio && (
@@ -287,8 +287,8 @@ export default function HomePage({ products, categories, promos, producers }: {
                       </div>
                     )}
                     {(p.stock_qty ?? 0) > 0 && (p.stock_qty ?? 0) <= 5 && (
-                      <div className="absolute bottom-2 left-2 bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
-                        🔥 {p.stock_qty} {p.unit?.replace(/^\//, '')}
+                      <div title={`Stock limité : il ne reste que ${p.stock_qty} ${p.unit?.replace(/^\//, '')} disponibles. Commandez vite !`} className="absolute bottom-2 left-2 bg-amber-900/80 text-amber-100 text-[10px] px-1.5 py-0.5 rounded-full backdrop-blur-sm cursor-help">
+                        ⚠️ {p.stock_qty} {p.unit?.replace(/^\//, '')}
                       </div>
                     )}
                     {isBio && (
@@ -473,8 +473,8 @@ export default function HomePage({ products, categories, promos, producers }: {
                       </div>
                     )}
                     {(product.stock_qty ?? 0) > 0 && (product.stock_qty ?? 0) <= 5 && (
-                      <div className="absolute bottom-2 left-2 bg-amber-900/80 text-amber-100 text-xs px-2.5 py-0.5 rounded-full backdrop-blur-sm">
-                        🔥 Plus que {product.stock_qty} {product.unit?.replace(/^\//, '')}
+                      <div title={`Stock limité : il ne reste que ${product.stock_qty} ${product.unit?.replace(/^\//, '')} disponibles. Commandez vite !`} className="absolute bottom-2 left-2 bg-amber-900/80 text-amber-100 text-xs px-2.5 py-0.5 rounded-full backdrop-blur-sm cursor-help">
+                        ⚠️ Plus que {product.stock_qty} {product.unit?.replace(/^\//, '')}
                       </div>
                     )}
                     {isBio && (

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
@@ -173,7 +173,7 @@ export default function AdminDelivery() {
                   </button>
                   <button
                     onClick={() => setDeleteId(opt.id)}
-                    className="px-3 py-1.5 text-xs font-medium text-red-500 border border-red-100 rounded-lg hover:bg-red-50 transition"
+                    className="px-3 py-1.5 text-xs font-medium text-[#f97316] border border-orange-100 rounded-lg hover:bg-orange-50 transition"
                   >
                     ✕
                   </button>
@@ -270,7 +270,7 @@ export default function AdminDelivery() {
               </div>
             </label>
 
-            {error && <p className="text-sm text-red-500">⚠️ {error}</p>}
+            {error && <p className="text-sm text-[#f97316]">⚠️ {error}</p>}
 
             <div className="flex gap-3 pt-2">
               <button

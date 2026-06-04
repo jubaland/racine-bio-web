@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
@@ -57,14 +57,14 @@ export default function AdminDashboard() {
     { emoji: '🏷️', label: t('admin.stat_promos', 'Promotions'), value: stats.promos, bg: 'bg-purple-50', border: 'border-purple-100', text: 'text-purple-700' },
     { emoji: '👨‍🌾', label: t('admin.stat_producers', 'Producteurs'), value: stats.producers, bg: 'bg-yellow-50', border: 'border-yellow-100', text: 'text-yellow-700' },
     { emoji: '📦', label: t('admin.stat_orders', 'Commandes total'), value: stats.orders, bg: 'bg-orange-50', border: 'border-orange-100', text: 'text-orange-700' },
-    { emoji: '⏳', label: t('admin.stat_pending', 'En attente'), value: stats.pendingOrders, bg: 'bg-red-50', border: 'border-red-100', text: 'text-red-700' },
+    { emoji: '⏳', label: t('admin.stat_pending', 'En attente'), value: stats.pendingOrders, bg: 'bg-orange-50', border: 'border-orange-100', text: 'text-[#f97316]' },
   ];
 
   const statusBadge = (status: string) => {
     switch (status) {
       case 'delivered': return <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-600">{t('admin.status_delivered', '✅ Livré')}</span>;
       case 'pending': return <span className="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-600">{t('admin.status_pending', '⏳ En attente')}</span>;
-      case 'cancelled': return <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-600">{t('admin.status_cancelled', '❌ Annulé')}</span>;
+      case 'cancelled': return <span className="px-2 py-1 rounded-full text-xs bg-orange-100 text-[#f97316]">{t('admin.status_cancelled', '❌ Annulé')}</span>;
       default: return <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-600">{t('admin.status_processing', '🚚 En cours')}</span>;
     }
   };

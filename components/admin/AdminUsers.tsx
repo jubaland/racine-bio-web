@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
@@ -39,7 +39,7 @@ export default function AdminUsers() {
       pending:    { label: t('admin.status_pending',    '⏳ En attente'), cls: 'bg-yellow-100 text-yellow-700' },
       processing: { label: t('admin.status_processing', '🚚 En cours'),   cls: 'bg-blue-100 text-blue-700' },
       delivered:  { label: t('admin.status_delivered',  '✅ Livré'),       cls: 'bg-green-100 text-green-700' },
-      cancelled:  { label: t('admin.status_cancelled',  '❌ Annulé'),      cls: 'bg-red-100 text-red-600' },
+      cancelled:  { label: t('admin.status_cancelled',  '❌ Annulé'),      cls: 'bg-orange-100 text-[#f97316]' },
     };
     return map[s] || { label: s, cls: 'bg-gray-100 text-gray-600' };
   // eslint-disable-next-line react-hooks/exhaustive-deps

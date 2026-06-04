@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
@@ -95,7 +95,7 @@ export default function AdminCategories() {
                   <td className="px-4 py-3 text-gray-400 font-mono text-xs">{c.slug}</td>
                   <td className="px-4 py-3 text-right">
                     <button onClick={() => openEdit(c)} className="text-[#7d9800] hover:text-[#526500] text-xs font-medium mr-3">{t('admin.edit', 'Modifier')}</button>
-                    <button onClick={() => setDeleteId(c.id)} className="text-red-400 hover:text-red-600 text-xs font-medium">{t('admin.delete', 'Supprimer')}</button>
+                    <button onClick={() => setDeleteId(c.id)} className="text-orange-400 hover:text-[#f97316] text-xs font-medium">{t('admin.delete', 'Supprimer')}</button>
                   </td>
                 </tr>
               ))}
@@ -112,7 +112,7 @@ export default function AdminCategories() {
           onClose={() => setShowModal(false)}
         >
           <div className="space-y-4">
-            {error && <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl">{error}</div>}
+            {error && <div className="bg-orange-50 text-[#f97316] text-sm px-4 py-3 rounded-xl">{error}</div>}
             <FormField label={t('admin.field_emoji', 'Emoji *')}>
               <input value={form.emoji} onChange={e => set('emoji', e.target.value)} className={inputClass} placeholder="🥕" />
             </FormField>

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
@@ -110,7 +110,7 @@ export default function AdminPromos() {
               </div>
               <div className="flex gap-2 flex-shrink-0">
                 <button onClick={() => openEdit(p)} className="text-[#7d9800] hover:text-[#526500] text-xs font-medium">{t('admin.edit', 'Modifier')}</button>
-                <button onClick={() => setDeleteId(p.id)} className="text-red-400 hover:text-red-600 text-xs font-medium">{t('admin.delete', 'Supprimer')}</button>
+                <button onClick={() => setDeleteId(p.id)} className="text-orange-400 hover:text-[#f97316] text-xs font-medium">{t('admin.delete', 'Supprimer')}</button>
               </div>
             </div>
           ))}
@@ -123,7 +123,7 @@ export default function AdminPromos() {
           onClose={() => setShowModal(false)}
         >
           <div className="space-y-4">
-            {error && <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl">{error}</div>}
+            {error && <div className="bg-orange-50 text-[#f97316] text-sm px-4 py-3 rounded-xl">{error}</div>}
             <div className="grid grid-cols-2 gap-3">
               <FormField label={t('admin.col_emoji', 'Emoji')}>
                 <input value={form.emoji} onChange={e => set('emoji', e.target.value)} className={inputClass} placeholder="🎉" />

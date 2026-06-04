@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
@@ -241,7 +241,7 @@ export default function AdminProducts() {
                     </td>
                     <td className="px-4 py-3">
                       {(p.stock_qty ?? 0) <= 0 ? (
-                        <span className="px-2 py-1 bg-red-100 text-red-600 rounded-full text-xs">Rupture</span>
+                        <span className="px-2 py-1 bg-orange-100 text-[#f97316] rounded-full text-xs">Rupture</span>
                       ) : (p.stock_qty ?? 0) <= 5 ? (
                         <span className="px-2 py-1 bg-orange-100 text-orange-600 rounded-full text-xs">⚠️ {p.stock_qty} {p.unit}</span>
                       ) : (
@@ -250,7 +250,7 @@ export default function AdminProducts() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button onClick={() => openEdit(p)} className="text-[#7d9800] hover:text-[#526500] text-xs font-medium mr-3">{t('admin.edit', 'Modifier')}</button>
-                      <button onClick={() => setDeleteId(p.id)} className="text-red-400 hover:text-red-600 text-xs font-medium">{t('admin.delete', 'Supprimer')}</button>
+                      <button onClick={() => setDeleteId(p.id)} className="text-orange-400 hover:text-[#f97316] text-xs font-medium">{t('admin.delete', 'Supprimer')}</button>
                     </td>
                   </tr>
                 ))}
@@ -269,7 +269,7 @@ export default function AdminProducts() {
           onClose={() => setShowModal(false)}
         >
           <div className="space-y-4">
-            {error && <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl">{error}</div>}
+            {error && <div className="bg-orange-50 text-[#f97316] text-sm px-4 py-3 rounded-xl">{error}</div>}
 
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
@@ -54,7 +54,7 @@ export default function AdminOrders() {
     processing: { label: t('admin.status_processing', '🚚 En cours'),   cls: 'bg-blue-100 text-blue-800 border-blue-200' },
     shipping:   { label: t('admin.status_shipping',   '📦 Expédié'),    cls: 'bg-purple-100 text-purple-800 border-purple-200' },
     delivered:  { label: t('admin.status_delivered',  '✅ Livré'),       cls: 'bg-green-100 text-green-800 border-green-200' },
-    cancelled:  { label: t('admin.status_cancelled',  '❌ Annulé'),      cls: 'bg-red-100 text-red-700 border-red-200' },
+    cancelled:  { label: t('admin.status_cancelled',  '❌ Annulé'),      cls: 'bg-orange-100 text-[#f97316] border-orange-200' },
   };
   const meta = (s: string) =>
     STATUS_META[s as keyof typeof STATUS_META] ?? { label: s, cls: 'bg-gray-100 text-gray-600 border-gray-200' };
@@ -121,13 +121,13 @@ export default function AdminOrders() {
           <p className="text-gray-400">{t('admin.loading', 'Chargement...')}</p>
         </div>
       ) : fetchError ? (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-6">
-          <p className="text-red-600 font-semibold mb-1">⚠️ Erreur de chargement</p>
-          <p className="text-red-500 text-sm font-mono mb-4">{fetchError}</p>
+        <div className="bg-orange-50 border border-orange-200 rounded-2xl p-6">
+          <p className="text-[#f97316] font-semibold mb-1">⚠️ Erreur de chargement</p>
+          <p className="text-[#f97316] text-sm font-mono mb-4">{fetchError}</p>
           <p className="text-sm text-gray-600 mb-2">
-            Si l'erreur mentionne <code className="bg-red-100 px-1 rounded">product_name</code>, tu dois d'abord exécuter la migration dans Supabase SQL Editor :
+            Si l'erreur mentionne <code className="bg-orange-100 px-1 rounded">product_name</code>, tu dois d'abord exécuter la migration dans Supabase SQL Editor :
           </p>
-          <pre className="bg-white border border-red-200 rounded-xl p-4 text-xs text-gray-700 overflow-x-auto">{`ALTER TABLE order_items
+          <pre className="bg-white border border-orange-200 rounded-xl p-4 text-xs text-gray-700 overflow-x-auto">{`ALTER TABLE order_items
   ADD COLUMN IF NOT EXISTS product_name      text,
   ADD COLUMN IF NOT EXISTS product_image_url text,
   ADD COLUMN IF NOT EXISTS product_unit      text,

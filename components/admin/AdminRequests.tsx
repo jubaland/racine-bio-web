@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
@@ -53,7 +53,7 @@ export default function AdminRequests() {
     const map: Record<string, { label: string; cls: string }> = {
       pending:  { label: t('admin.status_pending',  '⏳ En attente'), cls: 'bg-yellow-100 text-yellow-700' },
       approved: { label: t('admin.status_approved', '✅ Approuvée'),  cls: 'bg-green-100 text-green-700' },
-      rejected: { label: t('admin.status_rejected', '❌ Refusée'),    cls: 'bg-red-100 text-red-600' },
+      rejected: { label: t('admin.status_rejected', '❌ Refusée'),    cls: 'bg-orange-100 text-[#f97316]' },
     };
     return map[s] || { label: s, cls: 'bg-gray-100 text-gray-600' };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -183,7 +183,7 @@ export default function AdminRequests() {
                         {t('admin.request_approve', '✓ Approuver')}
                       </button>
                       <button onClick={() => updateStatus(req.id, 'rejected')} disabled={updating}
-                        className="text-xs bg-red-400 text-white px-3 py-1.5 rounded-lg hover:bg-red-500 transition disabled:opacity-50 font-medium">
+                        className="text-xs bg-[#f97316] text-white px-3 py-1.5 rounded-lg hover:bg-[#ea6a00] transition disabled:opacity-50 font-medium">
                         {t('admin.request_reject', '✕ Refuser')}
                       </button>
                     </>
@@ -237,7 +237,7 @@ export default function AdminRequests() {
                 <button
                   onClick={() => { updateStatus(selectedRequest.id, 'rejected'); setSelectedRequest(null); }}
                   disabled={updating}
-                  className="flex-1 py-3 bg-red-50 text-red-500 rounded-xl text-sm font-semibold hover:bg-red-100 transition disabled:opacity-50"
+                  className="flex-1 py-3 bg-orange-50 text-[#f97316] rounded-xl text-sm font-semibold hover:bg-orange-100 transition disabled:opacity-50"
                 >
                   {t('admin.request_reject', '✕ Refuser')}
                 </button>

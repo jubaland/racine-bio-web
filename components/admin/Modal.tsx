@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useLanguage } from '../../context/LanguageContext';
 
@@ -59,7 +59,7 @@ export function ConfirmDelete({ onConfirm, onCancel, loading }: ConfirmDeletePro
           <button
             onClick={onConfirm}
             disabled={loading}
-            className="flex-1 py-3 bg-red-500 text-white rounded-xl text-sm font-semibold hover:bg-red-600 transition disabled:opacity-50"
+            className="flex-1 py-3 bg-[#f97316] text-white rounded-xl text-sm font-semibold hover:bg-[#ea6a00] transition disabled:opacity-50"
           >
             {loading ? t('admin.deleting', 'Suppression...') : t('admin.delete', 'Supprimer')}
           </button>
