@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import { buildPrepSlipPdf } from './pdf';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -291,10 +292,20 @@ export async function sendPrepSlipToPreparers(order: any, items: any[], emails: 
     </div>
   `);
 
+  // Pièce jointe : le bordereau en PDF (échec PDF = on envoie quand même l'email)
+  let attachments: { filename: string; content: Buffer }[] | undefined;
+  try {
+    const pdf = await buildPrepSlipPdf(order, items);
+    attachments = [{ filename: `bordereau-${shortId}.pdf`, content: pdf }];
+  } catch (e) {
+    console.error('[pdf] bordereau generation failed:', e);
+  }
+
   await resend.emails.send({
     from: FROM,
     to: emails,
     subject: `🧑‍🍳 À préparer — Commande #${shortId}`,
     html,
+    attachments,
   });
 }
