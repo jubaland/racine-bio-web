@@ -21,6 +21,12 @@ export default function InstallAppPrompt() {
     if (standalone) return;                                   // déjà installée
     if (localStorage.getItem('hf_install_dismissed') === '1') return;
 
+    // Bannière réservée au mobile (appareil tactile / petit écran)
+    const isMobile =
+      /android|iphone|ipad|ipod|mobile/i.test(window.navigator.userAgent) ||
+      window.matchMedia('(max-width: 820px)').matches;
+    if (!isMobile) return;
+
     // Événement éventuellement déjà capté tôt (script inline dans le layout)
     if ((window as any).__bip) setDeferred((window as any).__bip);
 

@@ -19,6 +19,8 @@ interface Order {
   id: string;
   user_id: string | null;
   total: number;
+  delivery_fee: number | null;
+  delivery_option_name: string | null;
   status: string;
   payment_method: string;
   phone: string;
@@ -135,6 +137,8 @@ export default function AdminOrders() {
             const m = meta(order.status);
             const isUpdating = updatingId === order.id;
             const items = order.order_items || [];
+            const subtotal = items.reduce((s, it) => s + Number(it.price) * it.quantity, 0);
+            const deliveryFee = order.delivery_fee != null ? order.delivery_fee : Math.max(0, Number(order.total) - subtotal);
 
             return (
               <div key={order.id} className="bg-white rounded-2xl border border-[#d2e095] shadow-sm overflow-hidden">
@@ -235,11 +239,26 @@ export default function AdminOrders() {
                   </div>
                 )}
 
-                {/* ── Pied : total ── */}
+                {/* ── Pied : ventilation sous-total / livraison / total ── */}
                 {items.length > 0 && (
-                  <div className="flex justify-between items-center px-4 py-3 bg-[#f8fdf0] border-t border-[#d2e095]">
-                    <span className="text-sm text-gray-600 font-medium">{t('admin.total', 'Total commande')}</span>
-                    <span className="text-lg font-bold text-[#526500]">{Number(order.total).toLocaleString()} Fdj</span>
+                  <div className="px-4 py-3 bg-[#f8fdf0] border-t border-[#d2e095] space-y-1.5">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">{t('admin.subtotal', 'Sous-total')}</span>
+                      <span className="text-gray-700">{Number(subtotal).toLocaleString()} Fdj</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">
+                        🚚 {t('admin.delivery', 'Frais de livraison')}
+                        {order.delivery_option_name && <span className="text-gray-400"> — {order.delivery_option_name}</span>}
+                      </span>
+                      <span className={deliveryFee === 0 ? 'text-green-600 font-medium' : 'text-gray-700'}>
+                        {deliveryFee === 0 ? t('admin.delivery_free', 'Offerte') : `${Number(deliveryFee).toLocaleString()} Fdj`}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center pt-1.5 border-t border-[#d2e095]">
+                      <span className="text-sm text-gray-600 font-medium">{t('admin.total', 'Total commande')}</span>
+                      <span className="text-lg font-bold text-[#526500]">{Number(order.total).toLocaleString()} Fdj</span>
+                    </div>
                   </div>
                 )}
               </div>

@@ -192,7 +192,7 @@ export async function GET() {
   const { data, error } = await supabaseAdmin
     .from('orders')
     .select(`
-      id, user_id, total, status, payment_method, phone, address, customer_name, special_instructions, created_at,
+      id, user_id, total, delivery_fee, delivery_option_name, status, payment_method, phone, address, customer_name, special_instructions, created_at,
       order_items (
         id, product_id, quantity, price,
         product_name, product_image_url, product_unit, product_farm

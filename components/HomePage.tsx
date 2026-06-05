@@ -284,11 +284,8 @@ export default function HomePage({ products, categories, promos, producers }: {
       {/* Produits locaux */}
       {localProducts.length > 0 && (
         <section className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
-          <div className="flex items-center justify-between mb-6">
+          <div className="mb-6">
             <h2 className="text-2xl font-semibold text-gray-800">🇩🇯 {t('localProducts', 'Produits de Djibouti')}</h2>
-            <button onClick={() => setActiveOrigin('DJ')} className="text-sm text-[#7d9800] hover:underline">
-              {t('seeAll', 'Tout voir')}
-            </button>
           </div>
           <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory">
             {localProducts.map((p: any) => {
