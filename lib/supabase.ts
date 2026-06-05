@@ -6,7 +6,13 @@ export const supabase = createClient(
 );
 
 export async function fetchProducts() {
-  const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+  // Boutique : seuls les produits publiés sont visibles (les brouillons et
+  // archivés restent en base mais cachés du site). L'admin a sa propre requête.
+  const { data } = await supabase
+    .from('products')
+    .select('*')
+    .eq('status', 'published')
+    .order('created_at', { ascending: false });
   return data || [];
 }
 

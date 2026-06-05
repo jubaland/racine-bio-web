@@ -159,8 +159,26 @@ export default function AdminProducts() {
   const handleDelete = async () => {
     if (!deleteId) return;
     setDeleting(true);
-    await supabase.from('products').delete().eq('id', deleteId);
+    setError('');
+    // Nettoyer les dépendances : traductions (appartiennent au produit) et
+    // délier les promos qui le ciblent (promos.product_id n'est pas utilisé à l'affichage).
+    await supabase.from('product_translations').delete().eq('product_id', deleteId);
+    await supabase.from('promos').update({ product_id: null }).eq('product_id', deleteId);
+    const { data: deleted, error: delErr } = await supabase
+      .from('products').delete().eq('id', deleteId).select('id');
     setDeleting(false);
+    if (delErr) {
+      setError(
+        delErr.message.includes('order_items')
+          ? t('admin.delete_err_order', 'Ce produit figure dans des commandes : impossible de le supprimer. Passez plutôt son statut à « Archivé ».')
+          : t('admin.delete_err', 'Suppression impossible : ') + delErr.message
+      );
+      return;
+    }
+    if (!deleted || deleted.length === 0) {
+      setError(t('admin.delete_blocked', 'Suppression bloquée : aucune ligne supprimée (permissions ou dépendance).'));
+      return;
+    }
     setDeleteId(null);
     fetchAll();
   };
@@ -256,7 +274,7 @@ export default function AdminProducts() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button onClick={() => openEdit(p)} className="text-[#7d9800] hover:text-[#526500] text-xs font-medium mr-3">{t('admin.edit', 'Modifier')}</button>
-                      <button onClick={() => setDeleteId(p.id)} className="text-orange-400 hover:text-[#f97316] text-xs font-medium">{t('admin.delete', 'Supprimer')}</button>
+                      <button onClick={() => { setError(''); setDeleteId(p.id); }} className="text-orange-400 hover:text-[#f97316] text-xs font-medium">{t('admin.delete', 'Supprimer')}</button>
                     </td>
                   </tr>
                 ))}
@@ -449,7 +467,7 @@ export default function AdminProducts() {
         </Modal>
       )}
 
-      {deleteId && <ConfirmDelete onConfirm={handleDelete} onCancel={() => setDeleteId(null)} loading={deleting} />}
+      {deleteId && <ConfirmDelete onConfirm={handleDelete} onCancel={() => { setDeleteId(null); setError(''); }} loading={deleting} error={error} />}
     </div>
   );
 }

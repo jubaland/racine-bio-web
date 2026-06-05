@@ -37,9 +37,10 @@ interface ConfirmDeleteProps {
   onConfirm: () => void;
   onCancel: () => void;
   loading?: boolean;
+  error?: string;
 }
 
-export function ConfirmDelete({ onConfirm, onCancel, loading }: ConfirmDeleteProps) {
+export function ConfirmDelete({ onConfirm, onCancel, loading, error }: ConfirmDeleteProps) {
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
 
@@ -49,6 +50,7 @@ export function ConfirmDelete({ onConfirm, onCancel, loading }: ConfirmDeletePro
         <p className="text-4xl mb-3">⚠️</p>
         <h3 className="font-bold text-gray-800 mb-2">{t('admin.confirm_delete', 'Confirmer la suppression')}</h3>
         <p className="text-gray-400 text-sm mb-6">{t('admin.irreversible', 'Cette action est irréversible.')}</p>
+        {error && <div className="bg-orange-50 text-[#f97316] text-sm px-4 py-3 rounded-xl mb-4 text-left">{error}</div>}
         <div className="flex gap-3">
           <button
             onClick={onCancel}
