@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabase-admin';
-import { sendOrderConfirmation, sendNewOrderAlert, sendStatusUpdate } from '../../../lib/emails';
+import { sendOrderConfirmation, sendNewOrderAlert, sendStatusUpdate, sendPrepSlipToPreparers } from '../../../lib/emails';
 
 // POST — crée commande + articles avec vérification et décrémentation du stock
 export async function POST(request: Request) {
@@ -177,6 +177,13 @@ export async function POST(request: Request) {
         if (customerEmail) {
           await sendOrderConfirmation(createdOrder, emailItems, customerEmail);
           console.log('[email] customer confirmation sent');
+        }
+        // Bordereau de préparation → tous les préparateurs actifs
+        const { data: preparers } = await supabaseAdmin.from('preparers').select('email').eq('is_active', true);
+        const prepEmails = (preparers || []).map((p: any) => p.email).filter(Boolean);
+        if (prepEmails.length) {
+          await sendPrepSlipToPreparers(createdOrder, emailItems, prepEmails);
+          console.log('[email] prep slip sent to', prepEmails.length, 'preparers');
         }
       } catch (err) {
         console.error('[email] ERROR:', err);
