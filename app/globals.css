@@ -27,19 +27,3 @@ input, select, textarea {
 button {
   cursor: pointer;
 }
-/* Écran de lancement PWA — visible uniquement dans l'app installée (standalone) */
-.launch-splash {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: none;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: #c2410c;
-  transition: opacity 0.5s ease;
-}
-@media (display-mode: standalone) {
-  .launch-splash { display: flex; }
-}
-.launch-splash.fade { opacity: 0; }
