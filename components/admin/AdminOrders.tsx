@@ -24,6 +24,7 @@ interface Order {
   status: string;
   payment_method: string;
   phone: string;
+  email: string | null;
   address: string;
   customer_name: string;
   special_instructions: string | null;
@@ -157,6 +158,7 @@ export default function AdminOrders() {
                     <p className="font-bold text-gray-800">{order.customer_name || '—'}</p>
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-500">
                       {order.phone   && <span>📞 {order.phone}</span>}
+                      {order.email   && <span>✉️ {order.email}</span>}
                       {order.address && <span>📍 {order.address}</span>}
                       {order.special_instructions && (
                         <span className="w-full mt-1 text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 block">

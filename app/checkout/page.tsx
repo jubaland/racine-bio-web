@@ -55,6 +55,13 @@ export default function CheckoutPage() {
   const phoneDisplay = phoneFocused
     ? phoneDigits
     : (phoneDigits.match(/.{1,2}/g) || []).join(' ');
+  // Invité : confirmation du téléphone + email obligatoire
+  const [phoneConfirmDigits, setPhoneConfirmDigits] = useState('');
+  const [phoneConfirmFocused, setPhoneConfirmFocused] = useState(false);
+  const phoneConfirmDisplay = phoneConfirmFocused
+    ? phoneConfirmDigits
+    : (phoneConfirmDigits.match(/.{1,2}/g) || []).join(' ');
+  const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -96,7 +103,12 @@ export default function CheckoutPage() {
   const showAddressCards = !!(user && savedAddresses.length > 0);
   const showNewAddressForm = !showAddressCards || selectedAddressId === 'new';
   const phoneValid = phoneDigits.length === 6;
-  const formFilled = name.trim().length > 0 && phoneValid && address.trim().length > 0;
+  // Invité (non connecté) : email valide + confirmation du téléphone obligatoires
+  const isGuest = !user;
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const phoneConfirmValid = phoneConfirmDigits === phoneDigits;
+  const guestContactValid = !isGuest || (emailValid && phoneConfirmValid);
+  const formFilled = name.trim().length > 0 && phoneValid && address.trim().length > 0 && guestContactValid;
   const canContinueStep2 = (showAddressCards && selectedAddressId !== 'new'
     ? selectedAddressId !== null
     : formFilled) && selectedDeliveryId !== null;
@@ -209,6 +221,7 @@ export default function CheckoutPage() {
             status:               'pending',
             payment_method:       paymentMethod,
             phone:   '77' + phoneDigits,
+            email:   isGuest ? email.trim().toLowerCase() : null,
             address: titleCase(address),
             customer_name: titleCase(name),
           },
@@ -563,6 +576,52 @@ export default function CheckoutPage() {
                       <p className="text-xs text-[#f97316] mt-1.5">⚠️ {t('checkout.phone_error', 'Le numéro doit contenir 8 chiffres au total (77 + 6 chiffres)')}</p>
                     )}
                   </div>
+
+                  {/* Invité : confirmation du téléphone */}
+                  {isGuest && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-600 mb-1 block">
+                        {t('checkout.phone_confirm', 'Confirmer le téléphone *')}
+                      </label>
+                      <div className="flex border border-[#d2e095] rounded-xl overflow-hidden focus-within:border-[#a8c800] bg-white transition">
+                        <span className="flex items-center px-4 text-sm font-semibold text-gray-700 bg-[#ecf4d5] border-r border-[#d2e095] select-none">77</span>
+                        <input
+                          type="tel"
+                          value={phoneConfirmDisplay}
+                          onChange={e => setPhoneConfirmDigits(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                          onFocus={() => setPhoneConfirmFocused(true)}
+                          onBlur={() => setPhoneConfirmFocused(false)}
+                          onPaste={e => e.preventDefault()}
+                          placeholder="XX XX XX"
+                          maxLength={8}
+                          className="flex-1 px-4 py-3 text-sm text-gray-800 bg-transparent focus:outline-none"
+                        />
+                      </div>
+                      {phoneConfirmDigits.length === 6 && !phoneConfirmValid && (
+                        <p className="text-xs text-[#f97316] mt-1.5">⚠️ {t('checkout.phone_confirm_error', 'Les numéros ne correspondent pas')}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Invité : email obligatoire */}
+                  {isGuest && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-600 mb-1 block">
+                        {t('checkout.email', 'Adresse email *')}
+                      </label>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                        placeholder={t('checkout.email_placeholder', 'ex: ahmed@email.com')}
+                        className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] bg-white"
+                      />
+                      {email.trim().length > 0 && !emailValid && (
+                        <p className="text-xs text-[#f97316] mt-1.5">⚠️ {t('checkout.email_error', 'Adresse email invalide')}</p>
+                      )}
+                      <p className="text-xs text-gray-400 mt-1.5">{t('checkout.email_hint', 'Pour vous envoyer la confirmation et le suivi de votre commande.')}</p>
+                    </div>
+                  )}
 
                   <div>
                     <label className="text-sm font-medium text-gray-600 mb-1 block">

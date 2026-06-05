@@ -163,6 +163,8 @@ export async function POST(request: Request) {
         if (createdOrder.user_id) {
           const { data: userData } = await supabaseAdmin.auth.admin.getUserById(createdOrder.user_id);
           customerEmail = userData?.user?.email ?? null;
+        } else {
+          customerEmail = createdOrder.email ?? null; // commande invité
         }
         const emailItems = items.map((item: any) => ({
           ...item,
@@ -192,7 +194,7 @@ export async function GET() {
   const { data, error } = await supabaseAdmin
     .from('orders')
     .select(`
-      id, user_id, total, delivery_fee, delivery_option_name, status, payment_method, phone, address, customer_name, special_instructions, created_at,
+      id, user_id, total, delivery_fee, delivery_option_name, status, payment_method, phone, email, address, customer_name, special_instructions, created_at,
       order_items (
         id, product_id, quantity, price,
         product_name, product_image_url, product_unit, product_farm
@@ -251,29 +253,37 @@ export async function PATCH(request: Request) {
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-  // Notifier le client par email — fire-and-forget
+  // Notifier le client par email — fire-and-forget (connecté OU invité)
   (async () => {
     try {
-      if (!updatedOrder?.user_id) return;
-      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(updatedOrder.user_id);
-      const customerEmail = userData?.user?.email;
+      let customerEmail: string | null = null;
+      if (updatedOrder?.user_id) {
+        const { data: userData } = await supabaseAdmin.auth.admin.getUserById(updatedOrder.user_id);
+        customerEmail = userData?.user?.email ?? null;
+      } else {
+        customerEmail = updatedOrder?.email ?? null; // commande invité
+      }
       if (customerEmail) await sendStatusUpdate(updatedOrder, customerEmail);
-      try {
-        const { sendPushToUser } = await import('../../../lib/push');
-        const STATUS_PUSH: Record<string, string> = {
-          processing: '🚚 Commande en préparation',
-          shipping:   '📦 Commande expédiée',
-          delivered:  '✅ Commande livrée !',
-          cancelled:  '❌ Commande annulée',
-        };
-        if (STATUS_PUSH[updatedOrder.status] && updatedOrder.user_id) {
-          await sendPushToUser(updatedOrder.user_id, {
-            title: STATUS_PUSH[updatedOrder.status],
-            body: `Commande #${String(updatedOrder.id).slice(0, 8).toUpperCase()}`,
-            url: '/profile',
-          });
-        }
-      } catch (_) {}
+
+      // Push — uniquement pour les utilisateurs connectés (les invités n'ont pas d'abonnement)
+      if (updatedOrder?.user_id) {
+        try {
+          const { sendPushToUser } = await import('../../../lib/push');
+          const STATUS_PUSH: Record<string, string> = {
+            processing: '🚚 Commande en préparation',
+            shipping:   '📦 Commande expédiée',
+            delivered:  '✅ Commande livrée !',
+            cancelled:  '❌ Commande annulée',
+          };
+          if (STATUS_PUSH[updatedOrder.status]) {
+            await sendPushToUser(updatedOrder.user_id, {
+              title: STATUS_PUSH[updatedOrder.status],
+              body: `Commande #${String(updatedOrder.id).slice(0, 8).toUpperCase()}`,
+              url: '/profile',
+            });
+          }
+        } catch (_) {}
+      }
     } catch (_) { /* email failure must not affect response */ }
   })();
 
