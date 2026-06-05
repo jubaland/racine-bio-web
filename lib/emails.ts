@@ -51,12 +51,14 @@ function itemsTable(items: any[]) {
   const rows = items.map(item => {
     const name  = item.product_name  || `Produit #${item.product_id}`;
     const unit  = item.product_unit  || '';
+    const pu    = `${Number(item.price).toLocaleString('fr-FR')} Fdj${unit}`;
     const subtotal = (item.price * item.quantity).toLocaleString('fr-FR');
     return `
       <tr>
-        <td style="padding:8px 0;border-bottom:1px solid #f0f7e0;color:#374151;font-size:14px;">${name}</td>
-        <td style="padding:8px 0;border-bottom:1px solid #f0f7e0;color:#6b7280;font-size:13px;text-align:center;">×${item.quantity} ${unit}</td>
-        <td style="padding:8px 0;border-bottom:1px solid #f0f7e0;color:#526500;font-size:14px;font-weight:bold;text-align:right;">${subtotal} Fdj</td>
+        <td style="padding:10px 0;border-bottom:1px solid #f0f7e0;color:#374151;font-size:14px;">${name}</td>
+        <td style="padding:10px 6px;border-bottom:1px solid #f0f7e0;color:#6b7280;font-size:13px;text-align:right;white-space:nowrap;">${pu}</td>
+        <td style="padding:10px 6px;border-bottom:1px solid #f0f7e0;color:#374151;font-size:13px;text-align:center;">${item.quantity}</td>
+        <td style="padding:10px 0;border-bottom:1px solid #f0f7e0;color:#526500;font-size:14px;font-weight:bold;text-align:right;white-space:nowrap;">${subtotal} Fdj</td>
       </tr>
     `;
   }).join('');
@@ -65,9 +67,10 @@ function itemsTable(items: any[]) {
     <table style="width:100%;border-collapse:collapse;">
       <thead>
         <tr>
-          <th style="text-align:left;padding-bottom:8px;color:#6b7280;font-size:12px;font-weight:normal;border-bottom:2px solid #dde8b0;">Produit</th>
-          <th style="text-align:center;padding-bottom:8px;color:#6b7280;font-size:12px;font-weight:normal;border-bottom:2px solid #dde8b0;">Qté</th>
-          <th style="text-align:right;padding-bottom:8px;color:#6b7280;font-size:12px;font-weight:normal;border-bottom:2px solid #dde8b0;">Sous-total</th>
+          <th style="text-align:left;padding-bottom:8px;color:#6b7280;font-size:11px;font-weight:normal;border-bottom:2px solid #dde8b0;">Produit</th>
+          <th style="text-align:right;padding-bottom:8px;color:#6b7280;font-size:11px;font-weight:normal;border-bottom:2px solid #dde8b0;">P.U.</th>
+          <th style="text-align:center;padding-bottom:8px;color:#6b7280;font-size:11px;font-weight:normal;border-bottom:2px solid #dde8b0;">Qté</th>
+          <th style="text-align:right;padding-bottom:8px;color:#6b7280;font-size:11px;font-weight:normal;border-bottom:2px solid #dde8b0;">Sous-total</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -156,6 +159,8 @@ export async function sendOrderConfirmation(
 // ── 2. Alerte nouvelle commande → admin ───────────────────────────────────────
 export async function sendNewOrderAlert(order: any, items: any[], customerEmail: string | null) {
   const shortId = String(order.id).slice(0, 8).toUpperCase();
+  const subtotal = items.reduce((s, it) => s + Number(it.price) * it.quantity, 0);
+  const deliveryFee = order.delivery_fee != null ? order.delivery_fee : Math.max(0, Number(order.total) - subtotal);
 
   const html = baseLayout(`
     <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">🛍️ Nouvelle commande #${shortId}</h2>
@@ -165,15 +170,25 @@ export async function sendNewOrderAlert(order: any, items: any[], customerEmail:
 
     ${itemsTable(items)}
 
-    <div style="background:#f8faf0;border-radius:12px;padding:16px;margin:20px 0;">
-      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-        <span style="color:#6b7280;font-size:14px;">Mode de paiement</span>
-        <span style="color:#374151;font-size:14px;">${PAYMENT_LABELS[order.payment_method] || order.payment_method}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;border-top:1px solid #dde8b0;padding-top:8px;margin-top:8px;">
-        <span style="color:#1f2937;font-weight:bold;font-size:16px;">Total</span>
-        <span style="color:#526500;font-weight:bold;font-size:18px;">${Number(order.total).toLocaleString('fr-FR')} Fdj</span>
-      </div>
+    <div style="background:#f8faf0;border-radius:12px;padding:8px 0;margin:20px 0;">
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="padding:8px 16px 4px;color:#6b7280;font-size:14px;">Sous-total</td>
+          <td style="padding:8px 16px 4px;text-align:right;color:#374151;font-size:14px;">${Number(subtotal).toLocaleString('fr-FR')} Fdj</td>
+        </tr>
+        <tr>
+          <td style="padding:4px 16px;color:#6b7280;font-size:14px;">🚚 Livraison${order.delivery_option_name ? ` (${order.delivery_option_name})` : ''}</td>
+          <td style="padding:4px 16px;text-align:right;font-size:14px;color:${deliveryFee === 0 ? '#16a34a' : '#374151'};">${deliveryFee === 0 ? 'Offerte' : `${Number(deliveryFee).toLocaleString('fr-FR')} Fdj`}</td>
+        </tr>
+        <tr>
+          <td style="padding:4px 16px;color:#6b7280;font-size:14px;">Mode de paiement</td>
+          <td style="padding:4px 16px;text-align:right;color:#374151;font-size:14px;">${PAYMENT_LABELS[order.payment_method] || order.payment_method}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 16px 8px;border-top:1px solid #dde8b0;color:#1f2937;font-weight:bold;font-size:16px;">Total</td>
+          <td style="padding:10px 16px 8px;border-top:1px solid #dde8b0;text-align:right;color:#526500;font-weight:bold;font-size:18px;">${Number(order.total).toLocaleString('fr-FR')} Fdj</td>
+        </tr>
+      </table>
     </div>
 
     <div style="background:#f0f7e0;border-radius:12px;padding:16px;margin:20px 0;">
