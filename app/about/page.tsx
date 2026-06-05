@@ -209,7 +209,7 @@ export default function AboutPage() {
       </section>
 
       {/* Vision */}
-      <section className="bg-gradient-to-br from-[#1c3a05] via-[#2d5c0a] to-[#1c3a05] text-white py-14 md:py-20 px-4 md:px-6">
+      <section className="bg-gradient-to-br from-[#1c3a05] via-[#2d6410] to-[#7a5800] text-white py-14 md:py-20 px-4 md:px-6">
         <div className="max-w-3xl mx-auto text-center">
           <span className="text-4xl">🌟</span>
           <h2 className="text-2xl md:text-3xl font-bold mt-4 mb-5">

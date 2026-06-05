@@ -549,7 +549,7 @@ export default function HomePage({ products, categories, promos, producers }: {
       )}
 
       {/* Espace producteur */}
-      <section className="bg-gradient-to-br from-[#1c3a05] via-[#2d5c0a] to-[#1c3a05] py-12 md:py-16 px-4 md:px-6 text-white">
+      <section className="bg-gradient-to-br from-[#1c3a05] via-[#2d6410] to-[#7a5800] py-12 md:py-16 px-4 md:px-6 text-white">
         <div className="max-w-5xl mx-auto">
           <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
             <div>
@@ -672,7 +672,7 @@ export default function HomePage({ products, categories, promos, producers }: {
           { name: i.ios,     path: APPLE_PATH },
         ];
         return (
-          <section className="bg-gradient-to-r from-[#1c3a05] to-[#2d6410] py-6 px-4 md:px-6">
+          <section className="bg-gradient-to-br from-[#1c3a05] via-[#2d6410] to-[#7a5800] py-6 px-4 md:px-6">
             <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-5">
               <p className="text-white/80 text-sm text-center md:text-left md:max-w-xs">{i.desc}</p>
               <div className="flex flex-col sm:flex-row items-stretch gap-3">

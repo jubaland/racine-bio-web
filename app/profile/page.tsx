@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { titleCase } from '../../lib/format';
 import Link from 'next/link';
 import { useLanguage } from '../../context/LanguageContext';
 import { useFavorites } from '../../context/FavoritesContext';
@@ -140,9 +141,9 @@ export default function ProfilePage() {
     setSavingAddress(true);
     const payload = {
       label:          addrLabel,
-      recipient_name: addrName.trim(),
+      recipient_name: titleCase(addrName),
       phone:          '77' + addrPhoneDigits,
-      address:        addrText.trim(),
+      address:        titleCase(addrText),
     };
     if (editingAddressId) {
       await supabase.from('addresses').update(payload).eq('id', editingAddressId);

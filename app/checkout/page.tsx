@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useCart } from '../../context/CartContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
+import { titleCase, sentenceCase } from '../../lib/format';
 import Header from '../../components/Header';
 import CartDrawer from '../../components/CartDrawer';
 import Link from 'next/link';
@@ -204,12 +205,12 @@ export default function CheckoutPage() {
             total:                orderTotal,
             delivery_fee:          deliveryFee,
             delivery_option_name:  selectedDelivery?.name ?? null,
-            special_instructions:  specialInstructions.trim() || null,
+            special_instructions:  sentenceCase(specialInstructions) || null,
             status:               'pending',
             payment_method:       paymentMethod,
             phone:   '77' + phoneDigits,
-            address,
-            customer_name: name,
+            address: titleCase(address),
+            customer_name: titleCase(name),
           },
           items: items.map(item => ({
             product_id:        item.id,
@@ -242,9 +243,9 @@ export default function CheckoutPage() {
           await supabase.from('addresses').insert({
             user_id:        user.id,
             label:          newAddressLabel,
-            recipient_name: name,
+            recipient_name: titleCase(name),
             phone:          '77' + phoneDigits,
-            address,
+            address:        titleCase(address),
             is_default:     savedAddresses.length === 0,
           });
         } catch (_) {}
