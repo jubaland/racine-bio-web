@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
+import PrepSlip from './PrepSlip';
 
 interface OrderItem {
   id: string;
@@ -46,6 +47,7 @@ export default function AdminOrders() {
   const [filterStatus, setFilterStatus] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [slipOrder, setSlipOrder] = useState<Order | null>(null);
 
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
@@ -188,6 +190,12 @@ export default function AdminOrders() {
                         ))}
                       </select>
                       {isUpdating && <span className="text-xs text-gray-400">⏳</span>}
+                      <button
+                        onClick={() => setSlipOrder(order)}
+                        className="text-xs font-medium text-[#526500] border border-[#d2e095] rounded-lg px-2 py-1 hover:bg-[#ecf4d5] transition whitespace-nowrap"
+                      >
+                        🖨️ {t('admin.prep_slip', 'Bordereau')}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -268,6 +276,8 @@ export default function AdminOrders() {
           })}
         </div>
       )}
+
+      {slipOrder && <PrepSlip order={slipOrder} onClose={() => setSlipOrder(null)} />}
     </div>
   );
 }

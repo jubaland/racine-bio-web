@@ -27,3 +27,19 @@ input, select, textarea {
 button {
   cursor: pointer;
 }
+
+/* Impression : n'imprimer que le bordereau de préparation (.prep-slip) */
+@media print {
+  body * { visibility: hidden !important; }
+  .prep-slip, .prep-slip * { visibility: visible !important; }
+  .prep-slip {
+    position: absolute !important;
+    left: 0; top: 0;
+    width: 100%;
+    max-width: none !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+  .no-print { display: none !important; }
+}
