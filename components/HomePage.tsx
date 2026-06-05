@@ -413,22 +413,6 @@ export default function HomePage({ products, categories, promos, producers }: {
           })()}
         </div>
 
-        {/* Chip Promos */}
-        {promoCategories.size > 0 && (
-          <div className="mb-3">
-            <button
-              onClick={() => setPromoOnly(v => !v)}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition ${
-                promoOnly
-                  ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
-                  : 'bg-white text-amber-700 border-amber-300 hover:bg-amber-50'
-              }`}
-            >
-              🏷️ {t('filter.promos_only', 'Articles en promotion')}
-              {promoOnly && <span className="text-white/80 text-xs">✕</span>}
-            </button>
-          </div>
-        )}
 
         {/* Filtres */}
         <div className="flex flex-wrap gap-3 mb-6">
@@ -618,20 +602,20 @@ export default function HomePage({ products, categories, promos, producers }: {
               {
                 step: '1',
                 emoji: '🛒',
-                title: t('howStep1Title', 'Parcourez'),
-                desc: t('howStep1Desc', 'Explorez nos produits bio et locaux, filtrés par catégorie, origine ou type.'),
+                title: t('about.step1_title', 'Vous choisissez'),
+                desc: t('about.step1_desc', 'Parcourez notre catalogue et sélectionnez vos fruits et légumes préférés en quelques clics.'),
               },
               {
                 step: '2',
-                emoji: '📦',
-                title: t('howStep2Title', 'Commandez'),
-                desc: t('howStep2Desc', 'Ajoutez au panier, choisissez votre mode de paiement et confirmez en quelques clics.'),
+                emoji: '🔍',
+                title: t('about.step2_title', 'On sélectionne'),
+                desc: t('about.step2_desc', 'Notre équipe choisit pour vous les meilleurs produits du marché — mûrs à point, sans défaut.'),
               },
               {
                 step: '3',
                 emoji: '🚚',
-                title: t('howStep3Title', 'Recevez'),
-                desc: t('howStep3Desc', 'Vos produits frais sont livrés directement depuis les fermes jusqu\'à votre porte.'),
+                title: t('about.step3_title', 'On livre'),
+                desc: t('about.step3_desc', "Vos produits arrivent frais à l'adresse et à l'heure de votre choix, emballés avec soin."),
               },
             ].map(s => (
               <div key={s.step} className="flex flex-col items-center text-center relative">
