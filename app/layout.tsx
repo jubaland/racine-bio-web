@@ -5,6 +5,7 @@ import { LanguageProvider } from '../context/LanguageContext';
 import { CartProvider } from '../context/CartContext';
 import { FavoritesProvider } from '../context/FavoritesContext';
 import ServiceWorkerRegister from '../components/ServiceWorkerRegister';
+import LaunchSplash from '../components/LaunchSplash';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="fr" style={{ colorScheme: 'only light' }}>
       <body className={`${inter.className} overflow-x-hidden`}>
         <ServiceWorkerRegister />
+        <LaunchSplash />
         <LanguageProvider>
           <CartProvider>
             <FavoritesProvider>
