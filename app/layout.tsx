@@ -5,6 +5,7 @@ import { LanguageProvider } from '../context/LanguageContext';
 import { CartProvider } from '../context/CartContext';
 import { FavoritesProvider } from '../context/FavoritesContext';
 import ServiceWorkerRegister from '../components/ServiceWorkerRegister';
+import InstallAppPrompt from '../components/InstallAppPrompt';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -27,11 +28,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="fr" style={{ colorScheme: 'only light' }}>
       <body className={`${inter.className} overflow-x-hidden`}>
+        <script dangerouslySetInnerHTML={{ __html: "window.__bip=null;addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__bip=e;});" }} />
         <ServiceWorkerRegister />
         <LanguageProvider>
           <CartProvider>
             <FavoritesProvider>
               {children}
+              <InstallAppPrompt />
             </FavoritesProvider>
           </CartProvider>
         </LanguageProvider>
