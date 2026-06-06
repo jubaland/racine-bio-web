@@ -38,9 +38,14 @@ export default function CheckoutPage() {
   const deliveryName = (opt: { id: number; name: string }) => deliveryOptionTranslations[opt.id]?.name || opt.name;
   const deliveryDesc = (opt: { id: number; description: string }) => deliveryOptionTranslations[opt.id]?.description || opt.description;
 
+  const [walletBalance, setWalletBalance] = useState(0);
+
   const PAYMENT_METHODS = [
     { id: 'waafi', label: t('checkout.waafi_label', 'Waafi'),   emoji: '📱', desc: t('checkout.waafi_desc', 'Paiement mobile Waafi') },
     { id: 'cash',  label: t('checkout.cash_label',  'Espèces'), emoji: '💵', desc: t('checkout.cash_desc',  'Paiement à la livraison') },
+    ...(walletBalance > 0
+      ? [{ id: 'wallet', label: t('checkout.wallet_label', 'Cagnotte'), emoji: '💰', desc: `${t('checkout.wallet_balance', 'Solde')} : ${walletBalance.toLocaleString()} Fdj` }]
+      : []),
   ];
 
   const [cartOpen, setCartOpen] = useState(false);
@@ -99,6 +104,7 @@ export default function CheckoutPage() {
   const referralDiscount = referralActive && standardOption ? standardOption.price : 0;
   const deliveryFee = Math.max(0, baseFee - referralDiscount);
   const orderTotal = total + deliveryFee;
+  const walletInsufficient = paymentMethod === 'wallet' && walletBalance < orderTotal;
 
   const showAddressCards = !!(user && savedAddresses.length > 0);
   const showNewAddressForm = !showAddressCards || selectedAddressId === 'new';
@@ -141,6 +147,10 @@ export default function CheckoutPage() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user || null);
       setAuthChecked(true);
+      if (session?.user) {
+        supabase.from('wallets').select('balance').eq('user_id', session.user.id).maybeSingle()
+          .then(({ data }) => setWalletBalance(Number(data?.balance) || 0));
+      }
       // Récupérer les crédits parrainage si connecté
       if (session?.access_token) {
         fetch('/api/referral', {
@@ -1095,6 +1105,12 @@ export default function CheckoutPage() {
               </div>
             )}
 
+            {walletInsufficient && (
+              <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-2">
+                <p className="text-[#f97316] font-semibold text-sm">⚠️ {t('checkout.wallet_insufficient', 'Solde de cagnotte insuffisant')} — {walletBalance.toLocaleString()} / {orderTotal.toLocaleString()} Fdj</p>
+              </div>
+            )}
+
             <div className="flex gap-3">
               <button
                 onClick={() => setStep(3)}
@@ -1104,7 +1120,7 @@ export default function CheckoutPage() {
               </button>
               <button
                 onClick={handleOrder}
-                disabled={loading}
+                disabled={loading || walletInsufficient}
                 className="flex-1 bg-[#a8c800] text-white py-4 rounded-2xl font-semibold hover:bg-[#7d9800] transition disabled:opacity-50"
               >
                 {loading

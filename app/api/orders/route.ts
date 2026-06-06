@@ -37,6 +37,17 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
+    // Paiement par cagnotte : vérifier le solde AVANT de créer la commande
+    if (order.payment_method === 'wallet') {
+      if (!order.user_id) {
+        return NextResponse.json({ error: 'wallet_requires_account' }, { status: 400 });
+      }
+      const { data: w } = await supabaseAdmin.from('wallets').select('balance').eq('user_id', order.user_id).maybeSingle();
+      if ((Number(w?.balance) || 0) < Number(order.total)) {
+        return NextResponse.json({ error: 'wallet_insufficient', balance: Number(w?.balance) || 0 }, { status: 400 });
+      }
+    }
+
     // Créer la commande
     const { data: createdOrder, error: orderError } = await supabaseAdmin
       .from('orders')
@@ -45,6 +56,17 @@ export async function POST(request: Request) {
       .single();
 
     if (orderError) return NextResponse.json({ error: orderError.message }, { status: 400 });
+
+    // Paiement par cagnotte : débiter après création de la commande
+    if (order.payment_method === 'wallet' && createdOrder.user_id) {
+      await supabaseAdmin.rpc('wallet_adjust', {
+        p_user: createdOrder.user_id,
+        p_amount: -Number(createdOrder.total),
+        p_type: 'debit',
+        p_order: createdOrder.id,
+        p_note: 'Paiement commande',
+      });
+    }
 
     // Insérer les articles (snapshot produit)
     const { error: snapshotError } = await supabaseAdmin
