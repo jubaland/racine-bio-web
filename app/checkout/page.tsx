@@ -166,8 +166,30 @@ export default function CheckoutPage() {
       .eq('user_id', user.id)
       .order('is_default', { ascending: false })
       .order('created_at', { ascending: true })
-      .then(({ data }) => {
-        const addrs = (data || []) as SavedAddress[];
+      .then(async ({ data }) => {
+        let addrs = (data || []) as SavedAddress[];
+
+        // Aucune adresse enregistrée : créer une adresse "Maison" depuis les
+        // coordonnées du profil (saisies à l'inscription) si elles existent.
+        if (addrs.length === 0) {
+          const md = user.user_metadata || {};
+          const mdPhone = String(md.phone || '').replace(/\D/g, '');
+          if (md.address && mdPhone.length >= 8) {
+            const { data: created } = await supabase
+              .from('addresses')
+              .insert({
+                user_id:        user.id,
+                label:          'Maison',
+                recipient_name: md.full_name || '',
+                phone:          mdPhone,
+                address:        md.address,
+                is_default:     true,
+              })
+              .select();
+            if (created && created.length) addrs = created as SavedAddress[];
+          }
+        }
+
         setSavedAddresses(addrs);
         if (addrs.length > 0) {
           selectSavedAddress(addrs[0]);
