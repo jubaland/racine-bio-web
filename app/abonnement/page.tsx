@@ -93,8 +93,10 @@ export default function SubscriptionPage() {
       <Header onCartOpen={() => setCartOpen(true)} />
 
       <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 md:py-8">
-        <Link href="/profile" className="text-sm text-[#7d9800] hover:underline">← {t('sub.back', 'Mon profil')}</Link>
-        <h1 className="text-2xl font-bold text-gray-800 mt-2 mb-1">🔄 {t('sub.title', 'Ma commande type')}</h1>
+        <Link href="/profile" className="inline-flex items-center gap-1.5 bg-white border border-[#d2e095] text-[#526500] text-sm font-semibold px-4 py-2 rounded-full hover:bg-[#ecf4d5] hover:border-[#a8c800] transition shadow-sm">
+          <span className="text-base leading-none">←</span> {t('sub.back', 'Mon profil')}
+        </Link>
+        <h1 className="text-2xl font-bold text-gray-800 mt-4 mb-1">🔄 {t('sub.title', 'Ma commande type')}</h1>
         <p className="text-gray-500 text-sm mb-6">{t('sub.subtitle', 'Composez votre panier livré automatiquement chaque semaine, débité de votre cagnotte.')}</p>
 
         {loading ? (
