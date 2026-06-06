@@ -75,14 +75,29 @@ export default function InstallAppPrompt() {
           </button>
           <button onClick={dismiss} aria-label={t('install.close', 'Fermer')} className="flex-none text-white/50 hover:text-white text-lg leading-none">✕</button>
         </div>
-        {help && (
-          <p className="text-xs text-[#c8e050] mt-2 leading-relaxed">
-            {help === 'ios'
-              ? t('install.ios_help', "Appuyez sur le bouton Partager ⬆️ de Safari, puis « Sur l'écran d'accueil ».")
-              : t('install.android_help', 'Ouvrez le menu ⋮ du navigateur, puis « Installer l\'application ».')}
-          </p>
-        )}
       </div>
+
+      {/* Instructions d'installation (modal clair) */}
+      {help && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4" onClick={() => setHelp('')}>
+          <div className="bg-white rounded-3xl p-6 max-w-xs w-full text-center text-gray-800" onClick={e => e.stopPropagation()}>
+            <p className="text-4xl mb-2">📲</p>
+            <h3 className="font-bold text-lg mb-4">{t('install.howto_title', "Installer l'application")}</h3>
+            {help === 'ios' ? (
+              <ol className="text-sm text-gray-600 text-left space-y-3 mb-5">
+                <li><span className="font-bold text-[#526500]">1.</span> {t('install.ios_step1', 'Appuyez sur le bouton Partager')} <span className="inline-block align-middle">⎋</span> {t('install.ios_step1b', '(en bas de Safari).')}</li>
+                <li><span className="font-bold text-[#526500]">2.</span> {t('install.ios_step2', "Faites défiler et choisissez « Sur l'écran d'accueil ».")}</li>
+                <li><span className="font-bold text-[#526500]">3.</span> {t('install.ios_step3', 'Appuyez sur « Ajouter ».')}</li>
+              </ol>
+            ) : (
+              <p className="text-sm text-gray-600 mb-5">{t('install.android_help', 'Ouvrez le menu ⋮ du navigateur, puis « Installer l\'application ».')}</p>
+            )}
+            <button onClick={() => setHelp('')} className="w-full bg-[#a8c800] text-white py-2.5 rounded-xl font-semibold hover:bg-[#7d9800] transition">
+              {t('install.got_it', 'Compris')}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
