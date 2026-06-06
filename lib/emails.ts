@@ -18,6 +18,7 @@ const PAYMENT_LABELS: Record<string, string> = {
   waafi:  '📱 Waafi',
   dmoney: '💳 D-Money',
   cash:   '💵 Espèces (à la livraison)',
+  wallet: '💰 Cagnotte (prépayé)',
 };
 
 function baseLayout(content: string) {
@@ -257,7 +258,11 @@ export async function sendPrepSlipToPreparers(order: any, items: any[], emails: 
   const ordered = new Date(order.created_at);
   const deadline = new Date(ordered.getTime() + 24 * 3600 * 1000); // livraison sous 24h
   const fmt = (d: Date) => d.toLocaleString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' });
-  const isCash = order.payment_method === 'cash';
+  const totalStr = `${Number(order.total).toLocaleString('fr-FR')} Fdj`;
+  const payLine =
+    order.payment_method === 'cash'   ? `💵 À encaisser : ${totalStr}` :
+    order.payment_method === 'wallet' ? `💰 Payé (cagnotte) — ${totalStr}` :
+                                        `📱 Payé via Waafi (à vérifier) — ${totalStr}`;
 
   const rows = items.map(it => {
     const name = it.product_name || `Produit #${it.product_id}`;
@@ -299,11 +304,7 @@ export async function sendPrepSlipToPreparers(order: any, items: any[], emails: 
 
     <div style="border-top:2px solid #526500;padding-top:12px;margin-top:16px;">
       ${order.delivery_option_name ? `<p style="margin:0 0 4px;color:#6b7280;font-size:13px;">🚚 Livraison : ${order.delivery_option_name}</p>` : ''}
-      <p style="margin:0;font-size:16px;font-weight:bold;color:#526500;">
-        ${isCash
-          ? `💵 À encaisser : ${Number(order.total).toLocaleString('fr-FR')} Fdj`
-          : `📱 Payé via Waafi (à vérifier) — ${Number(order.total).toLocaleString('fr-FR')} Fdj`}
-      </p>
+      <p style="margin:0;font-size:16px;font-weight:bold;color:#526500;">${payLine}</p>
     </div>
   `);
 
@@ -323,4 +324,22 @@ export async function sendPrepSlipToPreparers(order: any, items: any[], emails: 
     html,
     attachments,
   });
+}
+
+// ── 5. Abonnement mis en pause (solde insuffisant) → client ──────────────────
+export async function sendSubscriptionPaused(email: string, needed: number, balance: number) {
+  const html = baseLayout(`
+    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">⏸️ Livraison hebdomadaire en pause</h2>
+    <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">Votre cagnotte est insuffisante pour la livraison de cette semaine.</p>
+    <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:12px;padding:16px;margin:16px 0;">
+      <p style="margin:0 0 4px;color:#92400e;font-size:14px;">Montant nécessaire : <strong>${Number(needed).toLocaleString('fr-FR')} Fdj</strong></p>
+      <p style="margin:0;color:#92400e;font-size:14px;">Solde actuel : <strong>${Number(balance).toLocaleString('fr-FR')} Fdj</strong></p>
+    </div>
+    <p style="color:#374151;font-size:14px;line-height:1.6;">
+      Rechargez votre cagnotte auprès de notre équipe (Waafi / espèces) pour reprendre vos livraisons automatiques.
+      Votre commande type est conservée et reprendra dès le rechargement.
+    </p>
+    <p style="color:#6b7280;font-size:13px;margin-top:24px;">Pour recharger, contactez-nous au <strong>77432615</strong>.</p>
+  `);
+  await resend.emails.send({ from: FROM, to: email, subject: '⏸️ Cagnotte à recharger — Hornafresh', html });
 }

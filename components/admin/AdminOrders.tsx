@@ -39,6 +39,7 @@ const PAYMENT_LABELS: Record<string, string> = {
   waafi:  '📱 Waafi',
   dmoney: '💳 D-Money',
   cash:   '💵 Espèces',
+  wallet: '💰 Cagnotte',
 };
 
 export default function AdminOrders() {

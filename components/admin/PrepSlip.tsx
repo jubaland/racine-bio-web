@@ -14,7 +14,7 @@ export default function PrepSlip({ order, onClose }: { order: any; onClose: () =
   const deadline = new Date(ordered.getTime() + 24 * 3600 * 1000); // livraison sous 24h
   const overdue = deadline.getTime() < Date.now();
   const fmt = (d: Date) => d.toLocaleString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' });
-  const isCash = order.payment_method === 'cash';
+  const payMethod = order.payment_method;
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[60] flex items-start justify-center overflow-y-auto p-3 md:p-6">
@@ -88,8 +88,10 @@ export default function PrepSlip({ order, onClose }: { order: any; onClose: () =
             {order.delivery_option_name && (
               <p className="text-sm text-gray-600 mb-1">🚚 {t('slip.delivery_mode', 'Livraison')} : {order.delivery_option_name}</p>
             )}
-            {isCash ? (
+            {payMethod === 'cash' ? (
               <p className="text-base font-bold text-[#526500]">💵 {t('slip.to_collect', 'À encaisser')} : {Number(order.total).toLocaleString()} Fdj</p>
+            ) : payMethod === 'wallet' ? (
+              <p className="text-base font-bold text-[#526500]">💰 {t('slip.paid_wallet', 'Payé (cagnotte)')} — {Number(order.total).toLocaleString()} Fdj</p>
             ) : (
               <p className="text-base font-bold text-[#526500]">
                 📱 {t('slip.paid_waafi', 'Payé via Waafi (à vérifier)')} — {Number(order.total).toLocaleString()} Fdj
