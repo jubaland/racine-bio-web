@@ -61,6 +61,8 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [walletTx, setWalletTx] = useState<{ id: number; type: string; amount: number; note: string | null; created_at: string }[]>([]);
   const { ui } = useLanguage();
   const { count: favCount } = useFavorites();
   const t = (key: string, fallback: string) => ui[key] || fallback;
@@ -181,6 +183,13 @@ export default function ProfilePage() {
       if (session.user.user_metadata?.notifications) {
         setNotifPrefs(prev => ({ ...prev, ...session.user.user_metadata.notifications }));
       }
+
+      // Cagnotte (solde + historique) — lecture RLS (propriétaire)
+      supabase.from('wallets').select('balance').eq('user_id', session.user.id).maybeSingle()
+        .then(({ data }) => setWalletBalance(Number(data?.balance) || 0));
+      supabase.from('wallet_transactions').select('id, type, amount, note, created_at')
+        .eq('user_id', session.user.id).order('created_at', { ascending: false }).limit(20)
+        .then(({ data }) => setWalletTx(data || []));
 
       // Push navigateur
       if ('serviceWorker' in navigator && 'PushManager' in window) {
@@ -401,6 +410,29 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+
+        {/* Cagnotte (si le client en a une) */}
+        {(walletBalance > 0 || walletTx.length > 0) && (
+          <div className="bg-gradient-to-br from-[#1c3a05] via-[#2d6410] to-[#7a5800] rounded-3xl p-6 text-white shadow-sm mb-6">
+            <p className="text-xs uppercase tracking-widest text-[#c8e050]">💰 {t('profile.wallet', 'Ma cagnotte')}</p>
+            <p className="text-3xl font-extrabold mt-1">{walletBalance.toLocaleString()} Fdj</p>
+            {walletTx.length > 0 && (
+              <div className="mt-4 space-y-1.5">
+                {walletTx.slice(0, 5).map(m => (
+                  <div key={m.id} className="flex items-center justify-between text-sm bg-white/10 rounded-lg px-3 py-1.5">
+                    <span className="text-white/80">
+                      {m.note || (m.type === 'deposit' ? t('profile.wallet_deposit', 'Dépôt') : m.type === 'debit' ? t('profile.wallet_debit', 'Livraison') : t('profile.wallet_adjust', 'Ajustement'))}
+                      <span className="text-white/40 text-xs ml-2">{new Date(m.created_at).toLocaleDateString('fr-FR')}</span>
+                    </span>
+                    <span className={`font-bold ${m.amount >= 0 ? 'text-[#c8e050]' : 'text-orange-200'}`}>
+                      {m.amount > 0 ? '+' : ''}{Number(m.amount).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-6">
