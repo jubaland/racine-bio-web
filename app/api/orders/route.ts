@@ -178,9 +178,8 @@ export async function POST(request: Request) {
       }
     } catch (_) {}
 
-    // Emails — fire-and-forget (Resend peut prendre ~1s)
-    (async () => {
-      try {
+    // Emails — awaités avant la réponse (serverless : le code après le return ne s'exécute pas)
+    try {
         let customerEmail: string | null = null;
         if (createdOrder.user_id) {
           const { data: userData } = await supabaseAdmin.auth.admin.getUserById(createdOrder.user_id);
@@ -207,10 +206,9 @@ export async function POST(request: Request) {
           await sendPrepSlipToPreparers(createdOrder, emailItems, prepEmails);
           console.log('[email] prep slip sent to', prepEmails.length, 'preparers');
         }
-      } catch (err) {
-        console.error('[email] ERROR:', err);
-      }
-    })();
+    } catch (err) {
+      console.error('[email] ERROR:', err);
+    }
 
     return NextResponse.json({ order: createdOrder });
   } catch (e: any) {
@@ -282,39 +280,37 @@ export async function PATCH(request: Request) {
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-  // Notifier le client par email — fire-and-forget (connecté OU invité)
-  (async () => {
-    try {
-      let customerEmail: string | null = null;
-      if (updatedOrder?.user_id) {
-        const { data: userData } = await supabaseAdmin.auth.admin.getUserById(updatedOrder.user_id);
-        customerEmail = userData?.user?.email ?? null;
-      } else {
-        customerEmail = updatedOrder?.email ?? null; // commande invité
-      }
-      if (customerEmail) await sendStatusUpdate(updatedOrder, customerEmail);
+  // Notifier le client — awaité (serverless : le code après le return ne s'exécute pas)
+  try {
+    let customerEmail: string | null = null;
+    if (updatedOrder?.user_id) {
+      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(updatedOrder.user_id);
+      customerEmail = userData?.user?.email ?? null;
+    } else {
+      customerEmail = updatedOrder?.email ?? null; // commande invité
+    }
+    if (customerEmail) await sendStatusUpdate(updatedOrder, customerEmail);
 
-      // Push — uniquement pour les utilisateurs connectés (les invités n'ont pas d'abonnement)
-      if (updatedOrder?.user_id) {
-        try {
-          const { sendPushToUser } = await import('../../../lib/push');
-          const STATUS_PUSH: Record<string, string> = {
-            processing: '🚚 Commande en préparation',
-            shipping:   '📦 Commande expédiée',
-            delivered:  '✅ Commande livrée !',
-            cancelled:  '❌ Commande annulée',
-          };
-          if (STATUS_PUSH[updatedOrder.status]) {
-            await sendPushToUser(updatedOrder.user_id, {
-              title: STATUS_PUSH[updatedOrder.status],
-              body: `Commande #${String(updatedOrder.id).slice(0, 8).toUpperCase()}`,
-              url: '/profile',
-            });
-          }
-        } catch (_) {}
-      }
-    } catch (_) { /* email failure must not affect response */ }
-  })();
+    // Push — uniquement pour les utilisateurs connectés (les invités n'ont pas d'abonnement)
+    if (updatedOrder?.user_id) {
+      try {
+        const { sendPushToUser } = await import('../../../lib/push');
+        const STATUS_PUSH: Record<string, string> = {
+          processing: '🚚 Commande en préparation',
+          shipping:   '📦 Commande expédiée',
+          delivered:  '✅ Commande livrée !',
+          cancelled:  '❌ Commande annulée',
+        };
+        if (STATUS_PUSH[updatedOrder.status]) {
+          await sendPushToUser(updatedOrder.user_id, {
+            title: STATUS_PUSH[updatedOrder.status],
+            body: `Commande #${String(updatedOrder.id).slice(0, 8).toUpperCase()}`,
+            url: '/profile',
+          });
+        }
+      } catch (_) {}
+    }
+  } catch (_) { /* email failure must not affect response */ }
 
   return NextResponse.json({ ok: true });
 }
