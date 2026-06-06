@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
+import { titleCase } from '../../lib/format';
 import { useLanguage } from '../../context/LanguageContext';
 
 type Mode = 'login' | 'register';
@@ -11,7 +12,12 @@ export default function LoginPage() {
   const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [phoneDigits, setPhoneDigits] = useState('');
+  const [phoneFocused, setPhoneFocused] = useState(false);
+  const phoneDisplay = phoneFocused ? phoneDigits : (phoneDigits.match(/.{1,2}/g) || []).join(' ');
+  const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
@@ -34,10 +40,20 @@ export default function LoginPage() {
 
     try {
       if (mode === 'register') {
+        if (password !== confirmPassword) {
+          throw new Error(t('login.password_mismatch', 'Les mots de passe ne correspondent pas.'));
+        }
+        if (phoneDigits.length !== 6) {
+          throw new Error(t('login.phone_invalid', 'Numéro invalide : 6 chiffres après 77.'));
+        }
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { full_name: fullName } },
+          options: { data: {
+            full_name: titleCase(fullName),
+            phone: '77' + phoneDigits,
+            address: titleCase(address),
+          } },
         });
         if (error) throw error;
         setSuccess(t('login.register_success', 'Compte créé ! Vérifiez votre email pour confirmer.'));
@@ -231,6 +247,44 @@ export default function LoginPage() {
               />
             </div>
 
+            {mode === 'register' && (
+              <div>
+                <label className="text-sm font-medium text-gray-600 mb-1.5 block">
+                  {t('login.phone', 'Téléphone')}
+                </label>
+                <div className="flex border border-[#d2e095] rounded-xl overflow-hidden focus-within:border-[#a8c800] focus-within:ring-2 focus-within:ring-[#a8c800]/20 bg-[#faf7e8] transition">
+                  <span className="flex items-center px-4 text-sm font-semibold text-gray-700 bg-[#ecf4d5] border-r border-[#d2e095] select-none">77</span>
+                  <input
+                    type="tel"
+                    value={phoneDisplay}
+                    onChange={e => setPhoneDigits(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    onFocus={() => setPhoneFocused(true)}
+                    onBlur={() => setPhoneFocused(false)}
+                    placeholder="XX XX XX"
+                    maxLength={8}
+                    required
+                    className="flex-1 px-4 py-3 text-sm text-gray-800 bg-transparent focus:outline-none"
+                  />
+                </div>
+              </div>
+            )}
+
+            {mode === 'register' && (
+              <div>
+                <label className="text-sm font-medium text-gray-600 mb-1.5 block">
+                  {t('login.address', 'Adresse')}
+                </label>
+                <textarea
+                  value={address}
+                  onChange={e => setAddress(e.target.value)}
+                  placeholder={t('login.address_placeholder', 'Ex: Quartier 4, Balbala, Djibouti')}
+                  rows={2}
+                  required
+                  className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] focus:ring-2 focus:ring-[#a8c800]/20 bg-[#faf7e8] transition resize-none"
+                />
+              </div>
+            )}
+
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-medium text-gray-600">
@@ -255,6 +309,26 @@ export default function LoginPage() {
                 <p className="text-xs text-gray-400 mt-1">{t('login.password_hint', 'Minimum 6 caractères')}</p>
               )}
             </div>
+
+            {mode === 'register' && (
+              <div>
+                <label className="text-sm font-medium text-gray-600 mb-1.5 block">
+                  {t('login.confirm_password', 'Confirmer le mot de passe')}
+                </label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  minLength={6}
+                  className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] focus:ring-2 focus:ring-[#a8c800]/20 bg-[#faf7e8] transition"
+                />
+                {confirmPassword.length > 0 && confirmPassword !== password && (
+                  <p className="text-xs text-[#f97316] mt-1">⚠️ {t('login.password_mismatch', 'Les mots de passe ne correspondent pas.')}</p>
+                )}
+              </div>
+            )}
 
             <button
               type="submit"
