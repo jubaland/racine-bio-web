@@ -24,18 +24,22 @@ export async function sendPushToUser(userId: string, payload: { title: string; b
   console.log('[push] subs for user:', subs?.length ?? 0, '| error:', error?.message ?? 'none');
   if (!subs || subs.length === 0) return;
 
-  const results = await Promise.allSettled(
-    subs.map(sub =>
-      webpush.sendNotification(
-        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        JSON.stringify(payload)
-      )
-    )
+  await Promise.allSettled(
+    subs.map(async sub => {
+      try {
+        const res = await webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          JSON.stringify(payload)
+        );
+        console.log('[push] user sendNotification ok, statusCode:', res?.statusCode);
+      } catch (e: any) {
+        if (e?.statusCode === 410 || e?.statusCode === 404) {
+          await supabaseAdmin.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+          console.log('[push] removed expired subscription (user)');
+        } else console.error('[push] user sendNotification failed:', e?.statusCode, e?.body);
+      }
+    })
   );
-  results.forEach((r, i) => {
-    if (r.status === 'rejected') console.error('[push] sendNotification[' + i + '] failed:', r.reason);
-    else console.log('[push] sendNotification[' + i + '] ok, statusCode:', r.value?.statusCode);
-  });
 }
 
 export async function sendPushToAdmin(payload: { title: string; body: string; url?: string }) {
@@ -57,16 +61,20 @@ export async function sendPushToAdmin(payload: { title: string; body: string; ur
   console.log('[push] subs for admin:', subs?.length ?? 0, '| error:', error?.message ?? 'none');
   if (!subs || subs.length === 0) return;
 
-  const results = await Promise.allSettled(
-    subs.map(sub =>
-      webpush.sendNotification(
-        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        JSON.stringify(payload)
-      )
-    )
+  await Promise.allSettled(
+    subs.map(async sub => {
+      try {
+        const res = await webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          JSON.stringify(payload)
+        );
+        console.log('[push] admin sendNotification ok, statusCode:', res?.statusCode);
+      } catch (e: any) {
+        if (e?.statusCode === 410 || e?.statusCode === 404) {
+          await supabaseAdmin.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+          console.log('[push] removed expired subscription (admin)');
+        } else console.error('[push] admin sendNotification failed:', e?.statusCode, e?.body);
+      }
+    })
   );
-  results.forEach((r, i) => {
-    if (r.status === 'rejected') console.error('[push] admin sendNotification[' + i + '] failed:', r.reason);
-    else console.log('[push] admin sendNotification[' + i + '] ok, statusCode:', r.value?.statusCode);
-  });
 }
