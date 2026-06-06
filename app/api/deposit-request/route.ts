@@ -21,18 +21,17 @@ export async function POST(request: Request) {
       .select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-    // Notifier l'admin (email + push) — fire and forget
-    (async () => {
-      try { await sendDepositRequestAlert(req, { name: user.user_metadata?.full_name, email: user.email }); } catch {}
-      try {
-        const { sendPushToAdmin } = await import('../../../lib/push');
-        await sendPushToAdmin({
-          title: '💰 Demande de recharge',
-          body: `${user.user_metadata?.full_name || user.email} — ${amt.toLocaleString('fr-FR')} Fdj`,
-          url: '/admin',
-        });
-      } catch {}
-    })();
+    // Notifier l'admin (email + push) — AWAITÉ (serverless : le code après return ne s'exécute pas)
+    try { await sendDepositRequestAlert(req, { name: user.user_metadata?.full_name, email: user.email }); }
+    catch (e) { console.error('[deposit] email error:', e); }
+    try {
+      const { sendPushToAdmin } = await import('../../../lib/push');
+      await sendPushToAdmin({
+        title: '💰 Demande de recharge',
+        body: `${user.user_metadata?.full_name || user.email} — ${amt.toLocaleString('fr-FR')} Fdj`,
+        url: '/admin',
+      });
+    } catch (e) { console.error('[deposit] push error:', e); }
 
     return NextResponse.json({ ok: true, request: req });
   } catch (e: any) {

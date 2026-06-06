@@ -36,28 +36,25 @@ export async function POST(request: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     await supabaseAdmin.from('deposit_requests')
       .update({ status: 'approved', note: note || null, reviewed_at: new Date().toISOString() }).eq('id', id);
-    (async () => {
-      try {
-        const { data: u } = await supabaseAdmin.auth.admin.getUserById(req.user_id);
-        if (u?.user?.email) await sendDepositApproved(u.user.email, Number(req.amount), Number(bal));
-      } catch {}
-      try {
-        const { sendPushToUser } = await import('../../../../lib/push');
-        await sendPushToUser(req.user_id, { title: '✅ Cagnotte rechargée', body: `+${Number(req.amount).toLocaleString('fr-FR')} Fdj`, url: '/profile' });
-      } catch {}
-    })();
+    // Notifs client — awaitées (serverless)
+    try {
+      const { data: u } = await supabaseAdmin.auth.admin.getUserById(req.user_id);
+      if (u?.user?.email) await sendDepositApproved(u.user.email, Number(req.amount), Number(bal));
+    } catch (e) { console.error('[deposit approve] email error:', e); }
+    try {
+      const { sendPushToUser } = await import('../../../../lib/push');
+      await sendPushToUser(req.user_id, { title: '✅ Cagnotte rechargée', body: `+${Number(req.amount).toLocaleString('fr-FR')} Fdj`, url: '/profile' });
+    } catch (e) { console.error('[deposit approve] push error:', e); }
     return NextResponse.json({ ok: true, balance: bal });
   }
 
   if (action === 'reject') {
     await supabaseAdmin.from('deposit_requests')
       .update({ status: 'rejected', note: note || null, reviewed_at: new Date().toISOString() }).eq('id', id);
-    (async () => {
-      try {
-        const { sendPushToUser } = await import('../../../../lib/push');
-        await sendPushToUser(req.user_id, { title: '❌ Recharge refusée', body: 'Votre demande de recharge n\'a pas été validée. Contactez-nous.', url: '/profile' });
-      } catch {}
-    })();
+    try {
+      const { sendPushToUser } = await import('../../../../lib/push');
+      await sendPushToUser(req.user_id, { title: '❌ Recharge refusée', body: 'Votre demande de recharge n\'a pas été validée. Contactez-nous.', url: '/profile' });
+    } catch (e) { console.error('[deposit reject] push error:', e); }
     return NextResponse.json({ ok: true });
   }
 
