@@ -54,7 +54,7 @@ export default function SubscriptionPage() {
     })();
   }, []);
 
-  const setQ = (id: number, v: number) => setQty(prev => ({ ...prev, [id]: Math.max(0, v) }));
+  const setQ = (id: number, v: number) => { setSaved(false); setQty(prev => ({ ...prev, [id]: Math.max(0, v) })); };
 
   const basket = products.filter(p => (qty[p.id] || 0) > 0);
   const total = basket.reduce((s, p) => s + Number(p.price) * (qty[p.id] || 0), 0);
@@ -67,19 +67,24 @@ export default function SubscriptionPage() {
       return;
     }
     setSaving(true);
-    await supabase.from('subscriptions').upsert({
+    const { error: e1 } = await supabase.from('subscriptions').upsert({
       user_id: user.id, delivery_day: deliveryDay, active, paused: false,
       updated_at: new Date().toISOString(),
     });
-    await supabase.from('subscription_items').delete().eq('user_id', user.id);
+    if (e1) { setSaving(false); setError(e1.message); return; }
+
+    const { error: e2 } = await supabase.from('subscription_items').delete().eq('user_id', user.id);
+    if (e2) { setSaving(false); setError(e2.message); return; }
+
     if (basket.length > 0) {
-      await supabase.from('subscription_items').insert(
+      const { error: e3 } = await supabase.from('subscription_items').insert(
         basket.map(p => ({ user_id: user.id, product_id: p.id, quantity: qty[p.id] }))
       );
+      if (e3) { setSaving(false); setError(e3.message); return; }
     }
     setSaving(false);
     setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -96,6 +101,12 @@ export default function SubscriptionPage() {
           <p className="text-gray-400 text-center py-12">{t('admin.loading', 'Chargement...')}</p>
         ) : (
           <>
+            {saved && (
+              <div className="bg-green-50 border border-green-200 text-[#526500] rounded-2xl px-4 py-3 mb-5 text-sm font-semibold">
+                ✅ {t('sub.saved_msg', 'Votre commande type a été enregistrée.')}
+              </div>
+            )}
+
             {/* Cagnotte */}
             <div className="bg-gradient-to-br from-[#1c3a05] via-[#2d6410] to-[#7a5800] rounded-2xl p-4 text-white mb-5 flex items-center justify-between">
               <div>
@@ -141,12 +152,12 @@ export default function SubscriptionPage() {
             <div className="bg-white rounded-3xl p-5 border border-[#d2e095] shadow-sm mb-5 space-y-4">
               <div>
                 <label className="text-sm font-medium text-gray-600 mb-1.5 block">📅 {t('sub.delivery_day', 'Jour de livraison')}</label>
-                <select value={deliveryDay} onChange={e => setDeliveryDay(Number(e.target.value))} className="w-full border border-[#d2e095] rounded-xl px-4 py-2.5 text-sm bg-[#faf7e8] focus:outline-none focus:border-[#a8c800]">
+                <select value={deliveryDay} onChange={e => { setSaved(false); setDeliveryDay(Number(e.target.value)); }} className="w-full border border-[#d2e095] rounded-xl px-4 py-2.5 text-sm bg-[#faf7e8] focus:outline-none focus:border-[#a8c800]">
                   {DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
                 </select>
               </div>
               <label className="flex items-center gap-3 cursor-pointer select-none">
-                <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} className="w-5 h-5 accent-[#a8c800]" />
+                <input type="checkbox" checked={active} onChange={e => { setSaved(false); setActive(e.target.checked); }} className="w-5 h-5 accent-[#a8c800]" />
                 <span className="text-sm text-gray-700">{t('sub.activate', 'Activer la livraison automatique hebdomadaire')}</span>
               </label>
             </div>
