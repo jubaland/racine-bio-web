@@ -63,6 +63,12 @@ export default function ProfilePage() {
   const [ordersError, setOrdersError] = useState<string | null>(null);
   const [walletBalance, setWalletBalance] = useState(0);
   const [walletTx, setWalletTx] = useState<{ id: number; type: string; amount: number; note: string | null; created_at: string }[]>([]);
+  const [pendingDeposits, setPendingDeposits] = useState<{ id: number; amount: number; created_at: string }[]>([]);
+  const [depositOpen, setDepositOpen] = useState(false);
+  const [depositAmount, setDepositAmount] = useState('');
+  const [depositRef, setDepositRef] = useState('');
+  const [depositSaving, setDepositSaving] = useState(false);
+  const [depositMsg, setDepositMsg] = useState('');
   const { ui } = useLanguage();
   const { count: favCount } = useFavorites();
   const t = (key: string, fallback: string) => ui[key] || fallback;
@@ -190,6 +196,9 @@ export default function ProfilePage() {
       supabase.from('wallet_transactions').select('id, type, amount, note, created_at')
         .eq('user_id', session.user.id).order('created_at', { ascending: false }).limit(20)
         .then(({ data }) => setWalletTx(data || []));
+      supabase.from('deposit_requests').select('id, amount, created_at')
+        .eq('user_id', session.user.id).eq('status', 'pending').order('created_at', { ascending: false })
+        .then(({ data }) => setPendingDeposits(data || []));
 
       // Push navigateur
       if ('serviceWorker' in navigator && 'PushManager' in window) {
@@ -235,6 +244,28 @@ export default function ProfilePage() {
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
   const verified = !!(user?.email_confirmed_at || user?.confirmed_at);
+
+  const submitDeposit = async () => {
+    const amt = parseFloat(depositAmount);
+    if (!amt || amt <= 0) { setDepositMsg(t('profile.deposit_amount_err', 'Montant invalide.')); return; }
+    setDepositSaving(true); setDepositMsg('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/deposit-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ amount: amt, reference: depositRef.trim() }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setDepositMsg(json.error || 'Erreur'); setDepositSaving(false); return; }
+      setPendingDeposits(prev => [{ id: json.request.id, amount: amt, created_at: new Date().toISOString() }, ...prev]);
+      setDepositOpen(false);
+      setDepositAmount(''); setDepositRef('');
+    } catch (e: any) {
+      setDepositMsg(e.message || 'Erreur');
+    }
+    setDepositSaving(false);
+  };
 
   const resendVerification = async () => {
     if (!user?.email) return;
@@ -411,11 +442,30 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Cagnotte (si le client en a une) */}
-        {(walletBalance > 0 || walletTx.length > 0) && (
+        {/* Cagnotte */}
+        {user && (
           <div className="bg-gradient-to-br from-[#1c3a05] via-[#2d6410] to-[#7a5800] rounded-3xl p-6 text-white shadow-sm mb-6">
-            <p className="text-xs uppercase tracking-widest text-[#c8e050]">💰 {t('profile.wallet', 'Ma cagnotte')}</p>
-            <p className="text-3xl font-extrabold mt-1">{walletBalance.toLocaleString()} Fdj</p>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-widest text-[#c8e050]">💰 {t('profile.wallet', 'Ma cagnotte')}</p>
+                <p className="text-3xl font-extrabold mt-1">{walletBalance.toLocaleString()} Fdj</p>
+              </div>
+              <button
+                onClick={() => { setDepositOpen(true); setDepositMsg(''); setDepositAmount(''); setDepositRef(''); }}
+                className="flex-none bg-[#a8c800] text-[#1c3a05] text-sm font-bold px-4 py-2 rounded-full hover:bg-[#c8e050] transition"
+              >
+                ➕ {t('profile.wallet_topup', 'Recharger')}
+              </button>
+            </div>
+            {pendingDeposits.length > 0 && (
+              <div className="mt-3 space-y-1">
+                {pendingDeposits.map(d => (
+                  <p key={d.id} className="text-xs bg-white/10 rounded-lg px-3 py-1.5 text-[#c8e050]">
+                    ⏳ {t('profile.deposit_pending', 'Recharge en attente de validation')} : {Number(d.amount).toLocaleString()} Fdj
+                  </p>
+                ))}
+              </div>
+            )}
             {walletTx.length > 0 && (
               <div className="mt-4 space-y-1.5">
                 {walletTx.slice(0, 5).map(m => (
@@ -969,6 +1019,39 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Modal : recharger la cagnotte */}
+      {depositOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setDepositOpen(false)}>
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-gray-800 text-lg mb-1">➕ {t('profile.wallet_topup', 'Recharger ma cagnotte')}</h3>
+            <p className="text-sm text-gray-500 mb-4">{t('profile.deposit_intro', 'Envoyez le montant via Waafi, puis validez votre demande. L\'équipe créditera votre cagnotte après vérification.')}</p>
+
+            <div className="bg-[#e8f5e0] border border-[#a8c800] rounded-2xl p-4 mb-4 text-center">
+              <p className="text-xs text-gray-500">{t('profile.deposit_waafi', 'Numéro Waafi marchand')}</p>
+              <p className="text-2xl font-bold text-[#526500] tracking-widest">77432615</p>
+              <p className="text-xs text-gray-400 mt-0.5">Hornafresh — Djibouti</p>
+            </div>
+
+            <label className="text-sm font-medium text-gray-600 mb-1 block">{t('profile.deposit_amount', 'Montant envoyé (Fdj)')}</label>
+            <input type="number" min="0" value={depositAmount} onChange={e => setDepositAmount(e.target.value)} placeholder="20000"
+              className="w-full border border-[#d2e095] rounded-xl px-4 py-2.5 text-sm bg-[#faf7e8] focus:outline-none focus:border-[#a8c800] mb-3" />
+
+            <label className="text-sm font-medium text-gray-600 mb-1 block">{t('profile.deposit_ref', 'Référence Waafi (optionnel)')}</label>
+            <input value={depositRef} onChange={e => setDepositRef(e.target.value)} placeholder="Ex: TXN123456"
+              className="w-full border border-[#d2e095] rounded-xl px-4 py-2.5 text-sm bg-[#faf7e8] focus:outline-none focus:border-[#a8c800] mb-3" />
+
+            {depositMsg && <p className="text-sm text-[#f97316] mb-3">⚠️ {depositMsg}</p>}
+
+            <div className="flex gap-3">
+              <button onClick={() => setDepositOpen(false)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 transition">{t('admin.cancel', 'Annuler')}</button>
+              <button onClick={submitDeposit} disabled={depositSaving} className="flex-1 py-2.5 bg-[#a8c800] text-white rounded-xl text-sm font-semibold hover:bg-[#7d9800] transition disabled:opacity-50">
+                {depositSaving ? t('admin.saving', 'Envoi...') : t('profile.deposit_submit', 'Valider ma demande')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -343,3 +343,33 @@ export async function sendSubscriptionPaused(email: string, needed: number, bala
   `);
   await resend.emails.send({ from: FROM, to: email, subject: '⏸️ Cagnotte à recharger — Hornafresh', html });
 }
+
+// ── 6. Nouvelle demande de recharge → admin ──────────────────────────────────
+export async function sendDepositRequestAlert(req: any, customer: { name?: string | null; email?: string | null }) {
+  const html = baseLayout(`
+    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">💰 Demande de recharge</h2>
+    <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">Un client souhaite recharger sa cagnotte.</p>
+    <div style="background:#f8faf0;border-radius:12px;padding:16px;margin:16px 0;">
+      <p style="margin:0;color:#374151;font-size:14px;"><strong>Client :</strong> ${customer.name || '—'}${customer.email ? ` (${customer.email})` : ''}</p>
+      <p style="margin:6px 0 0;color:#374151;font-size:14px;"><strong>Montant :</strong> ${Number(req.amount).toLocaleString('fr-FR')} Fdj</p>
+      ${req.reference ? `<p style="margin:6px 0 0;color:#374151;font-size:14px;"><strong>Réf. Waafi :</strong> ${req.reference}</p>` : ''}
+    </div>
+    <p style="color:#6b7280;font-size:13px;">Vérifiez le paiement reçu, puis validez la demande dans Admin → Cagnottes.</p>
+  `);
+  await resend.emails.send({ from: FROM, to: ADMIN_EMAIL, subject: `💰 Demande de recharge — ${Number(req.amount).toLocaleString('fr-FR')} Fdj`, html });
+}
+
+// ── 7. Recharge validée → client ─────────────────────────────────────────────
+export async function sendDepositApproved(email: string, amount: number, balance: number) {
+  const html = baseLayout(`
+    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">✅ Cagnotte rechargée</h2>
+    <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">Votre recharge a été validée.</p>
+    <div style="background:#ecf4d5;border:1px solid #a8c800;border-radius:12px;padding:16px;margin:16px 0;text-align:center;">
+      <p style="margin:0;color:#6b7280;font-size:13px;">Montant crédité</p>
+      <p style="margin:2px 0 8px;color:#526500;font-size:22px;font-weight:bold;">+${Number(amount).toLocaleString('fr-FR')} Fdj</p>
+      <p style="margin:0;color:#6b7280;font-size:13px;">Nouveau solde : <strong>${Number(balance).toLocaleString('fr-FR')} Fdj</strong></p>
+    </div>
+    <p style="color:#374151;font-size:14px;">Merci ! Vous pouvez l'utiliser au paiement ou pour vos livraisons automatiques.</p>
+  `);
+  await resend.emails.send({ from: FROM, to: email, subject: '✅ Cagnotte rechargée — Hornafresh', html });
+}

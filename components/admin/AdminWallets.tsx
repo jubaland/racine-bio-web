@@ -13,6 +13,8 @@ const TX_LABEL: Record<string, string> = {
 
 export default function AdminWallets() {
   const [users, setUsers] = useState<AuthUser[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [reviewing, setReviewing] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<AuthUser | null>(null);
@@ -29,14 +31,29 @@ export default function AdminWallets() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/users');
-      const json = await res.json();
-      setUsers((json.users || []).sort((a: AuthUser, b: AuthUser) => b.balance - a.balance));
+      const [uRes, rRes] = await Promise.all([fetch('/api/admin/users'), fetch('/api/admin/deposit-requests')]);
+      const uJson = await uRes.json();
+      const rJson = await rRes.json();
+      setUsers((uJson.users || []).sort((a: AuthUser, b: AuthUser) => b.balance - a.balance));
+      setRequests(rJson.requests || []);
     } catch { /* ignore */ }
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  const review = async (id: number, action: 'approve' | 'reject') => {
+    setReviewing(id);
+    await fetch('/api/admin/deposit-requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, action }),
+    });
+    setReviewing(null);
+    fetchAll();
+  };
+
+  const pending = requests.filter(r => r.status === 'pending');
 
   const open = async (u: AuthUser) => {
     setSelected(u); setAmount(''); setNote(''); setError(''); setTx([]); setLoadingTx(true);
@@ -83,6 +100,34 @@ export default function AdminWallets() {
       <p className="text-sm text-gray-500 mb-4">
         {t('admin.wallets_hint', 'Créditez la cagnotte d\'un client après réception de son dépôt (Waafi / espèces).')}
       </p>
+
+      {/* Demandes de recharge en attente */}
+      {pending.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-5">
+          <p className="text-sm font-bold text-amber-800 mb-3">⏳ {t('admin.deposit_pending_title', 'Demandes de recharge en attente')} ({pending.length})</p>
+          <div className="space-y-2">
+            {pending.map(r => (
+              <div key={r.id} className="flex items-center justify-between gap-3 bg-white rounded-xl px-3 py-2.5 border border-amber-100">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-800 truncate">{r.name || r.email || '—'}</p>
+                  <p className="text-xs text-gray-400">
+                    {Number(r.amount).toLocaleString()} Fdj
+                    {r.reference ? ` · réf. ${r.reference}` : ''} · {new Date(r.created_at).toLocaleDateString('fr-FR')}
+                  </p>
+                </div>
+                <div className="flex gap-2 flex-none">
+                  <button onClick={() => review(r.id, 'reject')} disabled={reviewing === r.id} className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-orange-200 text-[#f97316] hover:bg-orange-50 transition disabled:opacity-50">
+                    {t('admin.deposit_reject', 'Refuser')}
+                  </button>
+                  <button onClick={() => review(r.id, 'approve')} disabled={reviewing === r.id} className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#a8c800] text-white hover:bg-[#7d9800] transition disabled:opacity-50">
+                    {reviewing === r.id ? '⏳' : `✅ ${t('admin.deposit_approve', 'Valider')}`}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mb-4">
         <input
