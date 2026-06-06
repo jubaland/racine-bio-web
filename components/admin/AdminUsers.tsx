@@ -23,8 +23,11 @@ interface Order {
   created_at: string;
 }
 
+interface AuthUser { id: string; email: string | null; verified: boolean; }
+
 export default function AdminUsers() {
   const [customers, setCustomers] = useState<CustomerSummary[]>([]);
+  const [authMap, setAuthMap] = useState<Record<string, AuthUser>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState<CustomerSummary | null>(null);
@@ -47,6 +50,16 @@ export default function AdminUsers() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+
+    // Comptes auth (statut de vérification) via API service-role
+    try {
+      const res = await fetch('/api/admin/users');
+      const json = await res.json();
+      const m: Record<string, AuthUser> = {};
+      (json.users || []).forEach((u: AuthUser) => { m[u.id] = u; });
+      setAuthMap(m);
+    } catch { /* ignore */ }
+
     const { data } = await supabase
       .from('orders')
       .select('user_id, customer_name, phone, address, total, created_at')
@@ -93,9 +106,18 @@ export default function AdminUsers() {
     setLoadingOrders(false);
   };
 
+  const userStatus = (c: CustomerSummary) => {
+    const a = authMap[c.user_id];
+    if (!a) return { label: t('admin.user_guest', '👤 Invité'), cls: 'bg-gray-100 text-gray-500', email: null as string | null };
+    return a.verified
+      ? { label: t('admin.user_verified', '✅ Vérifié'), cls: 'bg-green-100 text-green-700', email: a.email }
+      : { label: t('admin.user_unverified', '⚠️ Non vérifié'), cls: 'bg-orange-100 text-[#f97316]', email: a.email };
+  };
+
   const filtered = customers.filter(c => {
     const q = search.toLowerCase();
-    return !q || c.customer_name.toLowerCase().includes(q) || c.phone.includes(q);
+    const email = authMap[c.user_id]?.email || '';
+    return !q || c.customer_name.toLowerCase().includes(q) || c.phone.includes(q) || email.toLowerCase().includes(q);
   });
 
   return (
@@ -115,8 +137,8 @@ export default function AdminUsers() {
         />
       </div>
 
-      <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 mb-4 text-sm text-amber-700">
-        {t('admin.users_info', "ℹ️ Les utilisateurs sont identifiés à partir de leurs commandes. Pour accéder aux données d'authentification complètes, un accès service role est requis.")}
+      <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 mb-4 text-sm text-blue-700">
+        {t('admin.users_info2', "ℹ️ Liste des clients à partir de leurs commandes. Le statut indique si le compte a été vérifié par email (« Invité » = commande sans compte).")}
       </div>
 
       {loading ? (
@@ -128,6 +150,7 @@ export default function AdminUsers() {
             <thead className="bg-[#faf7e8] border-b border-[#d2e095]">
               <tr>
                 <th className="text-left px-4 py-3 text-gray-500 font-medium">{t('admin.col_customer', 'Client')}</th>
+                <th className="text-left px-4 py-3 text-gray-500 font-medium">{t('admin.col_status', 'Statut')}</th>
                 <th className="text-left px-4 py-3 text-gray-500 font-medium">{t('admin.col_phone', 'Téléphone')}</th>
                 <th className="text-left px-4 py-3 text-gray-500 font-medium">{t('admin.col_orders', 'Commandes')}</th>
                 <th className="text-left px-4 py-3 text-gray-500 font-medium">{t('admin.col_spent', 'Total dépensé')}</th>
@@ -137,17 +160,22 @@ export default function AdminUsers() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filtered.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-12 text-gray-400">{t('admin.no_customers', 'Aucun client trouvé')}</td></tr>
-              ) : filtered.map(c => (
+                <tr><td colSpan={7} className="text-center py-12 text-gray-400">{t('admin.no_customers', 'Aucun client trouvé')}</td></tr>
+              ) : filtered.map(c => {
+                const st = userStatus(c);
+                return (
                 <tr key={c.user_id} className="hover:bg-[#faf7e8] transition">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full bg-[#ecf4d5] flex items-center justify-center text-lg">👤</div>
                       <div>
                         <p className="font-medium text-gray-800">{c.customer_name}</p>
-                        <p className="text-xs text-gray-400 truncate max-w-[160px]">{c.address}</p>
+                        <p className="text-xs text-gray-400 truncate max-w-[180px]">{st.email || c.address}</p>
                       </div>
                     </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${st.cls}`}>{st.label}</span>
                   </td>
                   <td className="px-4 py-3 text-gray-600">{c.phone}</td>
                   <td className="px-4 py-3">
@@ -161,7 +189,7 @@ export default function AdminUsers() {
                     </button>
                   </td>
                 </tr>
-              ))}
+              ); })}
             </tbody>
           </table>
           </div>
