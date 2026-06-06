@@ -91,6 +91,12 @@ export default function CheckoutPage() {
   const [codeError, setCodeError] = useState('');
   const [referralCredits, setReferralCredits] = useState(0);
   const [useReferralCredit, setUseReferralCredit] = useState(false);
+  const [orderCount, setOrderCount] = useState(0);
+  const [referralLoaded, setReferralLoaded] = useState(false);
+  // Le code parrainage (être parrainé) n'est utilisable qu'à la 1ère commande d'un
+  // client identifié. Les invités peuvent l'utiliser. Le crédit parrainage gagné en
+  // tant que parrain reste toujours utilisable (géré séparément).
+  const canUseReferralCode = !user || orderCount === 0;
 
   // Adresses sauvegardées
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
@@ -157,7 +163,16 @@ export default function CheckoutPage() {
           headers: { Authorization: `Bearer ${session.access_token}` },
         }).then(r => r.ok ? r.json() : null).then(json => {
           if (json?.credits > 0) setReferralCredits(json.credits);
-        }).catch(() => {});
+          const oc = Number(json?.orders_count) || 0;
+          setOrderCount(oc);
+          setReferralLoaded(true);
+          // Client ayant déjà commandé : un code parrainage pré-rempli (lien) n'est plus valable
+          if (oc > 0) {
+            setAppliedCode(null);
+            setRefCodeInput('');
+            localStorage.removeItem('hf_ref_code');
+          }
+        }).catch(() => setReferralLoaded(true));
       }
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
@@ -847,7 +862,8 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              {/* Code parrainage */}
+              {/* Code parrainage — réservé à la 1ère commande d'un client identifié */}
+              {canUseReferralCode && (
               <div className="mt-5 pt-5 border-t border-[#d2e095]">
                 <p className="text-sm font-medium text-gray-600 mb-3">
                   🎁 {t('checkout.referral_code_label', 'Code parrainage')}
@@ -893,8 +909,9 @@ export default function CheckoutPage() {
                   </div>
                 )}
               </div>
+              )}
 
-              {/* Crédit parrainage (utilisateurs avec crédits gagnés) */}
+              {/* Crédit parrainage (utilisateurs avec crédits gagnés) — toujours utilisable */}
               {referralCredits > 0 && !appliedCode && (
                 <label className="mt-3 flex items-center gap-3 p-3.5 bg-[#ecf4d5] border border-[#a8c800] rounded-xl cursor-pointer">
                   <input

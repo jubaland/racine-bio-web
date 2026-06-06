@@ -117,6 +117,13 @@ export async function POST(request: Request) {
     if (ref_code && createdOrder.user_id) {
       (async () => {
         try {
+          // Le code parrainage n'est valable qu'à la 1ère commande du filleul
+          const { count: ordersCount } = await supabaseAdmin
+            .from('orders')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', createdOrder.user_id);
+          if (ordersCount && ordersCount > 1) return; // pas la première commande
+
           const { data: refRecord } = await supabaseAdmin
             .from('referral_codes')
             .select('user_id, credits')

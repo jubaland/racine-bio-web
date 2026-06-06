@@ -51,10 +51,17 @@ export async function GET(request: NextRequest) {
     .select('id', { count: 'exact', head: true })
     .eq('referrer_id', user.id);
 
+  // Nombre de commandes du client (pour autoriser le code parrainage à la 1ère commande seulement)
+  const { count: ordersCount } = await supabaseAdmin
+    .from('orders')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id);
+
   return NextResponse.json({
     code:            record!.code,
     credits:         record!.credits,
     referrals_count: count ?? 0,
+    orders_count:    ordersCount ?? 0,
   });
 }
 
