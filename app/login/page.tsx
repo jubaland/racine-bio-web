@@ -49,11 +49,14 @@ export default function LoginPage() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: {
-            full_name: titleCase(fullName),
-            phone: '77' + phoneDigits,
-            address: titleCase(address),
-          } },
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            data: {
+              full_name: titleCase(fullName),
+              phone: '77' + phoneDigits,
+              address: titleCase(address),
+            },
+          },
         });
         if (error) throw error;
         setSuccess(t('login.register_success', 'Compte créé ! Vérifiez votre email pour confirmer.'));

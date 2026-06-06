@@ -223,6 +223,24 @@ export default function ProfilePage() {
     window.location.href = '/';
   };
 
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
+  const verified = !!(user?.email_confirmed_at || user?.confirmed_at);
+
+  const resendVerification = async () => {
+    if (!user?.email) return;
+    setResending(true);
+    try {
+      await supabase.auth.resend({
+        type: 'signup',
+        email: user.email,
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      });
+      setResent(true);
+    } catch { /* ignore */ }
+    setResending(false);
+  };
+
   const saveNotifs = async (prefs: typeof notifPrefs) => {
     setSavingNotifs(true);
     await supabase.auth.updateUser({ data: { notifications: prefs } });
@@ -349,10 +367,16 @@ export default function ProfilePage() {
                 {user?.user_metadata?.full_name || t('profile.user_default', 'Utilisateur')}
               </h2>
               <p className="text-gray-400 text-sm mt-1">{user?.email}</p>
-              <div className="flex items-center gap-2 mt-2">
-                <span className="bg-[#ecf4d5] text-[#526500] text-xs font-semibold px-3 py-1 rounded-full">
-                  {t('profile.verified', '✅ Compte vérifié')}
-                </span>
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                {verified ? (
+                  <span className="bg-[#ecf4d5] text-[#526500] text-xs font-semibold px-3 py-1 rounded-full">
+                    {t('profile.verified', '✅ Compte vérifié')}
+                  </span>
+                ) : (
+                  <span className="bg-orange-50 text-[#f97316] text-xs font-semibold px-3 py-1 rounded-full border border-orange-200">
+                    {t('profile.unverified', '⚠️ Compte non vérifié')}
+                  </span>
+                )}
                 <button
                   onClick={handleSignOut}
                   className="text-xs font-semibold px-3 py-1 rounded-full bg-[#fff3e8] text-[#f97316] hover:bg-[#ffe0c8] transition"
@@ -360,6 +384,20 @@ export default function ProfilePage() {
                   🚪 {t('profile.signout', 'Se déconnecter')}
                 </button>
               </div>
+              {!verified && (
+                <div className="mt-2">
+                  {resent ? (
+                    <p className="text-xs text-[#526500]">📧 {t('profile.verify_resent', 'Email de vérification renvoyé ! Vérifiez votre boîte de réception.')}</p>
+                  ) : (
+                    <p className="text-xs text-gray-500">
+                      {t('profile.verify_hint', 'Vérifiez votre email pour activer votre compte.')}{' '}
+                      <button onClick={resendVerification} disabled={resending} className="text-[#7d9800] font-semibold hover:underline disabled:opacity-50">
+                        {resending ? t('profile.verify_sending', 'Envoi...') : t('profile.verify_resend', 'Renvoyer le lien')}
+                      </button>
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
