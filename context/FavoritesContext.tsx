@@ -21,70 +21,93 @@ const FavoritesContext = createContext<FavoritesContextType>({
 
 const LS_KEY = 'racine_bio_favorites';
 
+// Cache local au format { uid, items }. uid = propriétaire du miroir (null = invité).
+// Ancien format (tableau simple) = considéré comme favoris invité (à fusionner une fois).
+function readCache(): { uid: string | null; items: any[] } {
+  try {
+    const s = localStorage.getItem(LS_KEY);
+    if (!s) return { uid: null, items: [] };
+    const parsed = JSON.parse(s);
+    if (Array.isArray(parsed)) return { uid: null, items: parsed };           // legacy
+    return { uid: parsed.uid ?? null, items: Array.isArray(parsed.items) ? parsed.items : [] };
+  } catch { return { uid: null, items: [] }; }
+}
+function writeCache(uid: string | null, items: any[]) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify({ uid, items })); } catch {}
+}
+
 export function FavoritesProvider({ children }: { children: React.ReactNode }) {
   const [favorites, setFavorites] = useState<any[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
 
-  // Met à jour l'état + le cache local (affichage instantané, hors-ligne)
-  const persistLocal = (items: any[]) => {
+  const persist = (uid: string | null, items: any[]) => {
     setFavorites(items);
-    try { localStorage.setItem(LS_KEY, JSON.stringify(items)); } catch {}
+    writeCache(uid, items);
   };
 
-  // Synchronise avec la base pour un utilisateur connecté :
-  // 1) remonte les favoris locaux absents en base, 2) charge l'union (multi-appareils).
-  const syncWithDb = useCallback(async (uid: string, localItems: any[]) => {
+  // Charge depuis la base = source de vérité (aucun re-push du local → pas de résurrection)
+  const loadFromDb = useCallback(async (uid: string) => {
     const { data: rows, error } = await supabase.from('favorites').select('product_id').eq('user_id', uid);
-    if (error) return; // table absente ou souci réseau → on garde le local
-    const dbIds = new Set((rows || []).map((r: any) => Number(r.product_id)));
-
-    const localIds = localItems.map((p: any) => Number(p.id)).filter(Boolean);
-    const toAdd = localIds.filter(id => !dbIds.has(id));
-    if (toAdd.length) {
-      await supabase.from('favorites').upsert(
-        toAdd.map(id => ({ user_id: uid, product_id: id })), { onConflict: 'user_id,product_id' }
-      );
-      toAdd.forEach(id => dbIds.add(id));
-    }
-
-    const ids = [...dbIds];
-    if (!ids.length) { persistLocal([]); return; }
-
+    if (error) return; // table absente / réseau → on garde l'affichage courant
+    const ids = (rows || []).map((r: any) => Number(r.product_id));
+    if (!ids.length) { persist(uid, []); return; }
     const { data: prods } = await supabase.from('products').select('*').in('id', ids);
     const map = new Map((prods || []).map((p: any) => [Number(p.id), p]));
-    const merged = ids
-      .map(id => map.get(id) || localItems.find((p: any) => Number(p.id) === id))
-      .filter(Boolean);
-    persistLocal(merged);
+    const items = ids.map(id => map.get(id)).filter(Boolean);
+    persist(uid, items);
   }, []);
 
+  // À la connexion : fusionne les favoris invité (une seule fois) puis charge la base
+  const mergeGuestThenLoad = useCallback(async (uid: string, guestItems: any[]) => {
+    const ids = guestItems.map((p: any) => Number(p.id)).filter(Boolean);
+    if (ids.length) {
+      await supabase.from('favorites').upsert(
+        ids.map(id => ({ user_id: uid, product_id: id })), { onConflict: 'user_id,product_id' }
+      );
+    }
+    await loadFromDb(uid);
+  }, [loadFromDb]);
+
   useEffect(() => {
-    // Charge le cache local immédiatement (UX instantanée)
-    let local: any[] = [];
-    try { const s = localStorage.getItem(LS_KEY); if (s) local = JSON.parse(s); } catch {}
-    setFavorites(local);
+    const cache = readCache();
+    setFavorites(cache.items); // affichage instantané
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       const uid = session?.user?.id || null;
       setUserId(uid);
-      if (uid) syncWithDb(uid, local);
+      if (uid) {
+        // Restauration de session (rechargement) : la base fait foi, jamais de
+        // re-push du local → une suppression reste supprimée (pas de résurrection).
+        loadFromDb(uid);
+      } else {
+        // Invité : n'affiche pas le miroir d'un autre utilisateur
+        if (cache.uid !== null) persist(null, []);
+        else writeCache(null, cache.items);
+      }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       const uid = session?.user?.id || null;
       setUserId(uid);
-      if (uid) {
-        let cur: any[] = [];
-        try { const s = localStorage.getItem(LS_KEY); if (s) cur = JSON.parse(s); } catch {}
-        syncWithDb(uid, cur);
+      if (!uid) {
+        if (event === 'SIGNED_OUT') persist(null, []);
+        return;
+      }
+      if (event === 'SIGNED_IN') {
+        // Vraie connexion : on fusionne les favoris ajoutés en invité (une fois), puis on charge.
+        const c = readCache();
+        if (c.uid === null && c.items.length) mergeGuestThenLoad(uid, c.items);
+        else loadFromDb(uid);
+      } else if (event === 'TOKEN_REFRESHED') {
+        loadFromDb(uid); // rafraîchit depuis la base, sans fusion
       }
     });
     return () => subscription.unsubscribe();
-  }, [syncWithDb]);
+  }, [loadFromDb, mergeGuestThenLoad]);
 
   const addFavorite = (product: any) => {
     if (favorites.find(f => Number(f.id) === Number(product.id))) return;
-    persistLocal([...favorites, product]);
+    persist(userId, [...favorites, product]);
     if (userId) {
       void supabase.from('favorites').upsert(
         { user_id: userId, product_id: product.id }, { onConflict: 'user_id,product_id' }
@@ -93,7 +116,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
   };
 
   const removeFavorite = (productId: number) => {
-    persistLocal(favorites.filter(f => Number(f.id) !== Number(productId)));
+    persist(userId, favorites.filter(f => Number(f.id) !== Number(productId)));
     if (userId) {
       void supabase.from('favorites').delete().eq('user_id', userId).eq('product_id', productId);
     }
