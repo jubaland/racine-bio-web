@@ -112,7 +112,24 @@ export default function SubscriptionPage() {
 
   const basket = products.filter(p => (qty[p.id] || 0) > 0);
   const total = basket.reduce((s, p) => s + Number(p.price) * (qty[p.id] || 0), 0);
-  const periods = total > 0 ? Math.floor(balance / total) : 0;
+
+  // Autonomie globale : toutes les commandes types ACTIVES partagent la même
+  // cagnotte. On calcule le rythme de consommation cumulé (par jour) puis la
+  // durée que le solde peut couvrir — au lieu d'un compteur par fréquence
+  // (trompeur, car chacun utiliserait tout le solde).
+  const PERIOD_DAYS: Record<Freq, number> = { weekly: 7, fortnightly: 14, monthly: 30.4 };
+  const totalForFreq = (f: Freq) =>
+    products.reduce((s, p) => s + Number(p.price) * (qtyByFreq[f][p.id] || 0), 0);
+  const dailyBurn = FREQS.reduce((sum, f) => {
+    if (!activeByFreq[f]) return sum;
+    const tot = totalForFreq(f);
+    return sum + (tot > 0 ? tot / PERIOD_DAYS[f] : 0);
+  }, 0);
+  const daysCovered = dailyBurn > 0 ? Math.floor(balance / dailyBurn) : 0;
+  const weeksCovered = Math.floor(daysCovered / 7);
+  const coverageEnd = dailyBurn > 0
+    ? (() => { const d = new Date(); d.setDate(d.getDate() + daysCovered); return d.toISOString().slice(0, 10); })()
+    : null;
 
   const save = async () => {
     setError(''); setSaved(false);
@@ -180,6 +197,13 @@ export default function SubscriptionPage() {
               <Link href="/profile" className="text-xs bg-white/15 px-3 py-1.5 rounded-full hover:bg-white/25 transition">{t('sub.topup', 'Recharger')}</Link>
             </div>
 
+            {/* Autonomie globale (toutes commandes types actives, cagnotte partagée) */}
+            {dailyBurn > 0 && coverageEnd && (
+              <div className="bg-[#ecf4d5] border border-[#d2e095] rounded-2xl px-4 py-3 mb-5 text-sm text-[#526500]">
+                💡 {t('sub.autonomy_until', 'Avec votre solde, vos commandes types actives sont couvertes jusqu\'au')} <strong>{fmtDate(coverageEnd)}</strong> (≈ {weeksCovered} {weeksCovered > 1 ? t('sub.weeks_unit', 'semaines') : t('sub.week_unit', 'semaine')}).
+              </div>
+            )}
+
             {/* Onglets de fréquence */}
             <div className="flex gap-2 mb-5">
               {FREQS.map(f => (
@@ -219,11 +243,6 @@ export default function SubscriptionPage() {
                 <span className="text-sm text-gray-600">{t('sub.total', 'Total')} {PERIOD_WORD[freq]}</span>
                 <span className="text-lg font-bold text-[#526500]">{total.toLocaleString()} Fdj</span>
               </div>
-              {total > 0 && (
-                <p className="text-xs text-gray-400 mt-1 text-right">
-                  ≈ {periods} {periods > 1 ? t('sub.deliveries_covered', 'livraisons couvertes') : t('sub.delivery_covered', 'livraison couverte')} {t('sub.with_balance', 'avec votre solde')}
-                </p>
-              )}
             </div>
 
             {/* Réglages */}
