@@ -18,8 +18,9 @@ import AdminPreparers from '../../components/admin/AdminPreparers';
 import AdminWallets from '../../components/admin/AdminWallets';
 import AdminSubscriptions from '../../components/admin/AdminSubscriptions';
 import AdminHomepage from '../../components/admin/AdminHomepage';
+import AdminForecast from '../../components/admin/AdminForecast';
 
-type Section = 'dashboard' | 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'preparers' | 'wallets' | 'subscriptions' | 'requests' | 'users' | 'delivery' | 'notifications' | 'homepage';
+type Section = 'dashboard' | 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'preparers' | 'wallets' | 'subscriptions' | 'forecast' | 'requests' | 'users' | 'delivery' | 'notifications' | 'homepage';
 
 export default function AdminPage() {
   const [user, setUser] = useState<any>(null);
@@ -43,6 +44,7 @@ export default function AdminPage() {
     { id: 'requests', emoji: '📋', label: t('admin.nav_requests', 'Demandes producteurs') },
     { id: 'wallets', emoji: '💰', label: t('admin.nav_wallets', 'Cagnottes') },
     { id: 'subscriptions', emoji: '🔄', label: t('admin.nav_subscriptions', 'Abonnements') },
+    { id: 'forecast', emoji: '📅', label: t('admin.nav_forecast', 'Préparation semaine') },
     { id: 'users', emoji: '👥', label: t('admin.nav_users', 'Utilisateurs') },
     { id: 'delivery', emoji: '🚚', label: t('admin.nav_delivery', 'Livraison') },
     { id: 'homepage', emoji: '🏠', label: t('admin.nav_homepage', 'Page d\'accueil') },
@@ -101,6 +103,7 @@ export default function AdminPage() {
       case 'requests': return <AdminRequests />;
       case 'wallets': return <AdminWallets />;
     case 'subscriptions': return <AdminSubscriptions />;
+    case 'forecast': return <AdminForecast />;
     case 'homepage': return <AdminHomepage />;
       case 'users': return <AdminUsers />;
       case 'delivery': return <AdminDelivery />;
