@@ -105,20 +105,33 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [loadFromDb, mergeGuestThenLoad]);
 
-  const addFavorite = (product: any) => {
-    if (favorites.find(f => Number(f.id) === Number(product.id))) return;
-    persist(userId, [...favorites, product]);
-    if (userId) {
-      void supabase.from('favorites').upsert(
-        { user_id: userId, product_id: product.id }, { onConflict: 'user_id,product_id' }
+  // On lit la session au moment de l'écriture (fiable, indépendant de l'état React)
+  const addFavorite = async (product: any) => {
+    if (favorites.some(f => Number(f.id) === Number(product.id))) return;
+    const next = [...favorites, product];
+    setFavorites(next);
+    const { data: { session } } = await supabase.auth.getSession();
+    const uid = session?.user?.id || null;
+    setUserId(uid);
+    writeCache(uid, next);
+    if (uid) {
+      const { error } = await supabase.from('favorites').upsert(
+        { user_id: uid, product_id: product.id }, { onConflict: 'user_id,product_id' }
       );
+      if (error) console.error('[favorites] add error:', error.message);
     }
   };
 
-  const removeFavorite = (productId: number) => {
-    persist(userId, favorites.filter(f => Number(f.id) !== Number(productId)));
-    if (userId) {
-      void supabase.from('favorites').delete().eq('user_id', userId).eq('product_id', productId);
+  const removeFavorite = async (productId: number) => {
+    const next = favorites.filter(f => Number(f.id) !== Number(productId));
+    setFavorites(next);
+    const { data: { session } } = await supabase.auth.getSession();
+    const uid = session?.user?.id || null;
+    setUserId(uid);
+    writeCache(uid, next);
+    if (uid) {
+      const { error } = await supabase.from('favorites').delete().eq('user_id', uid).eq('product_id', productId);
+      if (error) console.error('[favorites] remove error:', error.message);
     }
   };
 
