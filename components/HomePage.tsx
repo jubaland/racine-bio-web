@@ -245,13 +245,13 @@ export default function HomePage({ products, categories, promos, producers }: {
                         🌿 {t('product.type_bio', 'Bio')}
                       </div>
                     )}
-                    {p.featured_badge && (
-                      <div className="absolute top-2 right-2 bg-[#526500] text-white text-xs font-semibold px-2 py-1 rounded-md">
-                        {p.featured_badge}
-                      </div>
-                    )}
                   </div>
                   <div className="p-3">
+                    {p.featured_badge && (
+                      <span className="inline-block text-[11px] leading-tight font-semibold text-white bg-[#526500] px-2 py-1 rounded-md mb-1.5">
+                        {p.featured_badge}
+                      </span>
+                    )}
                     <h3 className="text-sm font-semibold text-gray-800 truncate">{getProductName(p)}</h3>
                     <div className="flex items-center justify-between mt-1">
                       <p className="text-xs text-gray-400">{t('product.origin_label', 'Origine')}</p>
