@@ -16,8 +16,9 @@ import AdminDelivery from '../../components/admin/AdminDelivery';
 import AdminNotifications from '../../components/admin/AdminNotifications';
 import AdminPreparers from '../../components/admin/AdminPreparers';
 import AdminWallets from '../../components/admin/AdminWallets';
+import AdminSubscriptions from '../../components/admin/AdminSubscriptions';
 
-type Section = 'dashboard' | 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'preparers' | 'wallets' | 'requests' | 'users' | 'delivery' | 'notifications';
+type Section = 'dashboard' | 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'preparers' | 'wallets' | 'subscriptions' | 'requests' | 'users' | 'delivery' | 'notifications';
 
 export default function AdminPage() {
   const [user, setUser] = useState<any>(null);
@@ -40,6 +41,7 @@ export default function AdminPage() {
     { id: 'preparers', emoji: '🧑‍🍳', label: t('admin.nav_preparers', 'Préparateurs') },
     { id: 'requests', emoji: '📋', label: t('admin.nav_requests', 'Demandes producteurs') },
     { id: 'wallets', emoji: '💰', label: t('admin.nav_wallets', 'Cagnottes') },
+    { id: 'subscriptions', emoji: '🔄', label: t('admin.nav_subscriptions', 'Abonnements') },
     { id: 'users', emoji: '👥', label: t('admin.nav_users', 'Utilisateurs') },
     { id: 'delivery', emoji: '🚚', label: t('admin.nav_delivery', 'Livraison') },
     { id: 'notifications', emoji: '🔔', label: t('admin.nav_notifications', 'Notifications') },
@@ -96,6 +98,7 @@ export default function AdminPage() {
       case 'preparers': return <AdminPreparers />;
       case 'requests': return <AdminRequests />;
       case 'wallets': return <AdminWallets />;
+    case 'subscriptions': return <AdminSubscriptions />;
       case 'users': return <AdminUsers />;
       case 'delivery': return <AdminDelivery />;
       case 'notifications': return <AdminNotifications />;

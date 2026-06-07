@@ -101,7 +101,6 @@ export default function SubscriptionPage() {
   const qty = qtyByFreq[freq];
   const deliveryDay = dayByFreq[freq];
   const active = activeByFreq[freq];
-  const validUntil = validByFreq[freq];
 
   const setQ = (id: number, v: number) => {
     setSaved(false);
@@ -259,9 +258,6 @@ export default function SubscriptionPage() {
                 <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} className="w-5 h-5 accent-[#a8c800]" />
                 <span className="text-sm text-gray-700">{t('sub.activate_freq', 'Activer la livraison automatique')} ({FREQ_LABEL[freq].toLowerCase()})</span>
               </label>
-              {validUntil && (
-                <p className="text-xs text-gray-500">⏳ {t('sub.valid_until', 'Valable jusqu\'au')} <strong>{fmtDate(validUntil)}</strong>. {t('sub.renew_hint', 'Réenregistrez pour prolonger d\'un an.')}</p>
-              )}
             </div>
 
             {error && <div className="bg-orange-50 text-[#f97316] text-sm px-4 py-3 rounded-xl mb-4">⚠️ {error}</div>}
