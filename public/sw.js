@@ -1,5 +1,5 @@
 // ─── PWA : cache offline (network-first, même origine uniquement) ───
-const CACHE = 'hf-cache-v1';
+const CACHE = 'hf-cache-v2';
 
 self.addEventListener('install', () => self.skipWaiting());
 
