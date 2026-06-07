@@ -208,6 +208,42 @@ export default function HomePage({ products, categories, promos, producers }: {
         </div>
       </section>
 
+      {/* Promotions */}
+      {promos.filter((p: any) => p.active !== false).length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 md:px-6 pt-6 md:pt-8">
+          <h2 className="text-2xl font-semibold text-gray-800 mb-4">🔥 {t('promosTitle', 'Promotions du moment')}</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {promos.filter((p: any) => p.active !== false).map((p: any) => {
+              const d = getPromoData(p);
+              const color = p.color_start || '#a8c800';
+              const go = () => {
+                if (p.category) setActiveCategory(p.category);
+                document.getElementById('produits')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              };
+              return (
+                <button
+                  key={p.id}
+                  onClick={go}
+                  className="text-left rounded-2xl border border-[#d2e095] p-4 flex items-center gap-4 hover:shadow-md transition"
+                  style={{ background: `linear-gradient(135deg, ${color}18, ${color}33)` }}
+                >
+                  <div className="w-14 h-14 rounded-xl flex items-center justify-center text-3xl flex-shrink-0 bg-white/60">
+                    {p.emoji}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    {d.badge && (
+                      <span className="inline-block text-[11px] font-bold px-2 py-0.5 rounded-full mb-1" style={{ background: color + '33', color }}>{d.badge}</span>
+                    )}
+                    <p className="font-semibold text-gray-800 truncate">{d.title}</p>
+                    {d.sub && <p className="text-sm text-gray-500 truncate">{d.sub}</p>}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {/* Sélection du moment */}
       {featuredProducts.length > 0 && (
         <section id="selection" className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12">
