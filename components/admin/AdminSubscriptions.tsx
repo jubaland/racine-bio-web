@@ -120,12 +120,13 @@ export default function AdminSubscriptions() {
                 <th className="text-right px-4 py-3 text-gray-500 font-medium">{t('sub.total', 'Total')}</th>
                 <th className="text-right px-4 py-3 text-gray-500 font-medium">{t('admin.wallet_balance', 'Solde')}</th>
                 <th className="text-left px-4 py-3 text-gray-500 font-medium">{t('admin.sub_status', 'Statut')}</th>
+                <th className="text-left px-4 py-3 text-gray-500 font-medium">{t('admin.sub_valid_until', 'Validité')}</th>
                 <th className="text-right px-4 py-3 text-gray-500 font-medium">{t('admin.actions', 'Actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filtered.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-12 text-gray-400">{t('admin.no_subs', 'Aucun abonnement')}</td></tr>
+                <tr><td colSpan={8} className="text-center py-12 text-gray-400">{t('admin.no_subs', 'Aucun abonnement')}</td></tr>
               ) : filtered.map(s => {
                 const key = `${s.user_id}|${s.frequency}`;
                 const insufficient = s.active && !s.paused && s.total > s.balance;
@@ -145,14 +146,15 @@ export default function AdminSubscriptions() {
                       <span className={insufficient ? 'text-[#f97316] font-semibold' : 'text-gray-600'}>{Number(s.balance).toLocaleString()} Fdj</span>
                       {insufficient && <span className="block text-[11px] text-[#f97316]">⚠️ {t('admin.sub_insufficient', 'insuffisant')}</span>}
                     </td>
-                    <td className="px-4 py-3">{statusBadge(s)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className={isExpired(s) ? 'text-[#f97316] font-semibold' : 'text-gray-600'}>{fmtDate(s.valid_until)}</span>
+                    </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <button onClick={() => setViewing(s)} className="text-[#7d9800] hover:text-[#526500] text-xs font-medium">{t('admin.sub_view', 'Panier')}</button>
-                      {s.active && (
-                        s.paused
-                          ? <button onClick={() => act(s, 'resume')} disabled={busy === key} className="ml-3 text-green-600 hover:text-green-700 text-xs font-medium disabled:opacity-50">{busy === key ? '⏳' : t('admin.sub_resume', 'Réactiver')}</button>
-                          : <button onClick={() => act(s, 'pause')} disabled={busy === key} className="ml-3 text-amber-600 hover:text-amber-700 text-xs font-medium disabled:opacity-50">{busy === key ? '⏳' : t('admin.sub_pause', 'Pause')}</button>
-                      )}
+                      <label className="inline-flex items-center gap-1.5 cursor-pointer align-middle" title={t('admin.sub_suspend_hint', 'Suspendre / réactiver la livraison automatique')}>
+                        <input type="checkbox" checked={s.paused} disabled={busy === key} onChange={e => act(s, e.target.checked ? 'pause' : 'resume')} className="w-4 h-4 accent-[#a8c800]" />
+                        <span className="text-xs text-gray-600">{busy === key ? '⏳' : t('admin.sub_suspend', 'Suspendre')}</span>
+                      </label>
+                      <button onClick={() => setViewing(s)} className="ml-3 text-[#7d9800] hover:text-[#526500] text-xs font-medium">{t('admin.sub_view', 'Panier')}</button>
                       <button onClick={() => setConfirmDel(s)} className="ml-3 text-orange-400 hover:text-[#f97316] text-xs font-medium">{t('admin.delete', 'Supprimer')}</button>
                     </td>
                   </tr>
