@@ -44,7 +44,7 @@ export default function AdminPage() {
     { id: 'requests', emoji: '📋', label: t('admin.nav_requests', 'Demandes producteurs') },
     { id: 'wallets', emoji: '💰', label: t('admin.nav_wallets', 'Cagnottes') },
     { id: 'subscriptions', emoji: '🔄', label: t('admin.nav_subscriptions', 'Abonnements') },
-    { id: 'forecast', emoji: '📅', label: t('admin.nav_forecast', 'Préparation semaine') },
+    { id: 'forecast', emoji: '🗓️', label: t('admin.nav_forecast', 'Planning abonnements') },
     { id: 'users', emoji: '👥', label: t('admin.nav_users', 'Utilisateurs') },
     { id: 'delivery', emoji: '🚚', label: t('admin.nav_delivery', 'Livraison') },
     { id: 'homepage', emoji: '🏠', label: t('admin.nav_homepage', 'Page d\'accueil') },

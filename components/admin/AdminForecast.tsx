@@ -43,7 +43,7 @@ export default function AdminForecast() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">📅 {t('admin.nav_forecast', 'Préparation de la semaine')}</h1>
+        <h1 className="text-2xl font-bold text-gray-800">🗓️ {t('admin.nav_forecast', 'Planning abonnements')}</h1>
         {data && <span className="text-sm text-gray-400">{data.totalDeliveries} {t('admin.fc_deliveries', 'livraison(s)')}</span>}
       </div>
       <p className="text-sm text-gray-500 mb-5">
