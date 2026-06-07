@@ -94,6 +94,7 @@ export default function ProfilePage() {
 
   // Sécurité
   const [securityOpen, setSecurityOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -325,12 +326,20 @@ export default function ProfilePage() {
   const changePassword = async () => {
     setPasswordError('');
     setPasswordSuccess(false);
+    if (!currentPassword) { setPasswordError(t('profile.pwd_current_required', 'Saisissez votre mot de passe actuel')); return; }
     if (newPassword.length < 8) { setPasswordError(t('profile.pwd_too_short', 'Minimum 8 caractères')); return; }
     if (newPassword !== confirmPassword) { setPasswordError(t('profile.pwd_mismatch', 'Les mots de passe ne correspondent pas')); return; }
+    if (newPassword === currentPassword) { setPasswordError(t('profile.pwd_same', 'Le nouveau mot de passe doit être différent de l\'ancien')); return; }
     setSavingPassword(true);
+    // Vérifier le mot de passe actuel par ré-authentification avant tout changement
+    const emailForCheck = user?.email;
+    if (!emailForCheck) { setPasswordError(t('profile.pwd_no_email', 'Compte sans e-mail — impossible de vérifier.')); setSavingPassword(false); return; }
+    const { error: signInErr } = await supabase.auth.signInWithPassword({ email: emailForCheck, password: currentPassword });
+    if (signInErr) { setPasswordError(t('profile.pwd_current_wrong', 'Mot de passe actuel incorrect')); setSavingPassword(false); return; }
+
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) setPasswordError(error.message);
-    else { setPasswordSuccess(true); setNewPassword(''); setConfirmPassword(''); }
+    else { setPasswordSuccess(true); setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); }
     setSavingPassword(false);
   };
 
@@ -983,6 +992,15 @@ export default function ProfilePage() {
                   <p className="text-xs text-gray-400">{t('profile.pwd_change_label', 'Changer de mot de passe')}</p>
                   <input
                     type="password"
+                    autoComplete="current-password"
+                    value={currentPassword}
+                    onChange={e => setCurrentPassword(e.target.value)}
+                    placeholder={t('profile.pwd_current', 'Mot de passe actuel')}
+                    className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm bg-[#faf7e8] focus:outline-none focus:border-[#a8c800]"
+                  />
+                  <input
+                    type="password"
+                    autoComplete="new-password"
                     value={newPassword}
                     onChange={e => setNewPassword(e.target.value)}
                     placeholder={t('profile.pwd_new', 'Nouveau mot de passe')}
@@ -999,7 +1017,7 @@ export default function ProfilePage() {
                   {passwordSuccess && <p className="text-xs text-green-600">✅ {t('profile.pwd_success', 'Mot de passe mis à jour avec succès')}</p>}
                   <button
                     onClick={changePassword}
-                    disabled={savingPassword || !newPassword || !confirmPassword}
+                    disabled={savingPassword || !currentPassword || !newPassword || !confirmPassword}
                     className="w-full py-3 bg-[#a8c800] text-white text-sm font-semibold rounded-xl hover:bg-[#7d9800] transition disabled:opacity-50"
                   >
                     {savingPassword ? '⏳ ' + t('profile.pwd_saving', 'Enregistrement...') : '🔒 ' + t('profile.pwd_save', 'Mettre à jour le mot de passe')}
