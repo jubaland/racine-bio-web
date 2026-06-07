@@ -54,12 +54,21 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
             </Link>
           )}
 
-          {/* Profil / Connexion */}
+          {/* Profil / Connexion — état visuellement distinct */}
           {user ? (
-            <Link href="/profile" className="flex items-center justify-center w-9 h-9 md:w-auto md:h-auto md:px-3 md:py-2 rounded-full bg-[#ecf4d5] border border-[#d2e095] text-[#526500] hover:bg-[#d2e095] transition">
-              <span>👤</span>
-              <span className="hidden md:block text-sm font-medium ml-1.5">{user.user_metadata?.full_name || user.email?.split('@')[0]}</span>
-            </Link>
+            (() => {
+              const name = user.user_metadata?.full_name || user.email?.split('@')[0] || '';
+              const initial = (name.trim().charAt(0) || '?').toUpperCase();
+              return (
+                <Link href="/profile" title={name} className="flex items-center gap-2">
+                  <span className="relative w-9 h-9 rounded-full bg-gradient-to-br from-[#526500] to-[#7d9800] text-white flex items-center justify-center font-bold text-sm shadow-sm ring-2 ring-[#a8c800]/40">
+                    {initial}
+                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#22c55e] border-2 border-white rounded-full" title={t('account.online', 'Connecté')} />
+                  </span>
+                  <span className="hidden md:block text-sm font-medium text-[#526500] max-w-[140px] truncate">{name}</span>
+                </Link>
+              );
+            })()
           ) : (
             <>
               <Link href="/login" className="hidden md:block text-sm font-medium text-gray-600 hover:text-[#7d9800] transition">
@@ -68,8 +77,13 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
               <Link href="/login" className="hidden md:block bg-[#a8c800] text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-[#7d9800] transition">
                 {t('register', "S'inscrire")}
               </Link>
-              <Link href="/login" className="md:hidden flex items-center justify-center w-9 h-9 rounded-full bg-[#ecf4d5] border border-[#d2e095] text-[#526500] hover:bg-[#d2e095] transition">
-                <span>👤</span>
+              {/* Mobile : bouton « se connecter » neutre, distinct de l'état connecté */}
+              <Link href="/login" title={t('login', 'Se connecter')} className="md:hidden flex items-center justify-center w-9 h-9 rounded-full bg-white border border-gray-300 text-gray-400 hover:border-[#a8c800] hover:text-[#7d9800] transition">
+                <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                  <polyline points="10 17 15 12 10 7" />
+                  <line x1="15" y1="12" x2="3" y2="12" />
+                </svg>
               </Link>
             </>
           )}

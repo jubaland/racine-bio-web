@@ -4,5 +4,6 @@
 
 ALTER PUBLICATION supabase_realtime ADD TABLE favorites;
 
--- La clé primaire (user_id, product_id) suffit pour filtrer les événements
--- INSERT et DELETE par utilisateur (user_id est dans la PK).
+-- Nécessaire pour que les événements DELETE soient diffusés correctement
+-- avec la RLS activée (l'ancienne ligne doit contenir toutes ses colonnes).
+ALTER TABLE favorites REPLICA IDENTITY FULL;
