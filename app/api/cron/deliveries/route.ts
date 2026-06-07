@@ -1,9 +1,37 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
-import { sendPrepSlipToPreparers, sendOrderConfirmation, sendSubscriptionPaused } from '../../../../lib/emails';
+import { sendPrepSlipToPreparers, sendOrderConfirmation, sendSubscriptionPaused, sendSubscriptionExpired } from '../../../../lib/emails';
 
 // Génération automatique des livraisons d'abonnement.
 // Appelé chaque jour par Vercel Cron (voir vercel.json).
+
+const FREQ_LABEL: Record<string, string> = {
+  weekly:      'hebdomadaire',
+  fortnightly: 'toutes les deux semaines',
+  monthly:     'mensuelle',
+};
+
+// Nombre de jours entiers entre deux dates au format YYYY-MM-DD
+function daysBetween(fromStr: string, toStr: string): number {
+  const a = new Date(fromStr + 'T00:00:00Z').getTime();
+  const b = new Date(toStr + 'T00:00:00Z').getTime();
+  return Math.round((b - a) / 86400000);
+}
+
+// Une livraison est-elle due aujourd'hui selon la fréquence ?
+// (on est déjà le bon jour de la semaine ; today != last_delivery est garanti par l'appelant)
+function isDue(frequency: string, lastDelivery: string | null, todayStr: string): boolean {
+  if (!lastDelivery) return true;
+  if (frequency === 'weekly') return true; // une fois par semaine sur ce jour
+  if (frequency === 'fortnightly') return daysBetween(lastDelivery, todayStr) >= 14;
+  if (frequency === 'monthly') {
+    const last = new Date(lastDelivery + 'T00:00:00Z');
+    const today = new Date(todayStr + 'T00:00:00Z');
+    return last.getUTCFullYear() !== today.getUTCFullYear() || last.getUTCMonth() !== today.getUTCMonth();
+  }
+  return false;
+}
+
 export async function GET(request: Request) {
   const auth = request.headers.get('authorization');
   if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -16,21 +44,47 @@ export async function GET(request: Request) {
 
   const { data: subs } = await supabaseAdmin
     .from('subscriptions')
-    .select('user_id, delivery_day, last_delivery')
+    .select('user_id, frequency, delivery_day, last_delivery, valid_until')
     .eq('active', true).eq('paused', false).eq('delivery_day', dow);
 
-  const due = (subs || []).filter(s => s.last_delivery !== todayStr);
   const results: any[] = [];
-  for (const s of due) {
-    try { results.push({ user: s.user_id, ...(await processOne(s.user_id, todayStr)) }); }
-    catch (e: any) { results.push({ user: s.user_id, error: e.message }); }
+  let dueCount = 0;
+  for (const s of (subs || [])) {
+    if (s.last_delivery === todayStr) continue; // déjà livré aujourd'hui
+
+    // Expiration : pause + notification, pas de livraison
+    if (s.valid_until && todayStr > s.valid_until) {
+      try { await expireOne(s.user_id, s.frequency); } catch (e: any) { /* noop */ }
+      results.push({ user: s.user_id, frequency: s.frequency, expired: true });
+      continue;
+    }
+
+    if (!isDue(s.frequency, s.last_delivery, todayStr)) continue;
+    dueCount++;
+    try { results.push({ user: s.user_id, frequency: s.frequency, ...(await processOne(s.user_id, s.frequency, todayStr)) }); }
+    catch (e: any) { results.push({ user: s.user_id, frequency: s.frequency, error: e.message }); }
   }
-  return NextResponse.json({ date: todayStr, dow, due: due.length, results });
+  return NextResponse.json({ date: todayStr, dow, due: dueCount, results });
 }
 
-async function processOne(userId: string, todayStr: string) {
+async function expireOne(userId: string, frequency: string) {
+  await supabaseAdmin.from('subscriptions')
+    .update({ paused: true, updated_at: new Date().toISOString() })
+    .eq('user_id', userId).eq('frequency', frequency);
+  const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId);
+  const email = userData?.user?.email || null;
+  const label = FREQ_LABEL[frequency] || frequency;
+  try { if (email) await sendSubscriptionExpired(email, label); } catch {}
+  try {
+    const { sendPushToUser } = await import('../../../../lib/push');
+    await sendPushToUser(userId, { title: '⏳ Abonnement à renouveler', body: `Votre commande type ${label} est arrivée à échéance.`, url: '/abonnement' });
+  } catch {}
+}
+
+async function processOne(userId: string, frequency: string, todayStr: string) {
+  const label = FREQ_LABEL[frequency] || frequency;
   const { data: items } = await supabaseAdmin
-    .from('subscription_items').select('product_id, quantity').eq('user_id', userId);
+    .from('subscription_items').select('product_id, quantity').eq('user_id', userId).eq('frequency', frequency);
   if (!items || !items.length) return { skipped: 'no_items' };
 
   const ids = items.map((i: any) => i.product_id);
@@ -60,11 +114,12 @@ async function processOne(userId: string, todayStr: string) {
   const email = userData?.user?.email || null;
 
   if (balance < total) {
-    await supabaseAdmin.from('subscriptions').update({ paused: true, updated_at: new Date().toISOString() }).eq('user_id', userId);
+    await supabaseAdmin.from('subscriptions').update({ paused: true, updated_at: new Date().toISOString() })
+      .eq('user_id', userId).eq('frequency', frequency);
     try { if (email) await sendSubscriptionPaused(email, total, balance); } catch {}
     try {
       const { sendPushToUser } = await import('../../../../lib/push');
-      await sendPushToUser(userId, { title: '⏸️ Cagnotte à recharger', body: 'Votre livraison hebdomadaire est en pause (solde insuffisant).', url: '/abonnement' });
+      await sendPushToUser(userId, { title: '⏸️ Cagnotte à recharger', body: `Votre livraison ${label} est en pause (solde insuffisant).`, url: '/abonnement' });
     } catch {}
     return { paused: 'low_balance', needed: total, balance };
   }
@@ -79,8 +134,8 @@ async function processOne(userId: string, todayStr: string) {
 
   // Commande (prépayée via cagnotte, livraison offerte)
   const { data: order, error: orderErr } = await supabaseAdmin.from('orders').insert({
-    user_id: userId, total, delivery_fee: 0, delivery_option_name: 'Abonnement',
-    special_instructions: 'Commande automatique (abonnement hebdomadaire)',
+    user_id: userId, total, delivery_fee: 0, delivery_option_name: `Abonnement (${label})`,
+    special_instructions: `Commande automatique (abonnement ${label})`,
     status: 'processing', payment_method: 'wallet',
     phone, address, customer_name, email,
   }).select().single();
@@ -95,10 +150,11 @@ async function processOne(userId: string, todayStr: string) {
     supabaseAdmin.from('products').update({ stock_qty: Math.max(0, Number(l.p.stock_qty) - l.qty) }).eq('id', l.p.id)));
 
   await supabaseAdmin.rpc('wallet_adjust', {
-    p_user: userId, p_amount: -total, p_type: 'debit', p_order: order.id, p_note: 'Livraison hebdomadaire (abonnement)',
+    p_user: userId, p_amount: -total, p_type: 'debit', p_order: order.id, p_note: `Livraison ${label} (abonnement)`,
   });
 
-  await supabaseAdmin.from('subscriptions').update({ last_delivery: todayStr, updated_at: new Date().toISOString() }).eq('user_id', userId);
+  await supabaseAdmin.from('subscriptions').update({ last_delivery: todayStr, updated_at: new Date().toISOString() })
+    .eq('user_id', userId).eq('frequency', frequency);
 
   // Emails : bordereau préparateurs + confirmation client
   const emailItems = lines.map(l => ({
@@ -115,7 +171,7 @@ async function processOne(userId: string, todayStr: string) {
   // Push livraison
   try {
     const { sendPushToUser } = await import('../../../../lib/push');
-    await sendPushToUser(userId, { title: '📦 Livraison hebdomadaire', body: `Commande #${String(order.id)} en préparation — ${Number(total).toLocaleString('fr-FR')} Fdj`, url: '/profile' });
+    await sendPushToUser(userId, { title: `📦 Livraison ${label}`, body: `Commande #${String(order.id)} en préparation — ${Number(total).toLocaleString('fr-FR')} Fdj`, url: '/profile' });
   } catch {}
 
   return { ordered: order.id, total };

@@ -344,6 +344,20 @@ export async function sendSubscriptionPaused(email: string, needed: number, bala
   await resend.emails.send({ from: FROM, to: email, subject: '⏸️ Cagnotte à recharger — Hornafresh', html });
 }
 
+// ── 5b. Abonnement arrivé à expiration ───────────────────────────────────────
+export async function sendSubscriptionExpired(email: string, freqLabel: string) {
+  const html = baseLayout(`
+    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">⏳ Abonnement arrivé à échéance</h2>
+    <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">Votre commande type <strong>${freqLabel}</strong> a atteint sa date de validité et a été mise en pause.</p>
+    <p style="color:#374151;font-size:14px;line-height:1.6;">
+      Pour reprendre vos livraisons automatiques, il vous suffit de renouveler votre commande type
+      depuis votre espace : elle repartira pour une nouvelle année.
+    </p>
+    <p style="color:#6b7280;font-size:13px;margin-top:24px;">Une question ? Contactez-nous au <strong>77432615</strong>.</p>
+  `);
+  await resend.emails.send({ from: FROM, to: email, subject: '⏳ Renouvelez votre commande type — Hornafresh', html });
+}
+
 // ── 6. Nouvelle demande de recharge → admin ──────────────────────────────────
 export async function sendDepositRequestAlert(req: any, customer: { name?: string | null; email?: string | null }) {
   const html = baseLayout(`

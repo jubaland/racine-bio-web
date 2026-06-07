@@ -528,7 +528,7 @@ export default function ProfilePage() {
             <div className="w-12 h-12 rounded-2xl bg-[#ecf4d5] flex items-center justify-center text-2xl flex-none">🔄</div>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-gray-800">{t('profile.subscription', 'Ma commande type')}</p>
-              <p className="text-xs text-gray-400">{t('profile.subscription_desc', 'Livraison automatique chaque semaine, débitée de votre cagnotte.')}</p>
+              <p className="text-xs text-gray-400">{t('profile.subscription_desc2', 'Livraison automatique (hebdo, quinzaine ou mensuelle), débitée de votre cagnotte.')}</p>
             </div>
             <span className="text-[#7d9800] text-xl flex-none">→</span>
           </div>
