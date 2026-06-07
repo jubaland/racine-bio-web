@@ -82,7 +82,8 @@ export default function ProfilePage() {
 
   // Notifications email
   const [notifOpen, setNotifOpen] = useState(false);
-  const [notifPrefs, setNotifPrefs] = useState({ orders: true, status: true, promos: false });
+  // Toutes les notifications activées par défaut ; le client peut les désactiver.
+  const [notifPrefs, setNotifPrefs] = useState({ orders: true, status: true, promos: true });
   const [savingNotifs, setSavingNotifs] = useState(false);
 
   // Push navigateur
@@ -200,11 +201,39 @@ export default function ProfilePage() {
         .eq('user_id', session.user.id).eq('status', 'pending').order('created_at', { ascending: false })
         .then(({ data }) => setPendingDeposits(data || []));
 
-      // Push navigateur
+      // Push navigateur — activé par défaut (auto-souscription)
       if ('serviceWorker' in navigator && 'PushManager' in window) {
         setPushSupported(true);
         const reg = await navigator.serviceWorker.register('/sw.js');
-        const existing = await reg.pushManager.getSubscription();
+        let existing = await reg.pushManager.getSubscription();
+
+        // Activer automatiquement : si l'autorisation est déjà accordée on souscrit
+        // silencieusement (couvre les clients existants) ; sinon on la demande une
+        // seule fois par appareil. Un refus ne peut pas être contourné (sécurité navigateur).
+        if (!existing) {
+          let permission = Notification.permission;
+          if (permission === 'default' && localStorage.getItem('hf_push_auto') !== '1') {
+            localStorage.setItem('hf_push_auto', '1');
+            try { permission = await Notification.requestPermission(); } catch {}
+          }
+          if (permission === 'granted') {
+            const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+            if (vapidKey) {
+              try {
+                const sub = await reg.pushManager.subscribe({
+                  userVisibleOnly: true,
+                  applicationServerKey: urlBase64ToUint8Array(vapidKey),
+                });
+                await fetch('/api/push', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', ...(session.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
+                  body: JSON.stringify({ subscription: sub.toJSON(), action: 'subscribe' }),
+                });
+                existing = sub;
+              } catch (e) { console.error('[push] auto-subscribe failed:', e); }
+            }
+          }
+        }
         setPushEnabled(!!existing);
       }
 
