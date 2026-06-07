@@ -496,43 +496,6 @@ export default function ProfilePage() {
           </div>
         </Link>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          {([
-            {
-              icon: <span className="text-2xl">📦</span>,
-              label: t('profile.stat_orders', 'Commandes'), value: orders.length, anchor: 'section-orders',
-            },
-            {
-              icon: (
-                <svg viewBox="0 0 24 24" className="w-7 h-7" fill="#f97316" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                </svg>
-              ),
-              label: t('profile.stat_favorites', 'Favoris'), value: favCount, anchor: 'section-favorites',
-            },
-            {
-              icon: (
-                <svg viewBox="0 0 24 24" className="w-7 h-7" fill="#f97316" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                  <circle cx="12" cy="10" r="3" fill="white" stroke="white"/>
-                </svg>
-              ),
-              label: t('profile.stat_addresses', 'Adresses'), value: addresses.length, anchor: 'section-addresses',
-            },
-          ] as { icon: React.ReactNode; label: string; value: number; anchor: string }[]).map(stat => (
-            <button
-              key={stat.label}
-              onClick={() => document.getElementById(stat.anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-              className="bg-white rounded-2xl p-4 text-center border border-[#d2e095] hover:border-[#a8c800] hover:shadow-sm transition"
-            >
-              <div className="flex justify-center mb-1">{stat.icon}</div>
-              <p className="text-xl font-bold text-[#526500]">{stat.value}</p>
-              <p className="text-xs text-gray-400">{stat.label}</p>
-            </button>
-          ))}
-        </div>
-
         {/* Favoris */}
         <div id="section-favorites" className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6">
           <div className="flex items-center justify-between mb-4">
