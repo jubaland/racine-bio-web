@@ -1,15 +1,16 @@
-import { fetchProducts, fetchCategories, fetchPromos, fetchProducers } from '../lib/supabase';
+import { fetchProducts, fetchCategories, fetchPromos, fetchProducers, fetchSiteSettings } from '../lib/supabase';
 import HomePage from '../components/HomePage';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Home() {
   try {
-    const [products, categories, promos, producers] = await Promise.all([
+    const [products, categories, promos, producers, settings] = await Promise.all([
       fetchProducts(),
       fetchCategories(),
       fetchPromos(),
       fetchProducers(),
+      fetchSiteSettings(),
     ]);
 
     return (
@@ -18,6 +19,7 @@ export default async function Home() {
         categories={categories || []}
         promos={promos || []}
         producers={producers || []}
+        settings={settings || {}}
       />
     );
   } catch (e) {
@@ -27,6 +29,7 @@ export default async function Home() {
         categories={[]}
         promos={[]}
         producers={[]}
+        settings={{}}
       />
     );
   }

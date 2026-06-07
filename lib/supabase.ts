@@ -31,6 +31,14 @@ export async function fetchProducers() {
   return data || [];
 }
 
+// Réglages d'affichage (visibilité des blocs de l'accueil, etc.)
+export async function fetchSiteSettings(): Promise<Record<string, boolean>> {
+  const { data } = await supabase.from('site_settings').select('key, value');
+  const map: Record<string, boolean> = {};
+  (data || []).forEach((r: any) => { map[r.key] = r.value; });
+  return map;
+}
+
 export async function fetchUITranslations(languageCode: string) {
   const { data } = await supabase
     .from('ui_translations')

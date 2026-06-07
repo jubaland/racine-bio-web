@@ -18,15 +18,17 @@ const TYPE_FILTERS = [
   { id: 'conventionnel', labelKey: 'filter.conv', label: 'Conventionnel', emoji: '🥕' },
 ];
 
-// Bloc "Nos producteurs" masqué temporairement — passer à true pour le réafficher.
-const SHOW_PRODUCERS = false;
-
-export default function HomePage({ products, categories, promos, producers }: {
+export default function HomePage({ products, categories, promos, producers, settings = {} }: {
   products: any[];
   categories: any[];
   promos: any[];
   producers: any[];
+  settings?: Record<string, boolean>;
 }) {
+  // Visibilité des blocs (réglable dans le panneau admin → Page d'accueil).
+  // Par défaut visible, sauf "producers" (avis producteurs) masqué par défaut.
+  const show = (key: string, def = true) => settings[key] ?? def;
+  const SHOW_PRODUCERS = show('home.producers', false);
   const { ui, productTranslations, categoryTranslations, promoTranslations, currentLang } = useLanguage();
   const { addItem, count, total } = useCart();
   const { isFavorite, addFavorite, removeFavorite } = useFavorites();
@@ -209,7 +211,7 @@ export default function HomePage({ products, categories, promos, producers }: {
       </section>
 
       {/* Promotions */}
-      {promos.filter((p: any) => p.active !== false).length > 0 && (
+      {show('home.promos') && promos.filter((p: any) => p.active !== false).length > 0 && (
         <section className="max-w-7xl mx-auto px-4 md:px-6 pt-6 md:pt-8">
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">🔥 {t('promosTitle', 'Promotions du moment')}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -245,7 +247,7 @@ export default function HomePage({ products, categories, promos, producers }: {
       )}
 
       {/* Sélection du moment */}
-      {featuredProducts.length > 0 && (
+      {show('home.featured') && featuredProducts.length > 0 && (
         <section id="selection" className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -318,7 +320,7 @@ export default function HomePage({ products, categories, promos, producers }: {
       )}
 
       {/* Produits locaux */}
-      {localProducts.length > 0 && (
+      {show('home.local') && localProducts.length > 0 && (
         <section className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
           <div className="mb-6">
             <h2 className="text-2xl font-semibold text-gray-800">🇩🇯 {t('localProducts', 'Produits de Djibouti')}</h2>
@@ -582,6 +584,7 @@ export default function HomePage({ products, categories, promos, producers }: {
       )}
 
       {/* Espace producteur */}
+      {show('home.producer_cta') && (
       <section className="bg-gradient-to-br from-[#1c3a05] via-[#2d6410] to-[#7a5800] py-12 md:py-16 px-4 md:px-6 text-white">
         <div className="max-w-5xl mx-auto">
           <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
@@ -620,8 +623,10 @@ export default function HomePage({ products, categories, promos, producers }: {
           </div>
         </div>
       </section>
+      )}
 
       {/* Comment ça marche */}
+      {show('home.how') && (
       <section className="bg-white border-t border-[#d2e095] py-12 md:py-16 px-4 md:px-6">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
@@ -668,8 +673,10 @@ export default function HomePage({ products, categories, promos, producers }: {
           </div>
         </div>
       </section>
+      )}
 
       {/* Stats */}
+      {show('home.stats') && (
       <section className="bg-[#ecf4d5]">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
           {[
@@ -686,9 +693,10 @@ export default function HomePage({ products, categories, promos, producers }: {
           ))}
         </div>
       </section>
+      )}
 
       {/* Bannière apps mobiles (Android + iOS) */}
-      {(() => {
+      {show('home.apps') && (() => {
         const APP_I18N: Record<string, { android: string; ios: string; desc: string; badge: string }> = {
           fr: { android: 'Application Android', ios: 'Application iOS', badge: 'Bientôt disponible',    desc: 'Commandez encore plus facilement depuis votre téléphone.' },
           en: { android: 'Android App',         ios: 'iOS App',         badge: 'Coming soon',           desc: 'Order even more easily from your phone.' },
