@@ -85,25 +85,36 @@ export async function GET() {
     if (!isDue(s.frequency, s.last_delivery, slot.date)) continue;  // pas dû selon la fréquence
 
     const itemsTotal = basket.reduce((sum, b) => sum + b.price * b.quantity, 0);
-    const fee = Number(s.delivery_fee) || 0;
-    const total = itemsTotal + fee;
-    const balance = balanceMap[s.user_id] ?? 0;
     slot.deliveries.push({
       user_id: s.user_id,
       name: info[s.user_id]?.name ?? null,
       email: info[s.user_id]?.email ?? null,
       frequency: s.frequency,
       items: basket,
-      fee,
-      total,
-      balance,
-      insufficient: total > balance,
+      itemsTotal,
+      rawFee: Number(s.delivery_fee) || 0,
+      balance: balanceMap[s.user_id] ?? 0,
     });
 
     // Agrégat (on prévoit les quantités demandées, non plafonnées au stock)
     for (const b of basket) {
       const a = (agg[b.product_id] ||= { product_id: b.product_id, name: b.name, unit: b.unit, quantity: 0, stock: Number(pmap[b.product_id]?.stock_qty) || 0 });
       a.quantity += b.quantity;
+    }
+  }
+
+  // Frais de transport : une seule fois par client et par jour (comme le cron).
+  for (const day of days) {
+    const maxFeeByUser: Record<string, number> = {};
+    for (const d of day.deliveries) maxFeeByUser[d.user_id] = Math.max(maxFeeByUser[d.user_id] || 0, d.rawFee);
+    const charged = new Set<string>();
+    for (const d of day.deliveries) {
+      const appliedFee = charged.has(d.user_id) ? 0 : (maxFeeByUser[d.user_id] || 0);
+      if (appliedFee > 0) charged.add(d.user_id);
+      d.fee = appliedFee;
+      d.total = d.itemsTotal + appliedFee;
+      d.insufficient = d.total > d.balance;
+      delete d.itemsTotal; delete d.rawFee;
     }
   }
 

@@ -48,7 +48,9 @@ export async function GET(request: Request) {
     .eq('active', true).eq('paused', false).eq('delivery_day', dow);
 
   const results: any[] = [];
-  let dueCount = 0;
+
+  // 1. Filtrer expirations + livraisons réellement dues aujourd'hui
+  const due: any[] = [];
   for (const s of (subs || [])) {
     if (s.last_delivery === todayStr) continue; // déjà livré aujourd'hui
 
@@ -60,11 +62,31 @@ export async function GET(request: Request) {
     }
 
     if (!isDue(s.frequency, s.last_delivery, todayStr)) continue;
-    dueCount++;
-    try { results.push({ user: s.user_id, frequency: s.frequency, ...(await processOne(s.user_id, s.frequency, todayStr, Number(s.delivery_fee) || 0)) }); }
-    catch (e: any) { results.push({ user: s.user_id, frequency: s.frequency, error: e.message }); }
+    due.push(s);
   }
-  return NextResponse.json({ date: todayStr, dow, due: dueCount, results });
+
+  // 2. Frais de transport : UNE SEULE FOIS par client et par jour (un seul trajet).
+  //    Si plusieurs livraisons d'un même client tombent le même jour (ex. hebdo +
+  //    quinzaine), on applique le frais le plus élevé une fois, 0 sur les autres.
+  const maxFeeByUser: Record<string, number> = {};
+  for (const s of due) {
+    maxFeeByUser[s.user_id] = Math.max(maxFeeByUser[s.user_id] || 0, Number(s.delivery_fee) || 0);
+  }
+  const feeCharged = new Set<string>();
+
+  // 3. Traiter les livraisons
+  for (const s of due) {
+    const feeToTry = feeCharged.has(s.user_id) ? 0 : (maxFeeByUser[s.user_id] || 0);
+    try {
+      const res: any = await processOne(s.user_id, s.frequency, todayStr, feeToTry);
+      // Le frais n'est marqué "prélevé" que si une commande a réellement été créée
+      if (feeToTry > 0 && res?.ordered) feeCharged.add(s.user_id);
+      results.push({ user: s.user_id, frequency: s.frequency, ...res });
+    } catch (e: any) {
+      results.push({ user: s.user_id, frequency: s.frequency, error: e.message });
+    }
+  }
+  return NextResponse.json({ date: todayStr, dow, due: due.length, results });
 }
 
 async function expireOne(userId: string, frequency: string) {
