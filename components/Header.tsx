@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../context/LanguageContext';
 import { useCart } from '../context/CartContext';
@@ -16,6 +17,13 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
   const { count } = useCart();
   const { count: favCount } = useFavorites();
   const t = (key: string, fallback: string) => ui[key] || fallback;
+  const router = useRouter();
+  const pathname = usePathname();
+  const showBack = pathname !== '/';
+  const goBack = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) router.back();
+    else router.push('/');
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -33,14 +41,28 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
     <header className="bg-white border-b border-[#d2e095] sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4 flex items-center justify-between">
 
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 flex-none">
-          <span className="text-3xl">🌿</span>
-          <div className="hidden md:block">
-            <h1 className="text-xl font-bold text-[#526500] leading-tight">Hornafresh</h1>
-            <p className="text-xs text-gray-400">{t('footer', 'Le marché premium, frais, bio, local et régional de Djibouti')}</p>
-          </div>
-        </Link>
+        {/* Retour + Logo */}
+        <div className="flex items-center gap-2 flex-none min-w-0">
+          {showBack && (
+            <button
+              onClick={goBack}
+              aria-label={t('nav.back', 'Retour')}
+              className="flex-none flex items-center gap-1 rounded-full bg-[#ecf4d5] text-[#526500] border border-[#d2e095] px-3 py-1.5 text-sm font-semibold hover:bg-[#d2e095] transition"
+            >
+              <span className="text-base leading-none">←</span>
+              <span className="hidden sm:inline">{t('nav.back', 'Retour')}</span>
+            </button>
+          )}
+          {!showBack && (
+            <Link href="/" className="flex items-center gap-2 min-w-0">
+              <span className="text-3xl">🌿</span>
+              <div className="hidden md:block">
+                <h1 className="text-xl font-bold text-[#526500] leading-tight">Hornafresh</h1>
+                <p className="text-xs text-gray-400">{t('footer', 'Le marché premium, frais, bio, local et régional de Djibouti')}</p>
+              </div>
+            </Link>
+          )}
+        </div>
 
         {/* Boutons — tous en ligne */}
         <div className="flex items-center gap-1.5 md:gap-3">
