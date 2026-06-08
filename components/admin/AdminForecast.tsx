@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 
 interface AggRow { product_id: number; name: string; unit: string; quantity: number; stock: number; shortfall: number; }
-interface Delivery { user_id: string; name: string | null; email: string | null; frequency: string; items: { product_id: number; name: string; unit: string; quantity: number }[]; total: number; balance: number; insufficient: boolean; }
+interface Delivery { user_id: string; name: string | null; email: string | null; frequency: string; items: { product_id: number; name: string; unit: string; quantity: number }[]; fee: number; total: number; balance: number; insufficient: boolean; }
 interface Day { date: string; dow: number; deliveries: Delivery[]; }
 
 export default function AdminForecast() {
@@ -113,6 +113,7 @@ export default function AdminForecast() {
                         </div>
                         <p className="text-xs text-gray-500">
                           {d.items.map(it => `${it.name} ×${it.quantity}`).join(' · ')}
+                          {d.fee > 0 && <span className="text-gray-400"> · 🚚 {Number(d.fee).toLocaleString()} Fdj</span>}
                         </p>
                         {d.insufficient && (
                           <p className="text-xs text-[#f97316] mt-1">⚠️ {t('admin.fc_insufficient', 'Cagnotte insuffisante')} ({Number(d.balance).toLocaleString()} Fdj) — {t('admin.fc_will_pause', 'risque de mise en pause')}</p>

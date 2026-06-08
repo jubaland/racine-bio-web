@@ -28,6 +28,8 @@ export default function SubscriptionPage() {
   const [dayByFreq, setDayByFreq] = useState<Record<Freq, number>>({ weekly: 1, fortnightly: 1, monthly: 1 });
   const [activeByFreq, setActiveByFreq] = useState<Record<Freq, boolean>>({ weekly: false, fortnightly: false, monthly: false });
   const [validByFreq, setValidByFreq] = useState<Record<Freq, string | null>>({ weekly: null, fortnightly: null, monthly: null });
+  // Frais de transport personnalisés (définis par l'admin) — lecture seule côté client
+  const [feeByFreq, setFeeByFreq] = useState<Record<Freq, number>>({ weekly: 0, fortnightly: 0, monthly: 0 });
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -75,14 +77,16 @@ export default function SubscriptionPage() {
       const day: Record<Freq, number> = { weekly: 1, fortnightly: 1, monthly: 1 };
       const act: Record<Freq, boolean> = { weekly: false, fortnightly: false, monthly: false };
       const val: Record<Freq, string | null> = { weekly: null, fortnightly: null, monthly: null };
+      const fees: Record<Freq, number> = { weekly: 0, fortnightly: 0, monthly: 0 };
       (subs || []).forEach((s: any) => {
         const f = (s.frequency || 'weekly') as Freq;
         if (!FREQS.includes(f)) return;
         day[f] = s.delivery_day ?? 1;
         act[f] = !!s.active && !s.paused;
         val[f] = s.valid_until ?? null;
+        fees[f] = Number(s.delivery_fee) || 0;
       });
-      setDayByFreq(day); setActiveByFreq(act); setValidByFreq(val);
+      setDayByFreq(day); setActiveByFreq(act); setValidByFreq(val); setFeeByFreq(fees);
 
       const q: Record<Freq, Record<number, number>> = { weekly: {}, fortnightly: {}, monthly: {} };
       (items || []).forEach((it: any) => {
@@ -110,7 +114,9 @@ export default function SubscriptionPage() {
   const setActive = (v: boolean) => { setSaved(false); setActiveByFreq(prev => ({ ...prev, [freq]: v })); };
 
   const basket = products.filter(p => (qty[p.id] || 0) > 0);
-  const total = basket.reduce((s, p) => s + Number(p.price) * (qty[p.id] || 0), 0);
+  const itemsTotal = basket.reduce((s, p) => s + Number(p.price) * (qty[p.id] || 0), 0);
+  const fee = feeByFreq[freq] || 0;
+  const total = itemsTotal + fee; // articles + frais de transport (fréquence courante)
 
   // Autonomie globale : toutes les commandes types ACTIVES partagent la même
   // cagnotte. On calcule le rythme de consommation cumulé (par jour) puis la
@@ -122,7 +128,8 @@ export default function SubscriptionPage() {
   const dailyBurn = FREQS.reduce((sum, f) => {
     if (!activeByFreq[f]) return sum;
     const tot = totalForFreq(f);
-    return sum + (tot > 0 ? tot / PERIOD_DAYS[f] : 0);
+    const withFee = tot > 0 ? tot + (feeByFreq[f] || 0) : 0; // inclut les frais de transport
+    return sum + withFee / PERIOD_DAYS[f];
   }, 0);
   const daysCovered = dailyBurn > 0 ? Math.floor(balance / dailyBurn) : 0;
   const weeksCovered = Math.floor(daysCovered / 7);
@@ -238,7 +245,19 @@ export default function SubscriptionPage() {
                   </div>
                 ))}
               </div>
-              <div className="border-t border-[#d2e095] mt-3 pt-3 flex items-center justify-between">
+              {fee > 0 && (
+                <>
+                  <div className="border-t border-[#d2e095] mt-3 pt-3 flex items-center justify-between">
+                    <span className="text-sm text-gray-500">{t('sub.items_subtotal', 'Sous-total articles')}</span>
+                    <span className="text-sm text-gray-600">{itemsTotal.toLocaleString()} Fdj</span>
+                  </div>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-sm text-gray-500">🚚 {t('sub.delivery_fee', 'Frais de transport')}</span>
+                    <span className="text-sm text-gray-600">{fee.toLocaleString()} Fdj</span>
+                  </div>
+                </>
+              )}
+              <div className={`${fee > 0 ? 'mt-2 pt-2' : 'border-t border-[#d2e095] mt-3 pt-3'} flex items-center justify-between`}>
                 <span className="text-sm text-gray-600">{t('sub.total', 'Total')} {PERIOD_WORD[freq]}</span>
                 <span className="text-lg font-bold text-[#526500]">{total.toLocaleString()} Fdj</span>
               </div>

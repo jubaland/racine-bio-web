@@ -5,7 +5,7 @@ import { supabaseAdmin } from '../../../../lib/supabase-admin';
 export async function GET() {
   const { data: subs, error } = await supabaseAdmin
     .from('subscriptions')
-    .select('user_id, frequency, delivery_day, active, paused, last_delivery, valid_until, created_at, updated_at');
+    .select('user_id, frequency, delivery_day, active, paused, last_delivery, valid_until, delivery_fee, created_at, updated_at');
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
   const { data: items } = await supabaseAdmin
@@ -60,10 +60,19 @@ export async function GET() {
   return NextResponse.json({ subscriptions: result });
 }
 
-// Actions admin : pause / resume / delete
+// Actions admin : pause / resume / delete / set_fee
 export async function POST(request: Request) {
-  const { user_id, frequency, action } = await request.json();
+  const { user_id, frequency, action, fee } = await request.json();
   if (!user_id || !frequency) return NextResponse.json({ error: 'user_id et frequency requis' }, { status: 400 });
+
+  if (action === 'set_fee') {
+    const amount = Math.max(0, Number(fee) || 0);
+    const { error } = await supabaseAdmin.from('subscriptions')
+      .update({ delivery_fee: amount, updated_at: new Date().toISOString() })
+      .eq('user_id', user_id).eq('frequency', frequency);
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ ok: true });
+  }
 
   if (action === 'pause' || action === 'resume') {
     const { error } = await supabaseAdmin.from('subscriptions')

@@ -44,7 +44,7 @@ export async function GET(request: Request) {
 
   const { data: subs } = await supabaseAdmin
     .from('subscriptions')
-    .select('user_id, frequency, delivery_day, last_delivery, valid_until')
+    .select('user_id, frequency, delivery_day, last_delivery, valid_until, delivery_fee')
     .eq('active', true).eq('paused', false).eq('delivery_day', dow);
 
   const results: any[] = [];
@@ -61,7 +61,7 @@ export async function GET(request: Request) {
 
     if (!isDue(s.frequency, s.last_delivery, todayStr)) continue;
     dueCount++;
-    try { results.push({ user: s.user_id, frequency: s.frequency, ...(await processOne(s.user_id, s.frequency, todayStr)) }); }
+    try { results.push({ user: s.user_id, frequency: s.frequency, ...(await processOne(s.user_id, s.frequency, todayStr, Number(s.delivery_fee) || 0)) }); }
     catch (e: any) { results.push({ user: s.user_id, frequency: s.frequency, error: e.message }); }
   }
   return NextResponse.json({ date: todayStr, dow, due: dueCount, results });
@@ -81,7 +81,7 @@ async function expireOne(userId: string, frequency: string) {
   } catch {}
 }
 
-async function processOne(userId: string, frequency: string, todayStr: string) {
+async function processOne(userId: string, frequency: string, todayStr: string, fee: number = 0) {
   const label = FREQ_LABEL[frequency] || frequency;
   const { data: items } = await supabaseAdmin
     .from('subscription_items').select('product_id, quantity').eq('user_id', userId).eq('frequency', frequency);
@@ -102,7 +102,8 @@ async function processOne(userId: string, frequency: string, todayStr: string) {
   }
   if (!lines.length) return { skipped: 'out_of_stock' };
 
-  const total = lines.reduce((s, l) => s + Number(l.p.price) * l.qty, 0);
+  const itemsTotal = lines.reduce((s, l) => s + Number(l.p.price) * l.qty, 0);
+  const total = itemsTotal + (Number(fee) || 0);   // articles + frais de transport personnalisés
 
   // Solde
   const { data: w } = await supabaseAdmin.from('wallets').select('balance').eq('user_id', userId).maybeSingle();
@@ -132,9 +133,9 @@ async function processOne(userId: string, frequency: string, todayStr: string) {
   const phone = addr?.phone || md.phone || '';
   const address = addr?.address || md.address || '';
 
-  // Commande (prépayée via cagnotte, livraison offerte)
+  // Commande (prépayée via cagnotte ; frais de transport personnalisés éventuels)
   const { data: order, error: orderErr } = await supabaseAdmin.from('orders').insert({
-    user_id: userId, total, delivery_fee: 0, delivery_option_name: `Abonnement (${label})`,
+    user_id: userId, total, delivery_fee: Number(fee) || 0, delivery_option_name: `Abonnement (${label})`,
     special_instructions: `Commande automatique (abonnement ${label})`,
     status: 'processing', payment_method: 'wallet',
     phone, address, customer_name, email,

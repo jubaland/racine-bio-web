@@ -26,7 +26,7 @@ export async function GET() {
   // Abonnements éligibles (actifs, non suspendus)
   const { data: subs, error } = await supabaseAdmin
     .from('subscriptions')
-    .select('user_id, frequency, delivery_day, last_delivery, valid_until')
+    .select('user_id, frequency, delivery_day, last_delivery, valid_until, delivery_fee')
     .eq('active', true).eq('paused', false);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
@@ -84,7 +84,9 @@ export async function GET() {
     if (s.valid_until && slot.date > s.valid_until) continue;       // expiré ce jour-là
     if (!isDue(s.frequency, s.last_delivery, slot.date)) continue;  // pas dû selon la fréquence
 
-    const total = basket.reduce((sum, b) => sum + b.price * b.quantity, 0);
+    const itemsTotal = basket.reduce((sum, b) => sum + b.price * b.quantity, 0);
+    const fee = Number(s.delivery_fee) || 0;
+    const total = itemsTotal + fee;
     const balance = balanceMap[s.user_id] ?? 0;
     slot.deliveries.push({
       user_id: s.user_id,
@@ -92,6 +94,7 @@ export async function GET() {
       email: info[s.user_id]?.email ?? null,
       frequency: s.frequency,
       items: basket,
+      fee,
       total,
       balance,
       insufficient: total > balance,

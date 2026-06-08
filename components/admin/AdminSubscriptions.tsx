@@ -8,6 +8,7 @@ interface SubItem { product_id: number; quantity: number; name: string; price: n
 interface Sub {
   user_id: string; frequency: string; delivery_day: number;
   active: boolean; paused: boolean; last_delivery: string | null; valid_until: string | null;
+  delivery_fee: number;
   name: string | null; email: string | null; balance: number; items: SubItem[]; total: number;
 }
 
@@ -21,6 +22,8 @@ export default function AdminSubscriptions() {
   const [busy, setBusy] = useState<string | null>(null);
   const [viewing, setViewing] = useState<Sub | null>(null);
   const [confirmDel, setConfirmDel] = useState<Sub | null>(null);
+  const [feeInput, setFeeInput] = useState('');
+  const [feeSaved, setFeeSaved] = useState(false);
 
   const DAYS = [
     t('sub.day_0', 'Dimanche'), t('sub.day_1', 'Lundi'), t('sub.day_2', 'Mardi'),
@@ -56,6 +59,18 @@ export default function AdminSubscriptions() {
     });
     setBusy(null); setConfirmDel(null);
     fetchAll();
+  };
+
+  const saveFee = async (s: Sub) => {
+    setBusy(`${s.user_id}|${s.frequency}`);
+    await fetch('/api/admin/subscriptions', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: s.user_id, frequency: s.frequency, action: 'set_fee', fee: Number(feeInput) || 0 }),
+    });
+    setBusy(null);
+    setFeeSaved(true);
+    await fetchAll();
+    setViewing(v => v ? { ...v, delivery_fee: Number(feeInput) || 0 } : v);
   };
 
   const today = new Date().toISOString().slice(0, 10);
@@ -129,7 +144,9 @@ export default function AdminSubscriptions() {
                 <tr><td colSpan={8} className="text-center py-12 text-gray-400">{t('admin.no_subs', 'Aucun abonnement')}</td></tr>
               ) : filtered.map(s => {
                 const key = `${s.user_id}|${s.frequency}`;
-                const insufficient = s.active && !s.paused && s.total > s.balance;
+                const fee = Number(s.delivery_fee) || 0;
+                const grand = s.total + fee;
+                const insufficient = s.active && !s.paused && grand > s.balance;
                 return (
                   <tr key={key} className="hover:bg-[#faf7e8] transition">
                     <td className="px-4 py-3">
@@ -139,8 +156,9 @@ export default function AdminSubscriptions() {
                     <td className="px-4 py-3 text-gray-700">{FREQ_LABEL[s.frequency] || s.frequency}</td>
                     <td className="px-4 py-3 text-gray-600">{DAYS[s.delivery_day] ?? '—'}</td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <span className="font-semibold text-[#526500]">{Number(s.total).toLocaleString()} Fdj</span>
+                      <span className="font-semibold text-[#526500]">{grand.toLocaleString()} Fdj</span>
                       <span className="block text-[11px] text-gray-400">{PERIOD_WORD[s.frequency]}</span>
+                      {fee > 0 && <span className="block text-[11px] text-gray-400">🚚 {fee.toLocaleString()} Fdj {t('admin.sub_fee_incl', 'frais')}</span>}
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       <span className={insufficient ? 'text-[#f97316] font-semibold' : 'text-gray-600'}>{Number(s.balance).toLocaleString()} Fdj</span>
@@ -154,7 +172,7 @@ export default function AdminSubscriptions() {
                         <input type="checkbox" checked={s.paused} disabled={busy === key} onChange={e => act(s, e.target.checked ? 'pause' : 'resume')} className="w-4 h-4 accent-[#a8c800]" />
                         <span className="text-xs text-gray-600">{busy === key ? '⏳' : t('admin.sub_suspend', 'Suspendre')}</span>
                       </label>
-                      <button onClick={() => setViewing(s)} className="ml-3 text-[#7d9800] hover:text-[#526500] text-xs font-medium">{t('admin.sub_view', 'Panier')}</button>
+                      <button onClick={() => { setViewing(s); setFeeInput(String(Number(s.delivery_fee) || 0)); setFeeSaved(false); }} className="ml-3 text-[#7d9800] hover:text-[#526500] text-xs font-medium">{t('admin.sub_view', 'Panier')}</button>
                       <button onClick={() => setConfirmDel(s)} className="ml-3 text-orange-400 hover:text-[#f97316] text-xs font-medium">{t('admin.delete', 'Supprimer')}</button>
                     </td>
                   </tr>
@@ -188,8 +206,35 @@ export default function AdminSubscriptions() {
               </div>
             )}
             <div className="flex items-center justify-between pt-1">
-              <span className="text-sm text-gray-600">{t('sub.total', 'Total')} {PERIOD_WORD[viewing.frequency]}</span>
-              <span className="text-lg font-bold text-[#526500]">{Number(viewing.total).toLocaleString()} Fdj</span>
+              <span className="text-sm text-gray-600">{t('admin.sub_items_total', 'Sous-total articles')}</span>
+              <span className="text-sm font-semibold text-gray-700">{Number(viewing.total).toLocaleString()} Fdj</span>
+            </div>
+
+            {/* Frais de transport personnalisés */}
+            <div className="border-t border-[#d2e095] pt-3">
+              <label className="text-sm font-medium text-gray-600 mb-1.5 block">🚚 {t('admin.sub_fee_label', 'Frais de transport')} ({PERIOD_WORD[viewing.frequency]})</label>
+              <div className="flex gap-2">
+                <input
+                  type="number" min="0" value={feeInput}
+                  onChange={e => { setFeeInput(e.target.value); setFeeSaved(false); }}
+                  placeholder="0"
+                  className="flex-1 border border-[#d2e095] rounded-xl px-4 py-2.5 text-sm bg-[#faf7e8] focus:outline-none focus:border-[#a8c800]"
+                />
+                <span className="flex items-center text-sm text-gray-500">Fdj</span>
+                <button
+                  onClick={() => saveFee(viewing)}
+                  disabled={busy !== null}
+                  className="px-4 py-2.5 bg-[#a8c800] text-white text-sm font-semibold rounded-xl hover:bg-[#7d9800] transition disabled:opacity-50 whitespace-nowrap"
+                >
+                  {feeSaved ? '✅' : t('admin.save', 'Enregistrer')}
+                </button>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-1">{t('admin.sub_fee_hint', 'Ajouté à chaque livraison et débité de la cagnotte.')}</p>
+            </div>
+
+            <div className="flex items-center justify-between border-t border-[#d2e095] pt-3">
+              <span className="text-sm font-semibold text-gray-700">{t('sub.total', 'Total')} {PERIOD_WORD[viewing.frequency]}</span>
+              <span className="text-lg font-bold text-[#526500]">{(Number(viewing.total) + (Number(feeInput) || 0)).toLocaleString()} Fdj</span>
             </div>
           </div>
         </Modal>
