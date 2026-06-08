@@ -358,6 +358,30 @@ export async function sendSubscriptionExpired(email: string, freqLabel: string) 
   await resend.emails.send({ from: FROM, to: email, subject: '⏳ Renouvelez votre commande type — Hornafresh', html });
 }
 
+// ── 5c. Réinitialisation de mot de passe (e-mail localisé via Resend) ─────────
+const RESET_I18N: Record<string, { subject: string; title: string; intro: string; cta: string; expire: string; sign: string }> = {
+  fr: { subject: 'Réinitialisez votre mot de passe — Hornafresh', title: 'Réinitialisation du mot de passe', intro: 'Vous avez demandé à réinitialiser le mot de passe de votre compte Hornafresh. Cliquez ci-dessous pour en choisir un nouveau.', cta: 'Réinitialiser mon mot de passe', expire: 'Ce lien expire après un court délai. Si vous n\'êtes pas à l\'origine de cette demande, ignorez simplement cet e-mail.', sign: 'L\'équipe Hornafresh' },
+  en: { subject: 'Reset your password — Hornafresh', title: 'Password reset', intro: 'You requested to reset the password for your Hornafresh account. Click below to choose a new one.', cta: 'Reset my password', expire: 'This link expires shortly. If you did not request this, simply ignore this email.', sign: 'The Hornafresh team' },
+  zh: { subject: '重置您的密码 — Hornafresh', title: '密码重置', intro: '您请求重置 Hornafresh 账户的密码。请点击下方按钮设置新密码。', cta: '重置我的密码', expire: '此链接将很快失效。如果这不是您本人的操作，请忽略此邮件。', sign: 'Hornafresh 团队' },
+  so: { subject: 'Dib u deji furahaaga — Hornafresh', title: 'Dib-u-dejinta furaha', intro: 'Waxaad codsatay inaad dib u dejiso furaha akoonkaaga Hornafresh. Riix hoosta si aad u dooratid mid cusub.', cta: 'Dib u deji furahayga', expire: 'Link-gan ayaa dhowaan dhacaya. Haddii aadan adigu codsan, fadlan iska indho tir email-kan.', sign: 'Kooxda Hornafresh' },
+  aa: { subject: 'Maqaane dib-qimbis — Hornafresh', title: 'Maqaane dib-qimbis', intro: 'Hornafresh akoontih maqaane dib-qimbis esserte. Cusub doorudkeh gubak tuqi.', cta: 'Yi maqaane dib-qimbis', expire: 'Tah link dabaqalih caddam. Atu maessertanih, tah email cabsit.', sign: 'Hornafresh garab' },
+  am: { subject: 'የይለፍ ቃልዎን ዳግም ያስጀምሩ — Hornafresh', title: 'የይለፍ ቃል ዳግም ማስጀመር', intro: 'የHornafresh መለያዎን የይለፍ ቃል ዳግም ለማስጀመር ጠይቀዋል። አዲስ ለመምረጥ ከታች ይጫኑ።', cta: 'የይለፍ ቃሌን ዳግም አስጀምር', expire: 'ይህ ማገናኛ በቅርቡ ያበቃል። እርስዎ ካልጠየቁ፣ እባክዎ ይህን ኢሜይል ችላ ይበሉ።', sign: 'የHornafresh ቡድን' },
+};
+
+export async function sendPasswordReset(email: string, link: string, lang: string = 'fr') {
+  const i = RESET_I18N[lang] || RESET_I18N.fr;
+  const html = baseLayout(`
+    <h2 style="margin:0 0 12px;color:#1f2937;font-size:20px;">🔐 ${i.title}</h2>
+    <p style="margin:0 0 20px;color:#374151;font-size:14px;line-height:1.6;">${i.intro}</p>
+    <p style="text-align:center;margin:0 0 20px;">
+      <a href="${link}" style="display:inline-block;background:#a8c800;color:#ffffff;text-decoration:none;padding:13px 28px;border-radius:9999px;font-weight:bold;font-size:15px;">${i.cta}</a>
+    </p>
+    <p style="margin:0;color:#6b7280;font-size:13px;line-height:1.6;">${i.expire}</p>
+    <p style="margin:16px 0 0;color:#6b7280;font-size:13px;">— ${i.sign}</p>
+  `);
+  await resend.emails.send({ from: FROM, to: email, subject: i.subject, html });
+}
+
 // ── 6. Nouvelle demande de recharge → admin ──────────────────────────────────
 export async function sendDepositRequestAlert(req: any, customer: { name?: string | null; email?: string | null }) {
   const html = baseLayout(`

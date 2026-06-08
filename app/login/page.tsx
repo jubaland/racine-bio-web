@@ -23,7 +23,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const { ui } = useLanguage();
+  const { ui, currentLang } = useLanguage();
   const t = (key: string, fallback: string) => ui[key] || fallback;
   const [redirect, setRedirect] = useState('/');
 
@@ -83,6 +83,26 @@ export default function LoginPage() {
       setError(error.message);
       setGoogleLoading(false);
     }
+  };
+
+  const handleForgot = async () => {
+    setError(''); setSuccess('');
+    if (!email.trim()) {
+      setError(t('login.forgot_need_email', 'Saisissez d\'abord votre adresse e-mail ci-dessus, puis recliquez.'));
+      return;
+    }
+    setLoading(true);
+    // E-mail de réinitialisation localisé (envoyé via notre API + Resend, dans la langue courante)
+    try {
+      await fetch('/api/auth/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), lang: currentLang, origin: window.location.origin }),
+      });
+    } catch { /* on reste générique */ }
+    setLoading(false);
+    // Toujours générique (anti-énumération des comptes)
+    setSuccess(t('login.forgot_sent', 'Si un compte existe pour cette adresse, un e-mail de réinitialisation vient d\'être envoyé. Pensez à vérifier vos spams.'));
   };
 
   const switchMode = (m: Mode) => {
@@ -294,7 +314,7 @@ export default function LoginPage() {
                   {t('login.password', 'Mot de passe')}
                 </label>
                 {mode === 'login' && (
-                  <button type="button" className="text-xs text-[#7d9800] hover:underline">
+                  <button type="button" onClick={handleForgot} disabled={loading} className="text-xs text-[#7d9800] hover:underline disabled:opacity-50">
                     {t('login.forgot_password', 'Mot de passe oublié ?')}
                   </button>
                 )}
