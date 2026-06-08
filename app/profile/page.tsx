@@ -7,6 +7,8 @@ import Link from 'next/link';
 import { useLanguage } from '../../context/LanguageContext';
 import { useFavorites } from '../../context/FavoritesContext';
 import { useCart } from '../../context/CartContext';
+import Header from '../../components/Header';
+import CartDrawer from '../../components/CartDrawer';
 
 interface OrderItem {
   id: string;
@@ -87,6 +89,7 @@ export default function ProfilePage() {
   const [reordering, setReordering] = useState<string | null>(null);
   const [reorderMsg, setReorderMsg] = useState('');
   const [receiptLoading, setReceiptLoading] = useState<string | null>(null);
+  const [cartOpen, setCartOpen] = useState(false);
 
   // Adresses
   // Parrainage
@@ -478,20 +481,8 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-[#faf7e8]">
-      <header className="bg-white border-b border-[#d2e095] sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <span className="text-3xl">🌿</span>
-            <div>
-              <h1 className="text-xl font-bold text-[#526500]">Hornafresh</h1>
-              <p className="text-xs text-gray-400">{t('footer', 'Le marché premium, frais, bio, local et régional de Djibouti')}</p>
-            </div>
-          </Link>
-          <Link href="/" className="text-sm text-gray-600 hover:text-[#7d9800]">
-            {t('profile.back', '← Retour')}
-          </Link>
-        </div>
-      </header>
+      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+      <Header onCartOpen={() => setCartOpen(true)} />
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
 
