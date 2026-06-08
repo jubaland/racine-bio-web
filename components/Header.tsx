@@ -47,10 +47,12 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
             <button
               onClick={goBack}
               aria-label={t('nav.back', 'Retour')}
-              className="flex-none flex items-center gap-1 rounded-full bg-[#ecf4d5] text-[#526500] border border-[#d2e095] px-3 py-1.5 text-sm font-semibold hover:bg-[#d2e095] transition"
+              className="flex-none flex items-center justify-center gap-1.5 rounded-full bg-[#ecf4d5] text-[#526500] border border-[#d2e095] hover:bg-[#d2e095] transition w-10 h-10 sm:w-auto sm:h-auto sm:px-3.5 sm:py-2"
             >
-              <span className="text-base leading-none">←</span>
-              <span className="hidden sm:inline">{t('nav.back', 'Retour')}</span>
+              <svg viewBox="0 0 24 24" className="w-5 h-5 flex-none" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+              <span className="hidden sm:inline text-sm font-semibold">{t('nav.back', 'Retour')}</span>
             </button>
           )}
           {!showBack && (
