@@ -498,6 +498,11 @@ export default function ProfilePage() {
               </p>
               <p className="text-xs text-white/60 truncate">{user?.email}</p>
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                {user?.user_metadata?.is_ambassador && (
+                  <span className="bg-[#c8e050] text-[#1c3a05] text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                    ⭐ {user?.user_metadata?.civility === 'madame' ? t('profile.ambassadrice', 'Ambassadrice') : t('profile.ambassadeur', 'Ambassadeur')}
+                  </span>
+                )}
                 {verified ? (
                   <span className="bg-white/15 text-[#c8e050] text-[11px] font-semibold px-2.5 py-0.5 rounded-full">✅ {t('profile.verified_short', 'Vérifié')}</span>
                 ) : (

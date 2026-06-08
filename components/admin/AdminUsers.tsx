@@ -23,7 +23,11 @@ interface Order {
   created_at: string;
 }
 
-interface AuthUser { id: string; email: string | null; verified: boolean; }
+interface AuthUser { id: string; email: string | null; verified: boolean; civility?: string | null; is_ambassador?: boolean; }
+
+// Libellé genré selon la civilité
+const ambassadorLabel = (civility?: string | null) =>
+  civility === 'madame' ? 'Ambassadrice' : 'Ambassadeur';
 
 export default function AdminUsers() {
   const [customers, setCustomers] = useState<CustomerSummary[]>([]);
@@ -33,6 +37,7 @@ export default function AdminUsers() {
   const [selectedUser, setSelectedUser] = useState<CustomerSummary | null>(null);
   const [userOrders, setUserOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
+  const [savingAmb, setSavingAmb] = useState(false);
 
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
@@ -106,6 +111,17 @@ export default function AdminUsers() {
     setLoadingOrders(false);
   };
 
+  const toggleAmbassador = async (userId: string, next: boolean) => {
+    setSavingAmb(true);
+    setAuthMap(prev => ({ ...prev, [userId]: { ...prev[userId], is_ambassador: next } })); // optimiste
+    const res = await fetch('/api/admin/users', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, is_ambassador: next }),
+    });
+    if (!res.ok) setAuthMap(prev => ({ ...prev, [userId]: { ...prev[userId], is_ambassador: !next } })); // rollback
+    setSavingAmb(false);
+  };
+
   const userStatus = (c: CustomerSummary) => {
     const a = authMap[c.user_id];
     if (!a) return { label: t('admin.user_guest', '👤 Invité'), cls: 'bg-gray-100 text-gray-500', email: null as string | null };
@@ -175,7 +191,12 @@ export default function AdminUsers() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${st.cls}`}>{st.label}</span>
+                    <div className="flex flex-col gap-1 items-start">
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${st.cls}`}>{st.label}</span>
+                      {authMap[c.user_id]?.is_ambassador && (
+                        <span className="text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap bg-[#c8e050] text-[#1c3a05]">⭐ {ambassadorLabel(authMap[c.user_id]?.civility)}</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-gray-600">{c.phone}</td>
                   <td className="px-4 py-3">
@@ -213,6 +234,23 @@ export default function AdminUsers() {
                 <p className="font-medium text-gray-800">{selectedUser.address}</p>
               </div>
             </div>
+
+            {authMap[selectedUser.user_id] && (
+              <div className="flex items-center justify-between gap-3 bg-[#ecf4d5] border border-[#a8c800] rounded-xl px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-[#526500]">⭐ {t('admin.ambassador_label', 'Statut ambassadeur')} {authMap[selectedUser.user_id]?.is_ambassador ? `(${ambassadorLabel(authMap[selectedUser.user_id]?.civility)})` : ''}</p>
+                  <p className="text-xs text-gray-500">{t('admin.ambassador_hint', 'Récompense les meilleurs clients qui prescrivent la marque (promotions dédiées à terme).')}</p>
+                </div>
+                <button
+                  onClick={() => toggleAmbassador(selectedUser.user_id, !authMap[selectedUser.user_id]?.is_ambassador)}
+                  disabled={savingAmb}
+                  aria-label={t('admin.ambassador_label', 'Statut ambassadeur')}
+                  className={`relative w-12 h-7 rounded-full transition-colors flex-none ${authMap[selectedUser.user_id]?.is_ambassador ? 'bg-[#a8c800]' : 'bg-gray-200'} disabled:opacity-60`}
+                >
+                  <span className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${authMap[selectedUser.user_id]?.is_ambassador ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+            )}
 
             <p className="text-sm font-semibold text-gray-700">{t('admin.order_history', 'Historique des commandes')}</p>
             {loadingOrders ? (

@@ -17,8 +17,25 @@ export async function GET() {
     verified: !!u.email_confirmed_at,
     full_name: u.user_metadata?.full_name ?? null,
     phone: u.user_metadata?.phone ?? null,
+    civility: u.user_metadata?.civility ?? null,
+    is_ambassador: !!u.user_metadata?.is_ambassador,
     balance: balanceMap[u.id] ?? 0,
     created_at: u.created_at,
   }));
   return NextResponse.json({ users });
+}
+
+// Modifier le statut ambassadeur d'un client (service role).
+export async function POST(request: Request) {
+  const { user_id, is_ambassador } = await request.json();
+  if (!user_id) return NextResponse.json({ error: 'user_id requis' }, { status: 400 });
+
+  // Préserver les métadonnées existantes
+  const { data: u } = await supabaseAdmin.auth.admin.getUserById(user_id);
+  const meta = u?.user?.user_metadata || {};
+  const { error } = await supabaseAdmin.auth.admin.updateUserById(user_id, {
+    user_metadata: { ...meta, is_ambassador: !!is_ambassador },
+  });
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  return NextResponse.json({ ok: true });
 }

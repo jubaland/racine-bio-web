@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [civility, setCivility] = useState<'madame' | 'monsieur' | ''>('');
   const [phoneDigits, setPhoneDigits] = useState('');
   const [phoneFocused, setPhoneFocused] = useState(false);
   const phoneDisplay = phoneFocused ? phoneDigits : (phoneDigits.match(/.{1,2}/g) || []).join(' ');
@@ -46,6 +47,9 @@ export default function LoginPage() {
         if (phoneDigits.length !== 6) {
           throw new Error(t('login.phone_invalid', 'Numéro invalide : 6 chiffres après 77.'));
         }
+        if (!civility) {
+          throw new Error(t('login.civility_required', 'Sélectionnez votre civilité.'));
+        }
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -53,6 +57,7 @@ export default function LoginPage() {
             emailRedirectTo: `${window.location.origin}/auth/callback`,
             data: {
               full_name: titleCase(fullName),
+              civility,
               phone: '77' + phoneDigits,
               address: titleCase(address),
             },
@@ -241,6 +246,29 @@ export default function LoginPage() {
 
           {/* Formulaire email */}
           <form onSubmit={handleSubmit} className="space-y-4">
+            {mode === 'register' && (
+              <div>
+                <label className="text-sm font-medium text-gray-600 mb-1.5 block">
+                  {t('login.civility', 'Civilité')}
+                </label>
+                <div className="flex gap-2">
+                  {([
+                    { v: 'madame', label: t('login.civility_mme', 'Madame') },
+                    { v: 'monsieur', label: t('login.civility_m', 'Monsieur') },
+                  ] as { v: 'madame' | 'monsieur'; label: string }[]).map(opt => (
+                    <button
+                      key={opt.v}
+                      type="button"
+                      onClick={() => setCivility(opt.v)}
+                      className={`flex-1 py-2.5 rounded-xl border text-sm font-medium transition ${civility === opt.v ? 'border-[#a8c800] bg-[#ecf4d5] text-[#526500]' : 'border-[#d2e095] bg-[#faf7e8] text-gray-500 hover:bg-white'}`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {mode === 'register' && (
               <div>
                 <label className="text-sm font-medium text-gray-600 mb-1.5 block">
