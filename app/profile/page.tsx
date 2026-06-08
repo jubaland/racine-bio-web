@@ -209,6 +209,8 @@ export default function ProfilePage() {
       if (session.user.user_metadata?.notifications) {
         setNotifPrefs(prev => ({ ...prev, ...session.user.user_metadata.notifications }));
       }
+      // Métadonnées fraîches depuis le serveur (ex. statut ambassadeur défini par l'admin)
+      supabase.auth.getUser().then(({ data }) => { if (data?.user) setUser(data.user); }).catch(() => {});
 
       // Cagnotte (solde + historique) — lecture RLS (propriétaire)
       supabase.from('wallets').select('balance').eq('user_id', session.user.id).maybeSingle()
