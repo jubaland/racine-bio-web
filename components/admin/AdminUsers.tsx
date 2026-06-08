@@ -264,7 +264,7 @@ export default function AdminUsers() {
                   return (
                     <div key={order.id} className="flex items-center justify-between p-3 bg-[#faf7e8] rounded-xl">
                       <div>
-                        <p className="text-xs text-gray-400 font-mono">#{order.id.slice(-8)}</p>
+                        <p className="text-xs text-gray-400 font-mono">#{String(order.id).slice(-8)}</p>
                         <p className="text-xs text-gray-500 mt-0.5">{order.payment_method} · {new Date(order.created_at).toLocaleDateString('fr-FR')}</p>
                       </div>
                       <div className="text-right">
