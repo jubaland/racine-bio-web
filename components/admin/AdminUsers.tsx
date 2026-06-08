@@ -205,8 +205,8 @@ export default function AdminUsers() {
                   <td className="px-4 py-3 font-semibold text-[#526500]">{c.total_spent.toLocaleString()} Fdj</td>
                   <td className="px-4 py-3 text-gray-400 text-xs">{new Date(c.last_order).toLocaleDateString('fr-FR')}</td>
                   <td className="px-4 py-3 text-right">
-                    <button onClick={() => openUser(c)} className="text-[#7d9800] hover:text-[#526500] text-xs font-medium">
-                      {t('admin.view_orders', 'Voir commandes')}
+                    <button onClick={() => openUser(c)} className="text-[#7d9800] hover:text-[#526500] text-xs font-medium whitespace-nowrap">
+                      👤 {t('admin.client_card', 'Fiche client')}
                     </button>
                   </td>
                 </tr>
@@ -218,7 +218,7 @@ export default function AdminUsers() {
       )}
 
       {selectedUser && (
-        <Modal title={`${t('admin.order_history', 'Commandes')} — ${selectedUser.customer_name}`} onClose={() => setSelectedUser(null)}>
+        <Modal title={`👤 ${t('admin.client_card', 'Fiche client')} — ${selectedUser.customer_name}`} onClose={() => setSelectedUser(null)}>
           <div className="space-y-4">
             <div className="bg-[#faf7e8] rounded-xl p-4 grid grid-cols-2 gap-3 text-sm">
               <div>
