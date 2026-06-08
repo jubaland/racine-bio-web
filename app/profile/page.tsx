@@ -582,7 +582,7 @@ export default function ProfilePage() {
                 { emoji: '🛒', label: t('profile.qa_shop', 'Commander'), href: '/' },
                 { emoji: '📦', label: t('profile.tab_orders', 'Commandes'), onClick: () => setTab('orders') },
                 { emoji: '🔄', label: t('profile.subscription_short', 'Commande type'), href: '/abonnement' },
-                { emoji: '❤️', label: t('profile.tab_favorites', 'Favoris'), onClick: () => setTab('favorites') },
+                { emoji: '❤️', label: t('profile.tab_favorites', 'Favoris'), href: '/favorites' },
                 { emoji: '📍', label: t('profile.tab_addresses', 'Adresses'), onClick: () => setTab('addresses') },
                 { emoji: '⚙️', label: t('profile.tab_settings', 'Réglages'), onClick: () => setTab('settings') },
               ] as { emoji: string; label: string; href?: string; onClick?: () => void }[]).map(qa => (
