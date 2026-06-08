@@ -127,7 +127,7 @@ export default function SubscriptionPage() {
     products.reduce((s, p) => s + Number(p.price) * (qtyByFreq[f][p.id] || 0), 0);
 
   // Autonomie exacte : simulation calendaire jour par jour (comme le cron).
-  // Toutes les commandes types actives partagent la cagnotte ; quand plusieurs
+  // Toutes les commandes modèles actives partagent la cagnotte ; quand plusieurs
   // livraisons tombent le même jour, un seul frais de transport (le plus élevé)
   // est compté. On respecte les cycles (quinzaine = 14 j, mensuel = 1×/mois) et
   // les dates de validité, jusqu'à épuisement du solde.
@@ -243,10 +243,10 @@ export default function SubscriptionPage() {
               <Link href="/profile" className="text-xs bg-white/15 px-3 py-1.5 rounded-full hover:bg-white/25 transition">{t('sub.topup', 'Recharger')}</Link>
             </div>
 
-            {/* Autonomie globale (toutes commandes types actives, cagnotte partagée) */}
+            {/* Autonomie globale (toutes commandes modèles actives, cagnotte partagée) */}
             {anyActive && coverageEnd && (
               <div className="bg-[#ecf4d5] border border-[#d2e095] rounded-2xl px-4 py-3 mb-5 text-sm text-[#526500]">
-                💡 {t('sub.autonomy_until', 'Avec votre solde, vos commandes types actives sont couvertes jusqu\'au')} <strong>{fmtDate(coverageEnd)}</strong> (≈ {weeksCovered} {weeksCovered > 1 ? t('sub.weeks_unit', 'semaines') : t('sub.week_unit', 'semaine')}).
+                💡 {t('sub.autonomy_until', 'Avec votre solde, vos commandes modèles actives sont couvertes jusqu\'au')} <strong>{fmtDate(coverageEnd)}</strong> (≈ {weeksCovered} {weeksCovered > 1 ? t('sub.weeks_unit', 'semaines') : t('sub.week_unit', 'semaine')}).
               </div>
             )}
 

@@ -108,7 +108,7 @@ export default function AdminSubscriptions() {
       </div>
 
       <p className="text-sm text-gray-500 mb-4">
-        {t('admin.subs_hint', 'Commandes types des clients (livraison automatique débitée de la cagnotte). Vous pouvez mettre en pause, réactiver ou supprimer un abonnement.')}
+        {t('admin.subs_hint', 'Commandes modèles des clients (livraison automatique débitée de la cagnotte). Vous pouvez mettre en pause, réactiver ou supprimer un abonnement.')}
       </p>
 
       <div className="mb-4">
@@ -245,7 +245,7 @@ export default function AdminSubscriptions() {
         <Modal title={`🗑️ ${t('admin.sub_delete_title', 'Supprimer l\'abonnement')}`} onClose={() => setConfirmDel(null)}>
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
-              {t('admin.sub_delete_confirm', 'Confirmer la suppression de la commande type')} <strong>{FREQ_LABEL[confirmDel.frequency]}</strong> {t('admin.sub_delete_of', 'de')} <strong>{confirmDel.name || confirmDel.email}</strong> ?
+              {t('admin.sub_delete_confirm', 'Confirmer la suppression de la commande modèle')} <strong>{FREQ_LABEL[confirmDel.frequency]}</strong> {t('admin.sub_delete_of', 'de')} <strong>{confirmDel.name || confirmDel.email}</strong> ?
             </p>
             <div className="flex gap-3">
               <button onClick={() => setConfirmDel(null)} className="flex-1 py-2.5 border border-[#d2e095] text-gray-600 rounded-xl text-sm font-semibold hover:bg-[#faf7e8] transition">{t('admin.cancel', 'Annuler')}</button>
