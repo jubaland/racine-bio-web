@@ -568,7 +568,7 @@ export default function ProfilePage() {
         {tab === 'home' && (
           <div className="space-y-5 mb-6">
             {orders.length > 0 && (
-              <button onClick={() => setTab('orders')} className="w-full text-left bg-white rounded-3xl p-5 border border-[#d2e095] shadow-sm hover:border-[#a8c800] transition">
+              <button onClick={() => setTab('orders')} className="w-full text-left bg-white rounded-3xl p-5 border-2 border-[#d2e095] shadow-sm hover:border-[#a8c800] hover:shadow-md transition">
                 <p className="text-xs text-gray-400 mb-1.5">{t('profile.last_order', 'Dernière commande')}</p>
                 <div className="flex items-center justify-between gap-3">
                   <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusMeta(orders[0].status).cls}`}>{statusMeta(orders[0].status).label}</span>
@@ -587,12 +587,14 @@ export default function ProfilePage() {
                 { emoji: '⚙️', label: t('profile.tab_settings', 'Réglages'), onClick: () => setTab('settings') },
               ] as { emoji: string; label: string; href?: string; onClick?: () => void }[]).map(qa => (
                 qa.href ? (
-                  <Link key={qa.label} href={qa.href} className="bg-white rounded-2xl p-4 border border-[#d2e095] shadow-sm hover:border-[#a8c800] hover:shadow transition flex flex-col items-center gap-1.5 text-center">
-                    <span className="text-2xl">{qa.emoji}</span><span className="text-xs font-medium text-gray-700">{qa.label}</span>
+                  <Link key={qa.label} href={qa.href} className="bg-white rounded-2xl p-4 border-2 border-[#d2e095] shadow-sm hover:border-[#a8c800] hover:shadow-md hover:-translate-y-0.5 transition flex flex-col items-center gap-2 text-center">
+                    <span className="w-11 h-11 rounded-full bg-[#ecf4d5] flex items-center justify-center text-2xl">{qa.emoji}</span>
+                    <span className="text-xs font-semibold text-[#526500]">{qa.label}</span>
                   </Link>
                 ) : (
-                  <button key={qa.label} onClick={qa.onClick} className="bg-white rounded-2xl p-4 border border-[#d2e095] shadow-sm hover:border-[#a8c800] hover:shadow transition flex flex-col items-center gap-1.5 text-center">
-                    <span className="text-2xl">{qa.emoji}</span><span className="text-xs font-medium text-gray-700">{qa.label}</span>
+                  <button key={qa.label} onClick={qa.onClick} className="bg-white rounded-2xl p-4 border-2 border-[#d2e095] shadow-sm hover:border-[#a8c800] hover:shadow-md hover:-translate-y-0.5 transition flex flex-col items-center gap-2 text-center">
+                    <span className="w-11 h-11 rounded-full bg-[#ecf4d5] flex items-center justify-center text-2xl">{qa.emoji}</span>
+                    <span className="text-xs font-semibold text-[#526500]">{qa.label}</span>
                   </button>
                 )
               ))}
