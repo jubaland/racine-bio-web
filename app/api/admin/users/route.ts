@@ -25,17 +25,18 @@ export async function GET() {
   return NextResponse.json({ users });
 }
 
-// Modifier le statut ambassadeur d'un client (service role).
+// Modifier un client (statut ambassadeur, civilité) — service role.
 export async function POST(request: Request) {
-  const { user_id, is_ambassador } = await request.json();
+  const { user_id, is_ambassador, civility } = await request.json();
   if (!user_id) return NextResponse.json({ error: 'user_id requis' }, { status: 400 });
 
-  // Préserver les métadonnées existantes
+  // Préserver les métadonnées existantes, modifier seulement les champs fournis
   const { data: u } = await supabaseAdmin.auth.admin.getUserById(user_id);
-  const meta = u?.user?.user_metadata || {};
-  const { error } = await supabaseAdmin.auth.admin.updateUserById(user_id, {
-    user_metadata: { ...meta, is_ambassador: !!is_ambassador },
-  });
+  const next: Record<string, any> = { ...(u?.user?.user_metadata || {}) };
+  if (typeof is_ambassador === 'boolean') next.is_ambassador = is_ambassador;
+  if (civility !== undefined) next.civility = civility || null; // 'madame' | 'monsieur' | null
+
+  const { error } = await supabaseAdmin.auth.admin.updateUserById(user_id, { user_metadata: next });
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true });
 }

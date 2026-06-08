@@ -122,6 +122,18 @@ export default function AdminUsers() {
     setSavingAmb(false);
   };
 
+  const setCivilityFor = async (userId: string, civility: 'madame' | 'monsieur') => {
+    const prevCiv = authMap[userId]?.civility ?? null;
+    setSavingAmb(true);
+    setAuthMap(prev => ({ ...prev, [userId]: { ...prev[userId], civility } })); // optimiste
+    const res = await fetch('/api/admin/users', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, civility }),
+    });
+    if (!res.ok) setAuthMap(prev => ({ ...prev, [userId]: { ...prev[userId], civility: prevCiv } })); // rollback
+    setSavingAmb(false);
+  };
+
   const userStatus = (c: CustomerSummary) => {
     const a = authMap[c.user_id];
     if (!a) return { label: t('admin.user_guest', '👤 Invité'), cls: 'bg-gray-100 text-gray-500', email: null as string | null };
@@ -234,6 +246,27 @@ export default function AdminUsers() {
                 <p className="font-medium text-gray-800">{selectedUser.address}</p>
               </div>
             </div>
+
+            {authMap[selectedUser.user_id] && (
+              <div className="flex items-center justify-between gap-3 bg-[#faf7e8] border border-[#d2e095] rounded-xl px-4 py-3">
+                <p className="text-sm font-medium text-gray-700">{t('login.civility', 'Civilité')}</p>
+                <div className="flex gap-2">
+                  {([
+                    { v: 'madame', l: t('login.civility_mme', 'Madame') },
+                    { v: 'monsieur', l: t('login.civility_m', 'Monsieur') },
+                  ] as { v: 'madame' | 'monsieur'; l: string }[]).map(o => (
+                    <button
+                      key={o.v}
+                      onClick={() => setCivilityFor(selectedUser.user_id, o.v)}
+                      disabled={savingAmb}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition disabled:opacity-60 ${authMap[selectedUser.user_id]?.civility === o.v ? 'border-[#a8c800] bg-[#ecf4d5] text-[#526500]' : 'border-[#d2e095] bg-white text-gray-500 hover:bg-[#ecf4d5]'}`}
+                    >
+                      {o.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {authMap[selectedUser.user_id] && (
               <div className="flex items-center justify-between gap-3 bg-[#ecf4d5] border border-[#a8c800] rounded-xl px-4 py-3">

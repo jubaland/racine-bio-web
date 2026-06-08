@@ -942,12 +942,12 @@ export default function ProfilePage() {
               </Link>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {orders.map(order => {
                 const m = statusMeta(order.status);
                 const items = order.order_items || [];
                 return (
-                  <div key={order.id} className="border border-[#d2e095] rounded-2xl overflow-hidden">
+                  <div key={order.id} className="border-2 border-[#bcd36a] rounded-2xl overflow-hidden shadow-md">
 
                     {/* En-tête commande */}
                     <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-[#f8fdf0]">
