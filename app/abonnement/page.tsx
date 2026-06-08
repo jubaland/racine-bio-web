@@ -359,20 +359,28 @@ export default function SubscriptionPage() {
             </div>
             <div className="overflow-y-auto p-2">
               {(() => {
-                const available = products.filter(p => (qty[p.id] || 0) === 0 && getName(p).toLowerCase().includes(addSearch.toLowerCase()));
-                if (available.length === 0) return <p className="text-center text-sm text-gray-400 py-6">{t('sub.all_added', 'Tous les produits sont déjà dans la liste.')}</p>;
-                return available.map(p => (
-                  <button key={p.id} onClick={() => setQ(p.id, 1)} disabled={(p.stock_qty ?? 0) <= 0} className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#ecf4d5] transition text-left disabled:opacity-40 disabled:hover:bg-transparent">
-                    <div className="w-11 h-11 rounded-lg overflow-hidden bg-[#ecf4d5] flex-none">
-                      {p.image_url ? <img src={p.image_url} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center opacity-30">📷</div>}
+                const list = products.filter(p => getName(p).toLowerCase().includes(addSearch.toLowerCase()));
+                if (list.length === 0) return <p className="text-center text-sm text-gray-400 py-6">{t('sub.no_match', 'Aucun produit trouvé.')}</p>;
+                return list.map(p => {
+                  const q = qty[p.id] || 0;
+                  const out = (p.stock_qty ?? 0) <= 0;
+                  return (
+                    <div key={p.id} className={`flex items-center gap-3 p-2.5 rounded-xl ${q > 0 ? 'bg-[#f5fae6]' : ''}`}>
+                      <div className="w-11 h-11 rounded-lg overflow-hidden bg-[#ecf4d5] flex-none">
+                        {p.image_url ? <img src={p.image_url} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center opacity-30">📷</div>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{getName(p)}</p>
+                        <p className="text-xs text-gray-400">{Number(p.price).toLocaleString()} Fdj {p.unit}{out ? ` · ${t('sub.out_of_stock', 'rupture')}` : ''}</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-none">
+                        <button onClick={() => setQ(p.id, q - 1)} disabled={q <= 0} className="w-7 h-7 rounded-full border border-[#d2e095] text-[#526500] leading-none text-lg flex items-center justify-center hover:bg-[#ecf4d5] disabled:opacity-30">−</button>
+                        <span className="w-6 text-center text-sm font-semibold">{q}</span>
+                        <button onClick={() => setQ(p.id, q + 1)} disabled={q >= (p.stock_qty ?? 0)} className="w-7 h-7 rounded-full border border-[#d2e095] text-[#526500] leading-none text-lg flex items-center justify-center hover:bg-[#ecf4d5] disabled:opacity-30">+</button>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800 truncate">{getName(p)}</p>
-                      <p className="text-xs text-gray-400">{Number(p.price).toLocaleString()} Fdj {p.unit}{(p.stock_qty ?? 0) <= 0 ? ` · ${t('sub.out_of_stock', 'rupture')}` : ''}</p>
-                    </div>
-                    <span className="text-[#a8c800] text-xl font-bold flex-none">＋</span>
-                  </button>
-                ));
+                  );
+                });
               })()}
             </div>
             <div className="p-3 border-t border-[#d2e095]">
