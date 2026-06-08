@@ -42,7 +42,7 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4 flex items-center justify-between">
 
         {/* Retour + Logo */}
-        <div className="flex items-center gap-2 flex-none min-w-0">
+        <div className="flex items-center gap-2 min-w-0">
           {showBack && (
             <button
               onClick={goBack}
@@ -67,7 +67,7 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
         </div>
 
         {/* Boutons — tous en ligne */}
-        <div className="flex items-center gap-1.5 md:gap-3">
+        <div className="flex items-center gap-1.5 md:gap-3 flex-none shrink-0">
           <LanguageSelector />
 
           {/* Admin */}
