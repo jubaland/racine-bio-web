@@ -69,6 +69,8 @@ export default function ProfilePage() {
   const [depositRef, setDepositRef] = useState('');
   const [depositSaving, setDepositSaving] = useState(false);
   const [depositMsg, setDepositMsg] = useState('');
+  type Tab = 'home' | 'wallet' | 'subscription' | 'orders' | 'favorites' | 'addresses' | 'settings';
+  const [tab, setTab] = useState<Tab>('home');
   const { ui } = useLanguage();
   const { count: favCount } = useFavorites();
   const t = (key: string, fallback: string) => ui[key] || fallback;
@@ -434,96 +436,151 @@ export default function ProfilePage() {
         </div>
       </header>
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
 
-        {/* Carte utilisateur */}
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#d2e095] shadow-sm mb-6">
-          <div className="flex items-center gap-4 sm:gap-6">
-            <div className="w-20 h-20 bg-[#ecf4d5] rounded-full flex items-center justify-center text-4xl">👤</div>
-            <div className="flex-1">
-              <h2 className="text-xl font-bold text-gray-800">
-                {user?.user_metadata?.full_name || t('profile.user_default', 'Utilisateur')}
-              </h2>
-              <p className="text-gray-400 text-sm mt-1">{user?.email}</p>
-              <div className="flex items-center gap-2 mt-2 flex-wrap">
+        {/* En-tête : profil + cagnotte + actions rapides */}
+        <div className="bg-gradient-to-br from-[#1c3a05] via-[#2d6410] to-[#7a5800] rounded-3xl p-6 text-white shadow-sm mb-5">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-full bg-white/15 ring-2 ring-[#a8c800]/40 flex items-center justify-center text-2xl font-bold flex-none">
+              {(user?.user_metadata?.full_name || user?.email || '?').trim().charAt(0).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-lg font-bold leading-tight truncate">
+                {t('profile.hello', 'Bonjour')} {(user?.user_metadata?.full_name || '').split(' ')[0] || t('profile.user_default', 'Utilisateur')} 👋
+              </p>
+              <p className="text-xs text-white/60 truncate">{user?.email}</p>
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 {verified ? (
-                  <span className="bg-[#ecf4d5] text-[#526500] text-xs font-semibold px-3 py-1 rounded-full">
-                    {t('profile.verified', '✅ Compte vérifié')}
-                  </span>
+                  <span className="bg-white/15 text-[#c8e050] text-[11px] font-semibold px-2.5 py-0.5 rounded-full">✅ {t('profile.verified_short', 'Vérifié')}</span>
                 ) : (
-                  <span className="bg-orange-50 text-[#f97316] text-xs font-semibold px-3 py-1 rounded-full border border-orange-200">
-                    {t('profile.unverified', '⚠️ Compte non vérifié')}
-                  </span>
+                  <span className="bg-orange-500/20 text-orange-200 text-[11px] font-semibold px-2.5 py-0.5 rounded-full">⚠️ {t('profile.unverified_short', 'Non vérifié')}</span>
                 )}
-                <button
-                  onClick={handleSignOut}
-                  className="text-xs font-semibold px-3 py-1 rounded-full bg-[#fff3e8] text-[#f97316] hover:bg-[#ffe0c8] transition"
-                >
+                <button onClick={handleSignOut} className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-white/10 text-white/80 hover:bg-white/20 transition">
                   🚪 {t('profile.signout', 'Se déconnecter')}
                 </button>
               </div>
-              {!verified && (
-                <div className="mt-2">
-                  {resent ? (
-                    <p className="text-xs text-[#526500]">📧 {t('profile.verify_resent', 'Email de vérification renvoyé ! Vérifiez votre boîte de réception.')}</p>
-                  ) : (
-                    <p className="text-xs text-gray-500">
-                      {t('profile.verify_hint', 'Vérifiez votre email pour activer votre compte.')}{' '}
-                      <button onClick={resendVerification} disabled={resending} className="text-[#7d9800] font-semibold hover:underline disabled:opacity-50">
-                        {resending ? t('profile.verify_sending', 'Envoi...') : t('profile.verify_resend', 'Renvoyer le lien')}
-                      </button>
-                    </p>
-                  )}
-                </div>
+            </div>
+          </div>
+
+          {!verified && (
+            <div className="mt-3 text-xs bg-white/10 rounded-xl px-3 py-2">
+              {resent ? (
+                <p className="text-[#c8e050]">📧 {t('profile.verify_resent', 'Email de vérification renvoyé ! Vérifiez votre boîte de réception.')}</p>
+              ) : (
+                <p className="text-white/80">
+                  {t('profile.verify_hint', 'Vérifiez votre email pour activer votre compte.')}{' '}
+                  <button onClick={resendVerification} disabled={resending} className="text-[#c8e050] font-semibold hover:underline disabled:opacity-50">
+                    {resending ? t('profile.verify_sending', 'Envoi...') : t('profile.verify_resend', 'Renvoyer le lien')}
+                  </button>
+                </p>
               )}
+            </div>
+          )}
+
+          <div className="mt-4 pt-4 border-t border-white/10 flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] uppercase tracking-widest text-[#c8e050]">💰 {t('profile.wallet', 'Ma cagnotte')}</p>
+              <p className="text-3xl font-extrabold mt-0.5">{walletBalance.toLocaleString()} Fdj</p>
+            </div>
+            <div className="flex gap-2 flex-none">
+              <button onClick={() => { setDepositOpen(true); setDepositMsg(''); setDepositAmount(''); setDepositRef(''); }} className="bg-[#a8c800] text-[#1c3a05] text-xs font-bold px-3 py-2 rounded-full hover:bg-[#c8e050] transition">➕ {t('profile.wallet_topup', 'Recharger')}</button>
+              <Link href="/abonnement" className="bg-white/15 text-white text-xs font-bold px-3 py-2 rounded-full hover:bg-white/25 transition">🔄 {t('profile.subscription_short', 'Commande type')}</Link>
             </div>
           </div>
         </div>
 
-        {/* Cagnotte */}
-        {user && (
-          <div className="bg-gradient-to-br from-[#1c3a05] via-[#2d6410] to-[#7a5800] rounded-3xl p-6 text-white shadow-sm mb-6">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-widest text-[#c8e050]">💰 {t('profile.wallet', 'Ma cagnotte')}</p>
-                <p className="text-3xl font-extrabold mt-1">{walletBalance.toLocaleString()} Fdj</p>
-              </div>
-              <button
-                onClick={() => { setDepositOpen(true); setDepositMsg(''); setDepositAmount(''); setDepositRef(''); }}
-                className="flex-none bg-[#a8c800] text-[#1c3a05] text-sm font-bold px-4 py-2 rounded-full hover:bg-[#c8e050] transition"
-              >
-                ➕ {t('profile.wallet_topup', 'Recharger')}
+        {/* Onglets */}
+        <div className="flex gap-1.5 overflow-x-auto pb-2 mb-5 -mx-1 px-1">
+          {([
+            { id: 'home', emoji: '🏠', label: t('profile.tab_home', 'Accueil') },
+            { id: 'wallet', emoji: '💰', label: t('profile.tab_wallet', 'Cagnotte') },
+            { id: 'subscription', emoji: '🔄', label: t('profile.tab_subscription', 'Abonnement') },
+            { id: 'orders', emoji: '📦', label: t('profile.tab_orders', 'Commandes') },
+            { id: 'favorites', emoji: '❤️', label: t('profile.tab_favorites', 'Favoris') },
+            { id: 'addresses', emoji: '📍', label: t('profile.tab_addresses', 'Adresses') },
+            { id: 'settings', emoji: '⚙️', label: t('profile.tab_settings', 'Réglages') },
+          ] as { id: Tab; emoji: string; label: string }[]).map(it => (
+            <button key={it.id} onClick={() => setTab(it.id)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-semibold whitespace-nowrap border transition ${tab === it.id ? 'bg-[#526500] text-white border-[#526500]' : 'bg-white text-[#526500] border-[#d2e095] hover:bg-[#ecf4d5]'}`}>
+              <span>{it.emoji}</span><span>{it.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* ===== Accueil ===== */}
+        {tab === 'home' && (
+          <div className="space-y-5 mb-6">
+            {orders.length > 0 && (
+              <button onClick={() => setTab('orders')} className="w-full text-left bg-white rounded-3xl p-5 border border-[#d2e095] shadow-sm hover:border-[#a8c800] transition">
+                <p className="text-xs text-gray-400 mb-1.5">{t('profile.last_order', 'Dernière commande')}</p>
+                <div className="flex items-center justify-between gap-3">
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusMeta(orders[0].status).cls}`}>{statusMeta(orders[0].status).label}</span>
+                  <span className="text-sm font-bold text-[#526500]">{Number(orders[0].total).toLocaleString()} Fdj</span>
+                </div>
+                <p className="text-xs text-gray-400 mt-1.5">#{String(orders[0].id).slice(0, 8).toUpperCase()} · {new Date(orders[0].created_at).toLocaleDateString('fr-FR')}</p>
               </button>
+            )}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {([
+                { emoji: '🛒', label: t('profile.qa_shop', 'Commander'), href: '/' },
+                { emoji: '📦', label: t('profile.tab_orders', 'Commandes'), onClick: () => setTab('orders') },
+                { emoji: '🔄', label: t('profile.subscription_short', 'Commande type'), href: '/abonnement' },
+                { emoji: '❤️', label: t('profile.tab_favorites', 'Favoris'), onClick: () => setTab('favorites') },
+                { emoji: '📍', label: t('profile.tab_addresses', 'Adresses'), onClick: () => setTab('addresses') },
+                { emoji: '⚙️', label: t('profile.tab_settings', 'Réglages'), onClick: () => setTab('settings') },
+              ] as { emoji: string; label: string; href?: string; onClick?: () => void }[]).map(qa => (
+                qa.href ? (
+                  <Link key={qa.label} href={qa.href} className="bg-white rounded-2xl p-4 border border-[#d2e095] shadow-sm hover:border-[#a8c800] hover:shadow transition flex flex-col items-center gap-1.5 text-center">
+                    <span className="text-2xl">{qa.emoji}</span><span className="text-xs font-medium text-gray-700">{qa.label}</span>
+                  </Link>
+                ) : (
+                  <button key={qa.label} onClick={qa.onClick} className="bg-white rounded-2xl p-4 border border-[#d2e095] shadow-sm hover:border-[#a8c800] hover:shadow transition flex flex-col items-center gap-1.5 text-center">
+                    <span className="text-2xl">{qa.emoji}</span><span className="text-xs font-medium text-gray-700">{qa.label}</span>
+                  </button>
+                )
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ===== Cagnotte ===== */}
+        {tab === 'wallet' && (
+          <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div>
+                <p className="text-xs uppercase tracking-widest text-[#7d9800]">💰 {t('profile.wallet', 'Ma cagnotte')}</p>
+                <p className="text-2xl font-extrabold text-[#526500] mt-0.5">{walletBalance.toLocaleString()} Fdj</p>
+              </div>
+              <button onClick={() => { setDepositOpen(true); setDepositMsg(''); setDepositAmount(''); setDepositRef(''); }} className="flex-none bg-[#a8c800] text-white text-sm font-bold px-4 py-2 rounded-full hover:bg-[#7d9800] transition">➕ {t('profile.wallet_topup', 'Recharger')}</button>
             </div>
             {pendingDeposits.length > 0 && (
-              <div className="mt-3 space-y-1">
+              <div className="space-y-1 mb-3">
                 {pendingDeposits.map(d => (
-                  <p key={d.id} className="text-xs bg-white/10 rounded-lg px-3 py-1.5 text-[#c8e050]">
-                    ⏳ {t('profile.deposit_pending', 'Recharge en attente de validation')} : {Number(d.amount).toLocaleString()} Fdj
-                  </p>
+                  <p key={d.id} className="text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded-lg px-3 py-1.5">⏳ {t('profile.deposit_pending', 'Recharge en attente de validation')} : {Number(d.amount).toLocaleString()} Fdj</p>
                 ))}
               </div>
             )}
-            {walletTx.length > 0 && (
-              <div className="mt-4 space-y-1.5">
-                {walletTx.slice(0, 5).map(m => (
-                  <div key={m.id} className="flex items-center justify-between text-sm bg-white/10 rounded-lg px-3 py-1.5">
-                    <span className="text-white/80">
+            {walletTx.length > 0 ? (
+              <div className="space-y-1.5">
+                {walletTx.map(m => (
+                  <div key={m.id} className="flex items-center justify-between text-sm bg-[#faf7e8] rounded-lg px-3 py-2">
+                    <span className="text-gray-600">
                       {m.note || (m.type === 'deposit' ? t('profile.wallet_deposit', 'Dépôt') : m.type === 'debit' ? t('profile.wallet_debit', 'Livraison') : t('profile.wallet_adjust', 'Ajustement'))}
-                      <span className="text-white/40 text-xs ml-2">{new Date(m.created_at).toLocaleDateString('fr-FR')}</span>
+                      <span className="text-gray-400 text-xs ml-2">{new Date(m.created_at).toLocaleDateString('fr-FR')}</span>
                     </span>
-                    <span className={`font-bold ${m.amount >= 0 ? 'text-[#c8e050]' : 'text-orange-200'}`}>
-                      {m.amount > 0 ? '+' : ''}{Number(m.amount).toLocaleString()}
-                    </span>
+                    <span className={`font-bold ${m.amount >= 0 ? 'text-[#526500]' : 'text-[#f97316]'}`}>{m.amount > 0 ? '+' : ''}{Number(m.amount).toLocaleString()}</span>
                   </div>
                 ))}
               </div>
+            ) : (
+              <p className="text-center text-sm text-gray-400 py-4">{t('profile.wallet_no_tx', 'Aucun mouvement pour le moment')}</p>
             )}
           </div>
         )}
 
-        {/* Abonnement / commande type */}
-        <Link href="/abonnement" className="block bg-white rounded-3xl p-5 border border-[#d2e095] shadow-sm mb-6 hover:border-[#a8c800] transition">
+        {/* ===== Abonnement ===== */}
+        {tab === 'subscription' && (
+        <Link href="/abonnement" className="block bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6 hover:border-[#a8c800] transition">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-[#ecf4d5] flex items-center justify-center text-2xl flex-none">🔄</div>
             <div className="flex-1 min-w-0">
@@ -533,8 +590,10 @@ export default function ProfilePage() {
             <span className="text-[#7d9800] text-xl flex-none">→</span>
           </div>
         </Link>
+        )}
 
-        {/* Favoris */}
+        {/* ===== Favoris ===== */}
+        {tab === 'favorites' && (
         <div id="section-favorites" className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
@@ -570,8 +629,10 @@ export default function ProfilePage() {
             </Link>
           )}
         </div>
+        )}
 
-        {/* Adresses de livraison */}
+        {/* ===== Adresses ===== */}
+        {tab === 'addresses' && (
         <div id="section-addresses" className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-800">📍 Mes adresses</h3>
@@ -731,9 +792,10 @@ export default function ProfilePage() {
             </div>
           )}
         </div>
+        )}
 
-        {/* Parrainage */}
-        {referralCode && (
+        {/* ===== Parrainage (Accueil) ===== */}
+        {tab === 'home' && referralCode && (
           <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6">
             <div className="flex items-center justify-between mb-1">
               <h3 className="text-lg font-semibold text-gray-800">🎁 {t('profile.referral_title', 'Parrainage')}</h3>
@@ -804,7 +866,8 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Commandes */}
+        {/* ===== Commandes ===== */}
+        {tab === 'orders' && (
         <div id="section-orders" className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">📦 {t('profile.my_orders', 'Mes commandes')}</h3>
 
@@ -894,7 +957,11 @@ export default function ProfilePage() {
             </div>
           )}
         </div>
+        )}
 
+        {/* ===== Réglages ===== */}
+        {tab === 'settings' && (
+        <>
         {/* Espace producteur */}
         <div className="bg-gradient-to-r from-[#ecf4d5] to-[#e8f5d0] rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6">
           <div className="flex items-center justify-between">
@@ -1028,6 +1095,8 @@ export default function ProfilePage() {
 
           </div>
         </div>
+        </>
+        )}
       </div>
 
       {/* Modal : recharger la cagnotte */}
