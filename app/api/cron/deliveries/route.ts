@@ -99,7 +99,7 @@ async function expireOne(userId: string, frequency: string) {
   try { if (email) await sendSubscriptionExpired(email, label); } catch {}
   try {
     const { sendPushToUser } = await import('../../../../lib/push');
-    await sendPushToUser(userId, { title: '⏳ Abonnement à renouveler', body: `Votre commande type ${label} est arrivée à échéance.`, url: '/abonnement' });
+    await sendPushToUser(userId, { title: '⏳ Abonnement à renouveler', body: `Votre commande modèle ${label} est arrivée à échéance.`, url: '/abonnement' });
   } catch {}
 }
 

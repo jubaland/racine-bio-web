@@ -183,7 +183,7 @@ export default function SubscriptionPage() {
   const save = async () => {
     setError(''); setSaved(false);
     if (active && basket.length === 0) {
-      setError(t('sub.err_empty', 'Ajoutez au moins un produit pour activer votre commande type.'));
+      setError(t('sub.err_empty', 'Ajoutez au moins un produit pour activer votre commande modèle.'));
       return;
     }
     setSaving(true);
@@ -221,7 +221,7 @@ export default function SubscriptionPage() {
       <Header onCartOpen={() => setCartOpen(true)} />
 
       <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 md:py-8">
-        <h1 className="text-2xl font-bold text-gray-800 mb-1">🔄 {t('sub.title', 'Ma commande type')}</h1>
+        <h1 className="text-2xl font-bold text-gray-800 mb-1">🔄 {t('sub.title', 'Ma commande modèle')}</h1>
         <p className="text-gray-500 text-sm mb-6">{t('sub.subtitle_multi', 'Composez un panier livré automatiquement, débité de votre cagnotte. Vous pouvez enregistrer un panier différent par fréquence.')}</p>
 
         {loading ? (
@@ -230,7 +230,7 @@ export default function SubscriptionPage() {
           <>
             {saved && (
               <div className="bg-green-50 border border-green-200 text-[#526500] rounded-2xl px-4 py-3 mb-5 text-sm font-semibold">
-                ✅ {t('sub.saved_msg', 'Votre commande type a été enregistrée.')}
+                ✅ {t('sub.saved_msg', 'Votre commande modèle a été enregistrée.')}
               </div>
             )}
 
@@ -268,7 +268,7 @@ export default function SubscriptionPage() {
             <div className="bg-white rounded-3xl p-5 border border-[#d2e095] shadow-sm mb-5">
               <h2 className="font-semibold text-gray-800 mb-3">🛒 {t('sub.basket_for', 'Mon panier')} — {FREQ_LABEL[freq]}</h2>
               {basket.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-6">{t('sub.empty_basket', 'Aucun produit. Ajoutez-en un pour composer votre commande type.')}</p>
+                <p className="text-sm text-gray-400 text-center py-6">{t('sub.empty_basket', 'Aucun produit. Ajoutez-en un pour composer votre commande modèle.')}</p>
               ) : (
                 <div className="divide-y divide-[#f0f7e0]">
                   {basket.map(p => (

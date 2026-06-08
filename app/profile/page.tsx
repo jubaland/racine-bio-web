@@ -538,7 +538,7 @@ export default function ProfilePage() {
               <p className="text-3xl font-extrabold whitespace-nowrap leading-tight mt-1">{walletBalance.toLocaleString()} Fdj</p>
               <div className="flex gap-2">
                 <button onClick={() => { setDepositOpen(true); setDepositMsg(''); setDepositAmount(''); setDepositRef(''); }} className="flex-1 sm:flex-none whitespace-nowrap bg-[#a8c800] text-[#1c3a05] text-xs font-bold px-3 py-2 rounded-full hover:bg-[#c8e050] transition">➕ {t('profile.wallet_topup', 'Recharger')}</button>
-                <Link href="/abonnement" className="flex-1 sm:flex-none text-center whitespace-nowrap bg-white/15 text-white text-xs font-bold px-3 py-2 rounded-full hover:bg-white/25 transition">🔄 {t('profile.subscription_short', 'Commande type')}</Link>
+                <Link href="/abonnement" className="flex-1 sm:flex-none text-center whitespace-nowrap bg-white/15 text-white text-xs font-bold px-3 py-2 rounded-full hover:bg-white/25 transition">🔄 {t('profile.subscription_short', 'Commande modèle')}</Link>
               </div>
             </div>
           </div>
@@ -581,7 +581,7 @@ export default function ProfilePage() {
               {([
                 { emoji: '🛒', label: t('profile.qa_shop', 'Commander'), href: '/' },
                 { emoji: '📦', label: t('profile.tab_orders', 'Commandes'), onClick: () => setTab('orders') },
-                { emoji: '🔄', label: t('profile.subscription_short', 'Commande type'), href: '/abonnement' },
+                { emoji: '🔄', label: t('profile.subscription_short', 'Commande modèle'), href: '/abonnement' },
                 { emoji: '❤️', label: t('profile.tab_favorites', 'Favoris'), href: '/favorites' },
                 { emoji: '📍', label: t('profile.tab_addresses', 'Adresses'), onClick: () => setTab('addresses') },
                 { emoji: '⚙️', label: t('profile.tab_settings', 'Réglages'), onClick: () => setTab('settings') },
@@ -643,7 +643,7 @@ export default function ProfilePage() {
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-[#ecf4d5] flex items-center justify-center text-2xl flex-none">🔄</div>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-gray-800">{t('profile.subscription', 'Ma commande type')}</p>
+              <p className="font-semibold text-gray-800">{t('profile.subscription', 'Ma commande modèle')}</p>
               <p className="text-xs text-gray-400">{t('profile.subscription_desc2', 'Livraison automatique (hebdo, quinzaine ou mensuelle), débitée de votre cagnotte.')}</p>
             </div>
             <span className="text-[#7d9800] text-xl flex-none">→</span>

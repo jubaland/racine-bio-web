@@ -337,7 +337,7 @@ export async function sendSubscriptionPaused(email: string, needed: number, bala
     </div>
     <p style="color:#374151;font-size:14px;line-height:1.6;">
       Rechargez votre cagnotte auprès de notre équipe (Waafi / espèces) pour reprendre vos livraisons automatiques.
-      Votre commande type est conservée et reprendra dès le rechargement.
+      Votre commande modèle est conservée et reprendra dès le rechargement.
     </p>
     <p style="color:#6b7280;font-size:13px;margin-top:24px;">Pour recharger, contactez-nous au <strong>77432615</strong>.</p>
   `);
@@ -348,14 +348,14 @@ export async function sendSubscriptionPaused(email: string, needed: number, bala
 export async function sendSubscriptionExpired(email: string, freqLabel: string) {
   const html = baseLayout(`
     <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">⏳ Abonnement arrivé à échéance</h2>
-    <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">Votre commande type <strong>${freqLabel}</strong> a atteint sa date de validité et a été mise en pause.</p>
+    <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">Votre commande modèle <strong>${freqLabel}</strong> a atteint sa date de validité et a été mise en pause.</p>
     <p style="color:#374151;font-size:14px;line-height:1.6;">
-      Pour reprendre vos livraisons automatiques, il vous suffit de renouveler votre commande type
+      Pour reprendre vos livraisons automatiques, il vous suffit de renouveler votre commande modèle
       depuis votre espace : elle repartira pour une nouvelle année.
     </p>
     <p style="color:#6b7280;font-size:13px;margin-top:24px;">Une question ? Contactez-nous au <strong>77432615</strong>.</p>
   `);
-  await resend.emails.send({ from: FROM, to: email, subject: '⏳ Renouvelez votre commande type — Hornafresh', html });
+  await resend.emails.send({ from: FROM, to: email, subject: '⏳ Renouvelez votre commande modèle — Hornafresh', html });
 }
 
 // ── 5c. Réinitialisation de mot de passe (e-mail localisé via Resend) ─────────
