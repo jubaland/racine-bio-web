@@ -43,3 +43,10 @@ button {
   }
   .no-print { display: none !important; }
 }
+
+/* Transition douce entre les onglets de l'espace client */
+@keyframes tabfade {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-tabfade { animation: tabfade 0.25s ease-out; }

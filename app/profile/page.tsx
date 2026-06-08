@@ -6,6 +6,7 @@ import { titleCase } from '../../lib/format';
 import Link from 'next/link';
 import { useLanguage } from '../../context/LanguageContext';
 import { useFavorites } from '../../context/FavoritesContext';
+import { useCart } from '../../context/CartContext';
 
 interface OrderItem {
   id: string;
@@ -56,6 +57,14 @@ const PAYMENT_LABELS: Record<string, string> = {
 const LABEL_ICONS: Record<string, string> = { Maison: '🏠', Bureau: '🏢', Autre: '📍' };
 const ADDRESS_LABELS = ['Maison', 'Bureau', 'Autre'];
 
+// Étapes de suivi (timeline) — l'ordre définit la progression
+const TRACK_STEPS = [
+  { key: 'pending',    emoji: '📝', labelKey: 'track.received',   labelFr: 'Reçue' },
+  { key: 'processing', emoji: '👨‍🍳', labelKey: 'track.preparing', labelFr: 'Préparation' },
+  { key: 'shipping',   emoji: '🚚', labelKey: 'track.on_way',     labelFr: 'En route' },
+  { key: 'delivered',  emoji: '✅', labelKey: 'track.delivered',  labelFr: 'Livrée' },
+];
+
 export default function ProfilePage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -73,7 +82,11 @@ export default function ProfilePage() {
   const [tab, setTab] = useState<Tab>('home');
   const { ui } = useLanguage();
   const { count: favCount } = useFavorites();
+  const { addItem, updateQuantity } = useCart();
   const t = (key: string, fallback: string) => ui[key] || fallback;
+  const [reordering, setReordering] = useState<string | null>(null);
+  const [reorderMsg, setReorderMsg] = useState('');
+  const [receiptLoading, setReceiptLoading] = useState<string | null>(null);
 
   // Adresses
   // Parrainage
@@ -407,6 +420,50 @@ export default function ProfilePage() {
   const statusMeta = (s: string) =>
     STATUS_META[s] ?? { label: s, cls: 'bg-gray-100 text-gray-600' };
 
+  // Recommander : recharge le panier avec les articles d'une commande (prix/stock actuels)
+  const reorder = async (order: Order) => {
+    setReorderMsg('');
+    setReordering(order.id);
+    try {
+      const ids = (order.order_items || []).map(i => i.product_id);
+      const { data: prods } = await supabase.from('products').select('*').in('id', ids).eq('status', 'published');
+      const pmap: Record<number, any> = Object.fromEntries((prods || []).map((p: any) => [p.id, p]));
+      let added = 0;
+      for (const it of (order.order_items || [])) {
+        const p = pmap[it.product_id];
+        if (!p || (p.stock_qty ?? 0) <= 0) continue;
+        addItem(p);
+        updateQuantity(p.id, Math.min(it.quantity, p.stock_qty));
+        added++;
+      }
+      if (added === 0) { setReorderMsg(t('profile.reorder_none', 'Aucun article de cette commande n\'est disponible actuellement.')); setReordering(null); return; }
+      window.location.href = '/checkout';
+    } catch {
+      setReorderMsg(t('profile.reorder_err', 'Erreur, réessayez.'));
+      setReordering(null);
+    }
+  };
+
+  // Télécharge le reçu PDF de la commande
+  const downloadReceipt = async (order: Order) => {
+    setReceiptLoading(order.id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`/api/orders/receipt?id=${order.id}`, {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (!res.ok) throw new Error('fail');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `recu-${String(order.id).slice(0, 8).toUpperCase()}.pdf`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch { /* ignore */ }
+    setReceiptLoading(null);
+  };
+
 
   if (loading) {
     return (
@@ -506,6 +563,8 @@ export default function ProfilePage() {
             </button>
           ))}
         </div>
+
+        <div key={tab} className="animate-tabfade">
 
         {/* ===== Accueil ===== */}
         {tab === 'home' && (
@@ -870,6 +929,7 @@ export default function ProfilePage() {
         {tab === 'orders' && (
         <div id="section-orders" className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">📦 {t('profile.my_orders', 'Mes commandes')}</h3>
+          {reorderMsg && <p className="mb-3 text-xs text-[#f97316] bg-[#fff3e8] rounded-xl px-3 py-2">⚠️ {reorderMsg}</p>}
 
           {ordersError ? (
             <div className="text-center py-6 text-xs text-[#f97316] bg-[#fff3e8] rounded-2xl px-4 font-mono">
@@ -912,6 +972,25 @@ export default function ProfilePage() {
                       </div>
                     </div>
 
+                    {/* Suivi de commande */}
+                    {order.status === 'cancelled' ? (
+                      <div className="px-4 py-2.5 bg-[#fff3e8] text-[#f97316] text-xs font-semibold">❌ {t('track.cancelled', 'Commande annulée')}</div>
+                    ) : (
+                      <div className="flex items-start px-4 pt-3 pb-2 bg-white">
+                        {TRACK_STEPS.map((step, i) => {
+                          const curIdx = TRACK_STEPS.findIndex(s => s.key === order.status);
+                          const done = i <= curIdx;
+                          return (
+                            <div key={step.key} className="flex-1 flex flex-col items-center relative">
+                              {i > 0 && <div className={`absolute top-[13px] right-1/2 left-[-50%] h-0.5 ${i <= curIdx ? 'bg-[#a8c800]' : 'bg-[#e8f0d0]'}`} />}
+                              <div className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center text-xs ${done ? 'bg-[#a8c800]' : 'bg-[#e8f0d0] grayscale opacity-70'}`}>{step.emoji}</div>
+                              <span className={`mt-1 text-[10px] text-center leading-tight ${done ? 'text-[#526500] font-semibold' : 'text-gray-400'}`}>{t(step.labelKey, step.labelFr)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
                     {/* Articles */}
                     {items.length > 0 && (
                       <div className="divide-y divide-[#f0f7e0]">
@@ -951,6 +1030,16 @@ export default function ProfilePage() {
                         <span className="text-sm font-bold text-[#526500]">{Number(order.total).toLocaleString()} Fdj</span>
                       </div>
                     )}
+
+                    {/* Actions */}
+                    <div className="flex gap-2 px-4 py-3 border-t border-[#d2e095] bg-white">
+                      <button onClick={() => reorder(order)} disabled={reordering === order.id} className="flex-1 py-2 rounded-xl bg-[#a8c800] text-white text-xs font-semibold hover:bg-[#7d9800] transition disabled:opacity-50">
+                        {reordering === order.id ? '⏳' : '🔁 ' + t('profile.reorder', 'Recommander')}
+                      </button>
+                      <button onClick={() => downloadReceipt(order)} disabled={receiptLoading === order.id} className="flex-1 py-2 rounded-xl border border-[#d2e095] text-[#526500] text-xs font-semibold hover:bg-[#ecf4d5] transition disabled:opacity-50">
+                        {receiptLoading === order.id ? '⏳' : '🧾 ' + t('profile.receipt', 'Reçu PDF')}
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -1097,6 +1186,8 @@ export default function ProfilePage() {
         </div>
         </>
         )}
+        </div>
+
       </div>
 
       {/* Modal : recharger la cagnotte */}
