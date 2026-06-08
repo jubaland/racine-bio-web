@@ -532,14 +532,14 @@ export default function ProfilePage() {
             </div>
           )}
 
-          <div className="mt-4 pt-4 border-t border-white/10 flex items-end justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[11px] uppercase tracking-widest text-[#c8e050]">💰 {t('profile.wallet', 'Ma cagnotte')}</p>
-              <p className="text-3xl font-extrabold mt-0.5">{walletBalance.toLocaleString()} Fdj</p>
-            </div>
-            <div className="flex gap-2 flex-none">
-              <button onClick={() => { setDepositOpen(true); setDepositMsg(''); setDepositAmount(''); setDepositRef(''); }} className="bg-[#a8c800] text-[#1c3a05] text-xs font-bold px-3 py-2 rounded-full hover:bg-[#c8e050] transition">➕ {t('profile.wallet_topup', 'Recharger')}</button>
-              <Link href="/abonnement" className="bg-white/15 text-white text-xs font-bold px-3 py-2 rounded-full hover:bg-white/25 transition">🔄 {t('profile.subscription_short', 'Commande type')}</Link>
+          <div className="mt-4 pt-4 border-t border-white/10">
+            <p className="text-[11px] uppercase tracking-wide text-[#c8e050] whitespace-nowrap">💰 {t('profile.wallet', 'Ma cagnotte')}</p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <p className="text-3xl font-extrabold whitespace-nowrap leading-tight mt-1">{walletBalance.toLocaleString()} Fdj</p>
+              <div className="flex gap-2">
+                <button onClick={() => { setDepositOpen(true); setDepositMsg(''); setDepositAmount(''); setDepositRef(''); }} className="flex-1 sm:flex-none whitespace-nowrap bg-[#a8c800] text-[#1c3a05] text-xs font-bold px-3 py-2 rounded-full hover:bg-[#c8e050] transition">➕ {t('profile.wallet_topup', 'Recharger')}</button>
+                <Link href="/abonnement" className="flex-1 sm:flex-none text-center whitespace-nowrap bg-white/15 text-white text-xs font-bold px-3 py-2 rounded-full hover:bg-white/25 transition">🔄 {t('profile.subscription_short', 'Commande type')}</Link>
+              </div>
             </div>
           </div>
         </div>
