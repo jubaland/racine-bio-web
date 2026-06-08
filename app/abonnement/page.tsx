@@ -30,6 +30,7 @@ export default function SubscriptionPage() {
   const [validByFreq, setValidByFreq] = useState<Record<Freq, string | null>>({ weekly: null, fortnightly: null, monthly: null });
   // Frais de transport personnalisés (définis par l'admin) — lecture seule côté client
   const [feeByFreq, setFeeByFreq] = useState<Record<Freq, number>>({ weekly: 0, fortnightly: 0, monthly: 0 });
+  const [lastByFreq, setLastByFreq] = useState<Record<Freq, string | null>>({ weekly: null, fortnightly: null, monthly: null });
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -78,6 +79,7 @@ export default function SubscriptionPage() {
       const act: Record<Freq, boolean> = { weekly: false, fortnightly: false, monthly: false };
       const val: Record<Freq, string | null> = { weekly: null, fortnightly: null, monthly: null };
       const fees: Record<Freq, number> = { weekly: 0, fortnightly: 0, monthly: 0 };
+      const last: Record<Freq, string | null> = { weekly: null, fortnightly: null, monthly: null };
       (subs || []).forEach((s: any) => {
         const f = (s.frequency || 'weekly') as Freq;
         if (!FREQS.includes(f)) return;
@@ -85,8 +87,9 @@ export default function SubscriptionPage() {
         act[f] = !!s.active && !s.paused;
         val[f] = s.valid_until ?? null;
         fees[f] = Number(s.delivery_fee) || 0;
+        last[f] = s.last_delivery ?? null;
       });
-      setDayByFreq(day); setActiveByFreq(act); setValidByFreq(val); setFeeByFreq(fees);
+      setDayByFreq(day); setActiveByFreq(act); setValidByFreq(val); setFeeByFreq(fees); setLastByFreq(last);
 
       const q: Record<Freq, Record<number, number>> = { weekly: {}, fortnightly: {}, monthly: {} };
       (items || []).forEach((it: any) => {
@@ -118,24 +121,62 @@ export default function SubscriptionPage() {
   const fee = feeByFreq[freq] || 0;
   const total = itemsTotal + fee; // articles + frais de transport (fréquence courante)
 
-  // Autonomie globale : toutes les commandes types ACTIVES partagent la même
-  // cagnotte. On calcule le rythme de consommation cumulé (par jour) puis la
-  // durée que le solde peut couvrir — au lieu d'un compteur par fréquence
-  // (trompeur, car chacun utiliserait tout le solde).
-  const PERIOD_DAYS: Record<Freq, number> = { weekly: 7, fortnightly: 14, monthly: 30.4 };
   const totalForFreq = (f: Freq) =>
     products.reduce((s, p) => s + Number(p.price) * (qtyByFreq[f][p.id] || 0), 0);
-  const dailyBurn = FREQS.reduce((sum, f) => {
-    if (!activeByFreq[f]) return sum;
-    const tot = totalForFreq(f);
-    const withFee = tot > 0 ? tot + (feeByFreq[f] || 0) : 0; // inclut les frais de transport
-    return sum + withFee / PERIOD_DAYS[f];
-  }, 0);
-  const daysCovered = dailyBurn > 0 ? Math.floor(balance / dailyBurn) : 0;
-  const weeksCovered = Math.floor(daysCovered / 7);
-  const coverageEnd = dailyBurn > 0
-    ? (() => { const d = new Date(); d.setDate(d.getDate() + daysCovered); return d.toISOString().slice(0, 10); })()
-    : null;
+
+  // Autonomie exacte : simulation calendaire jour par jour (comme le cron).
+  // Toutes les commandes types actives partagent la cagnotte ; quand plusieurs
+  // livraisons tombent le même jour, un seul frais de transport (le plus élevé)
+  // est compté. On respecte les cycles (quinzaine = 14 j, mensuel = 1×/mois) et
+  // les dates de validité, jusqu'à épuisement du solde.
+  const daysBetweenUTC = (a: string, b: string) =>
+    Math.round((new Date(b + 'T00:00:00Z').getTime() - new Date(a + 'T00:00:00Z').getTime()) / 86400000);
+  const isDueSim = (f: Freq, last: string | null, dayStr: string) => {
+    if (!last) return true;
+    if (f === 'weekly') return true;
+    if (f === 'fortnightly') return daysBetweenUTC(last, dayStr) >= 14;
+    // monthly : une fois par mois (mois ou année différents)
+    const l = new Date(last + 'T00:00:00Z'), d = new Date(dayStr + 'T00:00:00Z');
+    return l.getUTCFullYear() !== d.getUTCFullYear() || l.getUTCMonth() !== d.getUTCMonth();
+  };
+
+  const { coverageEnd, weeksCovered, anyActive } = (() => {
+    const sims = FREQS
+      .filter(f => activeByFreq[f] && totalForFreq(f) > 0)
+      .map(f => ({ f, day: dayByFreq[f], items: totalForFreq(f), fee: feeByFreq[f] || 0, validUntil: validByFreq[f], last: lastByFreq[f] }));
+    if (!sims.length) return { coverageEnd: null as string | null, weeksCovered: 0, anyActive: false };
+
+    const lastMap: Record<string, string | null> = {};
+    sims.forEach(s => { lastMap[s.f] = s.last; });
+
+    let bal = balance;
+    const now = new Date();
+    const cur = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const todayStr = cur.toISOString().slice(0, 10);
+    let lastCovered: string | null = null;
+    const CAP_DAYS = 800;
+
+    for (let i = 0; i < CAP_DAYS; i++) {
+      const dayStr = cur.toISOString().slice(0, 10);
+      const dow = cur.getUTCDay();
+      const delivering = sims.filter(s =>
+        s.day === dow && !(s.validUntil && dayStr > s.validUntil) && isDueSim(s.f, lastMap[s.f], dayStr)
+      );
+      if (delivering.length) {
+        const itemsSum = delivering.reduce((a, s) => a + s.items, 0);
+        const feeOnce = delivering.reduce((m, s) => Math.max(m, s.fee), 0);
+        const dayCost = itemsSum + feeOnce;
+        if (dayCost > bal) break;          // solde insuffisant pour cette livraison
+        bal -= dayCost;
+        delivering.forEach(s => { lastMap[s.f] = dayStr; });
+        lastCovered = dayStr;
+      }
+      cur.setUTCDate(cur.getUTCDate() + 1);
+    }
+
+    const weeks = lastCovered ? Math.floor(daysBetweenUTC(todayStr, lastCovered) / 7) : 0;
+    return { coverageEnd: lastCovered, weeksCovered: weeks, anyActive: true };
+  })();
 
   const save = async () => {
     setError(''); setSaved(false);
@@ -204,7 +245,7 @@ export default function SubscriptionPage() {
             </div>
 
             {/* Autonomie globale (toutes commandes types actives, cagnotte partagée) */}
-            {dailyBurn > 0 && coverageEnd && (
+            {anyActive && coverageEnd && (
               <div className="bg-[#ecf4d5] border border-[#d2e095] rounded-2xl px-4 py-3 mb-5 text-sm text-[#526500]">
                 💡 {t('sub.autonomy_until', 'Avec votre solde, vos commandes types actives sont couvertes jusqu\'au')} <strong>{fmtDate(coverageEnd)}</strong> (≈ {weeksCovered} {weeksCovered > 1 ? t('sub.weeks_unit', 'semaines') : t('sub.week_unit', 'semaine')}).
               </div>
