@@ -35,6 +35,8 @@ export default function SubscriptionPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const [addOpen, setAddOpen] = useState(false);
+  const [addSearch, setAddSearch] = useState('');
 
   const DAYS = [
     t('sub.day_0', 'Dimanche'), t('sub.day_1', 'Lundi'), t('sub.day_2', 'Mardi'),
@@ -268,24 +270,34 @@ export default function SubscriptionPage() {
             {/* Produits */}
             <div className="bg-white rounded-3xl p-5 border border-[#d2e095] shadow-sm mb-5">
               <h2 className="font-semibold text-gray-800 mb-3">🛒 {t('sub.basket_for', 'Mon panier')} — {FREQ_LABEL[freq]}</h2>
-              <div className="divide-y divide-[#f0f7e0]">
-                {products.map(p => (
-                  <div key={p.id} className="flex items-center gap-3 py-3">
-                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-[#ecf4d5] flex-none">
-                      {p.image_url ? <img src={p.image_url} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center opacity-30">📷</div>}
+              {basket.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-6">{t('sub.empty_basket', 'Aucun produit. Ajoutez-en un pour composer votre commande type.')}</p>
+              ) : (
+                <div className="divide-y divide-[#f0f7e0]">
+                  {basket.map(p => (
+                    <div key={p.id} className="flex items-center gap-3 py-3">
+                      <div className="w-12 h-12 rounded-xl overflow-hidden bg-[#ecf4d5] flex-none">
+                        {p.image_url ? <img src={p.image_url} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center opacity-30">📷</div>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{getName(p)}</p>
+                        <p className="text-xs text-gray-400">{Number(p.price).toLocaleString()} Fdj {p.unit}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setQ(p.id, (qty[p.id] || 0) - 1)} title={(qty[p.id] || 0) <= 1 ? t('sub.remove', 'Retirer') : ''} className="w-7 h-7 rounded-full border border-[#d2e095] text-[#526500] leading-none text-lg flex items-center justify-center hover:bg-[#ecf4d5]">−</button>
+                        <span className="w-6 text-center text-sm font-semibold">{qty[p.id] || 0}</span>
+                        <button onClick={() => setQ(p.id, (qty[p.id] || 0) + 1)} disabled={(qty[p.id] || 0) >= (p.stock_qty ?? 0)} className="w-7 h-7 rounded-full border border-[#d2e095] text-[#526500] leading-none text-lg flex items-center justify-center hover:bg-[#ecf4d5] disabled:opacity-30">+</button>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800 truncate">{getName(p)}</p>
-                      <p className="text-xs text-gray-400">{Number(p.price).toLocaleString()} Fdj {p.unit}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => setQ(p.id, (qty[p.id] || 0) - 1)} className="w-7 h-7 rounded-full border border-[#d2e095] text-[#526500] leading-none text-lg flex items-center justify-center hover:bg-[#ecf4d5]">−</button>
-                      <span className="w-6 text-center text-sm font-semibold">{qty[p.id] || 0}</span>
-                      <button onClick={() => setQ(p.id, (qty[p.id] || 0) + 1)} disabled={(qty[p.id] || 0) >= (p.stock_qty ?? 0)} className="w-7 h-7 rounded-full border border-[#d2e095] text-[#526500] leading-none text-lg flex items-center justify-center hover:bg-[#ecf4d5] disabled:opacity-30">+</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
+              <button
+                onClick={() => { setAddSearch(''); setAddOpen(true); }}
+                className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-[#a8c800] text-[#526500] text-sm font-semibold hover:bg-[#ecf4d5] transition"
+              >
+                ➕ {t('sub.add_product', 'Ajouter un produit')}
+              </button>
               {fee > 0 && (
                 <>
                   <div className="border-t border-[#d2e095] mt-3 pt-3 flex items-center justify-between">
@@ -333,6 +345,42 @@ export default function SubscriptionPage() {
           </>
         )}
       </div>
+
+      {/* Sélecteur d'ajout de produit */}
+      {addOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setAddOpen(false)}>
+          <div className="bg-white rounded-3xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="p-4 border-b border-[#d2e095] flex items-center justify-between gap-3">
+              <h3 className="font-bold text-gray-800">➕ {t('sub.add_product', 'Ajouter un produit')}</h3>
+              <button onClick={() => setAddOpen(false)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none w-8 h-8 flex items-center justify-center">×</button>
+            </div>
+            <div className="p-3 border-b border-[#f0f7e0]">
+              <input value={addSearch} onChange={e => setAddSearch(e.target.value)} placeholder={t('sub.search_product', 'Rechercher un produit...')} className="w-full border border-[#d2e095] rounded-xl px-4 py-2.5 text-sm bg-[#faf7e8] focus:outline-none focus:border-[#a8c800]" />
+            </div>
+            <div className="overflow-y-auto p-2">
+              {(() => {
+                const available = products.filter(p => (qty[p.id] || 0) === 0 && getName(p).toLowerCase().includes(addSearch.toLowerCase()));
+                if (available.length === 0) return <p className="text-center text-sm text-gray-400 py-6">{t('sub.all_added', 'Tous les produits sont déjà dans la liste.')}</p>;
+                return available.map(p => (
+                  <button key={p.id} onClick={() => setQ(p.id, 1)} disabled={(p.stock_qty ?? 0) <= 0} className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#ecf4d5] transition text-left disabled:opacity-40 disabled:hover:bg-transparent">
+                    <div className="w-11 h-11 rounded-lg overflow-hidden bg-[#ecf4d5] flex-none">
+                      {p.image_url ? <img src={p.image_url} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center opacity-30">📷</div>}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">{getName(p)}</p>
+                      <p className="text-xs text-gray-400">{Number(p.price).toLocaleString()} Fdj {p.unit}{(p.stock_qty ?? 0) <= 0 ? ` · ${t('sub.out_of_stock', 'rupture')}` : ''}</p>
+                    </div>
+                    <span className="text-[#a8c800] text-xl font-bold flex-none">＋</span>
+                  </button>
+                ));
+              })()}
+            </div>
+            <div className="p-3 border-t border-[#d2e095]">
+              <button onClick={() => setAddOpen(false)} className="w-full py-2.5 rounded-xl bg-[#a8c800] text-white text-sm font-semibold hover:bg-[#7d9800] transition">{t('sub.done', 'Terminé')}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
