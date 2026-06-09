@@ -19,7 +19,7 @@ import AdminWallets from '../../components/admin/AdminWallets';
 import AdminSubscriptions from '../../components/admin/AdminSubscriptions';
 import AdminHomepage from '../../components/admin/AdminHomepage';
 import AdminForecast from '../../components/admin/AdminForecast';
-import { canAccessAdmin, hasPerm } from '../../lib/permissions';
+import { canAccessAdmin, hasPerm, roleOf } from '../../lib/permissions';
 import { AdminPermsProvider } from '../../context/AdminPermsContext';
 
 type Section = 'dashboard' | 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'preparers' | 'wallets' | 'subscriptions' | 'forecast' | 'requests' | 'users' | 'delivery' | 'notifications' | 'homepage';
@@ -31,7 +31,6 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
   const [activeSection, setActiveSection] = useState<Section>('dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   const { ui } = useLanguage();
@@ -162,104 +161,51 @@ export default function AdminPage() {
     );
   }
 
-  const currentNav = NAV_ITEMS.find(i => i.id === activeSection);
+  const role = roleOf(meta);
+  const roleLabel = role === 'admin'
+    ? t('admin.role_admin', 'Administrateur')
+    : t('admin.role_manager', 'Gestionnaire');
 
   return (
-    <div className="min-h-screen bg-[#eef3e0] flex">
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/40 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />
-      )}
+    <div className="min-h-screen bg-[#faf7e8]">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
 
-      {/* Sidebar */}
-      <aside className={`
-        fixed lg:sticky top-0 h-screen w-64 bg-[#3a4800] text-white flex flex-col z-30 transition-transform duration-200
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
-        {/* Logo */}
-        <div className="p-5 border-b border-[#526500]">
-          <Link href="/" className="flex items-center gap-3 group">
-            <span className="text-3xl">🌿</span>
-            <div>
-              <p className="font-bold text-white group-hover:text-[#c5d87a] transition">Hornafresh</p>
-              <p className="text-[#8aaa00] text-xs font-medium tracking-wider uppercase">
-                {t('admin.administration', 'Administration')}
-              </p>
+        {/* En-tête */}
+        <div className="bg-gradient-to-br from-[#1c3a05] via-[#2d6410] to-[#7a5800] rounded-3xl p-6 text-white shadow-sm mb-5">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-full bg-white/15 ring-2 ring-[#a8c800]/40 flex items-center justify-center text-2xl flex-none">🛠️</div>
+            <div className="flex-1 min-w-0">
+              <p className="text-lg font-bold leading-tight truncate">{t('admin.administration', 'Administration')} · Hornafresh</p>
+              <p className="text-xs text-white/60 truncate">{user?.email}</p>
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                <span className="bg-white/15 text-[#c8e050] text-[11px] font-semibold px-2.5 py-0.5 rounded-full">{roleLabel}</span>
+                <Link href="/" className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-white/10 text-white/80 hover:bg-white/20 transition">← {t('admin.back_to_site', 'Retour au site')}</Link>
+                <button onClick={handleSignOut} className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-white/10 text-white/80 hover:bg-white/20 transition">🚪 {t('admin.logout', 'Se déconnecter')}</button>
+              </div>
             </div>
-          </Link>
+          </div>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+        {/* Onglets */}
+        <div className="flex flex-wrap gap-2 mb-5">
           {visibleNav.map(item => (
             <button
               key={item.id}
-              onClick={() => {
-                setActiveSection(item.id);
-                setSidebarOpen(false);
-                if (item.id === 'notifications') setUnreadCount(0);
-              }}
-              className={`
-                w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition
-                ${activeSection === item.id
-                  ? 'bg-[#a8c800] text-white shadow-sm'
-                  : 'text-[#9ab800] hover:bg-[#526500] hover:text-white'}
-              `}
+              onClick={() => { setActiveSection(item.id); if (item.id === 'notifications') setUnreadCount(0); }}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-semibold whitespace-nowrap border transition ${activeSection === item.id ? 'bg-[#526500] text-white border-[#526500]' : 'bg-white text-[#526500] border-[#d2e095] hover:bg-[#ecf4d5]'}`}
             >
-              <span className="text-lg w-6 text-center">{item.emoji}</span>
-              <span className="flex-1 text-left">{item.label}</span>
+              <span>{item.emoji}</span><span>{item.label}</span>
               {item.id === 'notifications' && unreadCount > 0 && (
-                <span className="bg-[#f97316] text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </span>
+                <span className="ml-0.5 bg-[#f97316] text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">{unreadCount > 99 ? '99+' : unreadCount}</span>
               )}
             </button>
           ))}
-        </nav>
-
-        {/* User info + actions */}
-        <div className="p-3 border-t border-[#526500] space-y-1">
-          <div className="px-3 py-2">
-            <p className="text-xs text-[#9ab800] truncate">{user?.email}</p>
-            <span className="text-xs bg-[#a8c800]/20 text-[#c5d87a] px-2 py-0.5 rounded-full mt-1 inline-block">Admin</span>
-          </div>
-          <Link
-            href="/"
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-[#9ab800] hover:bg-[#526500] hover:text-white transition"
-          >
-            <span>←</span> {t('admin.back_to_site', 'Retour au site')}
-          </Link>
-          <button
-            onClick={handleSignOut}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-[#9ab800] hover:bg-orange-900/30 hover:text-orange-300 transition"
-          >
-            <span>🚪</span> {t('admin.logout', 'Se déconnecter')}
-          </button>
         </div>
-      </aside>
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
-        {/* Mobile topbar */}
-        <header className="lg:hidden sticky top-0 z-10 bg-white border-b border-[#d2e095] px-4 py-3 flex items-center gap-3">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="w-8 h-8 flex flex-col items-center justify-center gap-1.5 text-[#526500]"
-            aria-label="Menu"
-          >
-            <span className="w-5 h-0.5 bg-current rounded" />
-            <span className="w-5 h-0.5 bg-current rounded" />
-            <span className="w-5 h-0.5 bg-current rounded" />
-          </button>
-          <span className="font-semibold text-[#526500]">
-            {currentNav?.emoji} {currentNav?.label}
-          </span>
-        </header>
-
-        {/* Page content */}
-        <main className="flex-1 p-4 md:p-6 overflow-auto">
+        {/* Contenu */}
+        <div key={activeSection} className="animate-tabfade">
           <AdminPermsProvider meta={meta}>{renderSection()}</AdminPermsProvider>
-        </main>
+        </div>
       </div>
     </div>
   );
