@@ -82,9 +82,10 @@ export default function ProfilePage() {
   const [depositMsg, setDepositMsg] = useState('');
   type Tab = 'home' | 'wallet' | 'subscription' | 'orders' | 'favorites' | 'addresses' | 'settings';
   const [tab, setTab] = useState<Tab>('home');
-  const { ui } = useLanguage();
-  const { count: favCount } = useFavorites();
+  const { ui, productTranslations, currentLang } = useLanguage();
+  const { count: favCount, favorites, removeFavorite } = useFavorites();
   const { addItem, updateQuantity } = useCart();
+  const favName = (p: any) => (currentLang !== 'fr' && productTranslations[p.id]?.name) ? productTranslations[p.id].name : p.name;
   const t = (key: string, fallback: string) => ui[key] || fallback;
   const [reordering, setReordering] = useState<string | null>(null);
   const [reorderMsg, setReorderMsg] = useState('');
@@ -676,16 +677,32 @@ export default function ProfilePage() {
               </Link>
             </div>
           ) : (
-            <Link href="/favorites" className="flex items-center gap-4 p-4 bg-[#faf7e8] rounded-2xl hover:bg-[#ecf4d5] transition">
-              <svg viewBox="0 0 24 24" className="w-9 h-9 flex-shrink-0" fill="#f97316" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-              </svg>
-              <div>
-                <p className="font-semibold text-gray-800">{favCount} {t('profile.favorites_count', favCount > 1 ? 'produits favoris' : 'produit favori')}</p>
-                <p className="text-sm text-gray-400">{t('profile.favorites_desc', 'Retrouvez tous vos produits sauvegardés')}</p>
-              </div>
-              <span className="ml-auto text-gray-400">›</span>
-            </Link>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {favorites.map((product: any) => (
+                <div key={product.id} className="bg-white rounded-2xl overflow-hidden border border-[#d2e095] hover:shadow-lg transition group">
+                  <div className="relative h-32 sm:h-36 bg-[#ecf4d5]">
+                    <Link href={`/product/${product.id}`}>
+                      {product.image_url ? (
+                        <img src={product.image_url} alt={favName(product)} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-4xl opacity-20">📷</div>
+                      )}
+                    </Link>
+                    <button onClick={() => removeFavorite(product.id)} title={t('profile.remove_favorite', 'Retirer des favoris')} className="absolute top-2 right-2 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow hover:bg-red-50 transition">❤️</button>
+                  </div>
+                  <div className="p-3">
+                    <Link href={`/product/${product.id}`}>
+                      <h3 className="text-sm font-semibold text-gray-800 truncate">{favName(product)}</h3>
+                      {product.farm && <p className="text-xs text-gray-400 mt-1 truncate">🌱 {product.farm}</p>}
+                    </Link>
+                    <div className="flex items-center justify-between mt-3">
+                      <p className="text-sm font-bold text-[#7d9800]">{Number(product.price).toLocaleString()} Fdj<span className="text-xs font-normal text-gray-400 ml-1">{product.unit}</span></p>
+                      <button onClick={() => { addItem(product); setCartOpen(true); }} className="w-8 h-8 bg-[#a8c800] rounded-full flex items-center justify-center text-white text-lg font-bold hover:bg-[#7d9800] transition">+</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
         )}
