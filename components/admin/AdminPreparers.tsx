@@ -2,7 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
+import { supabase } from '../../lib/supabase';
 import Modal, { ConfirmDelete, FormField, inputClass } from './Modal';
+
+const authHeader = async (): Promise<Record<string, string>> => {
+  const tk = (await supabase.auth.getSession()).data.session?.access_token;
+  return tk ? { Authorization: `Bearer ${tk}` } : {};
+};
 
 interface Preparer { id: number; name: string; email: string; is_active: boolean; }
 const EMPTY = { name: '', email: '' };
@@ -24,7 +30,7 @@ export default function AdminPreparers() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/preparers');
+      const res = await fetch('/api/preparers', { headers: await authHeader() });
       const json = await res.json();
       setPreparers(json.preparers || []);
     } catch { /* ignore */ }
@@ -52,7 +58,7 @@ export default function AdminPreparers() {
     setError('');
     const res = await fetch('/api/preparers', {
       method: editingId ? 'PATCH' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
       body: JSON.stringify(editingId ? { id: editingId, ...form } : form),
     });
     const json = await res.json();
@@ -65,7 +71,7 @@ export default function AdminPreparers() {
   const toggleActive = async (p: Preparer) => {
     await fetch('/api/preparers', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
       body: JSON.stringify({ id: p.id, is_active: !p.is_active }),
     });
     fetchAll();
@@ -76,7 +82,7 @@ export default function AdminPreparers() {
     setDeleting(true);
     await fetch('/api/preparers', {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
       body: JSON.stringify({ id: deleteId }),
     });
     setDeleting(false);

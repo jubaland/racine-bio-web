@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { sendDepositApproved } from '../../../../lib/emails';
+import { requirePerm } from '../../../../lib/admin-auth';
 
-// Liste des demandes de recharge (service role) — récentes d'abord, en attente en tête
-export async function GET() {
+// Liste des demandes de recharge — récentes d'abord, en attente en tête
+export async function GET(request: Request) {
+  const auth = await requirePerm(request, 'wallets', 'view');
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { data, error } = await supabaseAdmin
     .from('deposit_requests')
     .select('*')
@@ -23,6 +26,8 @@ export async function GET() {
 
 // Valider ou refuser une demande
 export async function POST(request: Request) {
+  const auth = await requirePerm(request, 'wallets', 'edit');
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { id, action, note } = await request.json();
   const { data: req } = await supabaseAdmin.from('deposit_requests').select('*').eq('id', id).single();
   if (!req) return NextResponse.json({ error: 'introuvable' }, { status: 404 });

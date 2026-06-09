@@ -2,7 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
+import { supabase } from '../../lib/supabase';
 import Modal from './Modal';
+
+const authHeader = async (): Promise<Record<string, string>> => {
+  const tk = (await supabase.auth.getSession()).data.session?.access_token;
+  return tk ? { Authorization: `Bearer ${tk}` } : {};
+};
 
 interface AuthUser { id: string; email: string | null; full_name: string | null; phone: string | null; balance: number; verified: boolean; }
 interface Tx { id: number; type: string; amount: number; note: string | null; created_at: string; }
@@ -31,7 +37,8 @@ export default function AdminWallets() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [uRes, rRes] = await Promise.all([fetch('/api/admin/users'), fetch('/api/admin/deposit-requests')]);
+      const h = await authHeader();
+      const [uRes, rRes] = await Promise.all([fetch('/api/admin/users', { headers: h }), fetch('/api/admin/deposit-requests', { headers: h })]);
       const uJson = await uRes.json();
       const rJson = await rRes.json();
       setUsers((uJson.users || []).sort((a: AuthUser, b: AuthUser) => b.balance - a.balance));
@@ -46,7 +53,7 @@ export default function AdminWallets() {
     setReviewing(id);
     await fetch('/api/admin/deposit-requests', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
       body: JSON.stringify({ id, action }),
     });
     setReviewing(null);
@@ -58,7 +65,7 @@ export default function AdminWallets() {
   const open = async (u: AuthUser) => {
     setSelected(u); setAmount(''); setNote(''); setError(''); setTx([]); setLoadingTx(true);
     try {
-      const res = await fetch(`/api/admin/wallet?user_id=${u.id}`);
+      const res = await fetch(`/api/admin/wallet?user_id=${u.id}`, { headers: await authHeader() });
       const json = await res.json();
       setTx(json.transactions || []);
       setSelected({ ...u, balance: Number(json.balance) || 0 });
@@ -73,7 +80,7 @@ export default function AdminWallets() {
     setSaving(true); setError('');
     const res = await fetch('/api/admin/wallet', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
       body: JSON.stringify({ user_id: selected.id, amount: amt, note, type: sign > 0 ? 'deposit' : 'adjustment' }),
     });
     const json = await res.json();

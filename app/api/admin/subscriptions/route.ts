@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
+import { requirePerm } from '../../../../lib/admin-auth';
 
-// Liste de tous les abonnements (service role), enrichis client + panier + solde.
-export async function GET() {
+// Liste de tous les abonnements, enrichis client + panier + solde.
+export async function GET(request: Request) {
+  const auth = await requirePerm(request, 'subscriptions', 'view');
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { data: subs, error } = await supabaseAdmin
     .from('subscriptions')
     .select('user_id, frequency, delivery_day, active, paused, last_delivery, valid_until, delivery_fee, created_at, updated_at');
@@ -62,6 +65,8 @@ export async function GET() {
 
 // Actions admin : pause / resume / delete / set_fee
 export async function POST(request: Request) {
+  const auth = await requirePerm(request, 'subscriptions', 'edit');
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { user_id, frequency, action, fee } = await request.json();
   if (!user_id || !frequency) return NextResponse.json({ error: 'user_id et frequency requis' }, { status: 400 });
 

@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
+import { requirePerm } from '../../../../lib/admin-auth';
 
-// Solde + historique d'un client (service role)
+// Solde + historique d'un client
 export async function GET(request: Request) {
+  const auth = await requirePerm(request, 'wallets', 'view');
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const userId = new URL(request.url).searchParams.get('user_id');
   if (!userId) return NextResponse.json({ error: 'user_id requis' }, { status: 400 });
 
@@ -20,6 +23,8 @@ export async function GET(request: Request) {
 
 // Créditer un dépôt (admin) — débits négatifs possibles pour ajustement
 export async function POST(request: Request) {
+  const auth = await requirePerm(request, 'wallets', 'edit');
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { user_id, amount, note, type } = await request.json();
   const amt = Number(amount);
   if (!user_id || !amt || isNaN(amt)) {

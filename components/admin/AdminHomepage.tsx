@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
+import { supabase } from '../../lib/supabase';
 
 export default function AdminHomepage() {
   const { ui } = useLanguage();
@@ -26,7 +27,8 @@ export default function AdminHomepage() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/site-settings');
+      const tk = (await supabase.auth.getSession()).data.session?.access_token;
+      const res = await fetch('/api/admin/site-settings', { headers: { Authorization: `Bearer ${tk}` } });
       const json = await res.json();
       setSettings(json.settings || {});
     } catch { /* ignore */ }
@@ -39,8 +41,9 @@ export default function AdminHomepage() {
     const next = !current;
     setBusy(key);
     setSettings(prev => ({ ...prev, [key]: next })); // optimiste
+    const tk = (await supabase.auth.getSession()).data.session?.access_token;
     const res = await fetch('/api/admin/site-settings', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tk}` },
       body: JSON.stringify({ key, value: next }),
     });
     if (!res.ok) setSettings(prev => ({ ...prev, [key]: current })); // rollback

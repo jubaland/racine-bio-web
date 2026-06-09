@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
+import { supabase } from '../../lib/supabase';
 
 interface AggRow { product_id: number; name: string; unit: string; quantity: number; stock: number; shortfall: number; }
 interface Delivery { user_id: string; name: string | null; email: string | null; frequency: string; items: { product_id: number; name: string; unit: string; quantity: number }[]; fee: number; total: number; balance: number; insufficient: boolean; }
@@ -27,7 +28,8 @@ export default function AdminForecast() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/forecast');
+      const tk = (await supabase.auth.getSession()).data.session?.access_token;
+      const res = await fetch('/api/admin/forecast', { headers: { Authorization: `Bearer ${tk}` } });
       const json = await res.json();
       setData(json);
     } catch { /* ignore */ }

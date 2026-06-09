@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
+import { supabase } from '../../lib/supabase';
 import PrepSlip from './PrepSlip';
 
 interface OrderItem {
@@ -67,7 +68,8 @@ export default function AdminOrders() {
     setLoading(true);
     setFetchError(null);
     try {
-      const res = await fetch('/api/orders');
+      const tk = (await supabase.auth.getSession()).data.session?.access_token;
+      const res = await fetch('/api/orders', { headers: { Authorization: `Bearer ${tk}` } });
       const json = await res.json();
       if (!res.ok) { setFetchError(json.error); return; }
       let orders: Order[] = json.orders || [];
@@ -84,9 +86,10 @@ export default function AdminOrders() {
 
   const updateStatus = async (orderId: string, status: string) => {
     setUpdatingId(orderId);
+    const tk = (await supabase.auth.getSession()).data.session?.access_token;
     await fetch('/api/orders', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tk}` },
       body: JSON.stringify({ id: orderId, status }),
     });
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));

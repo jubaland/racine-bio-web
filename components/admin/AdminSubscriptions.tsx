@@ -2,7 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
+import { supabase } from '../../lib/supabase';
 import Modal from './Modal';
+
+const authHeader = async (): Promise<Record<string, string>> => {
+  const tk = (await supabase.auth.getSession()).data.session?.access_token;
+  return tk ? { Authorization: `Bearer ${tk}` } : {};
+};
 
 interface SubItem { product_id: number; quantity: number; name: string; price: number; unit: string; }
 interface Sub {
@@ -43,7 +49,7 @@ export default function AdminSubscriptions() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/subscriptions');
+      const res = await fetch('/api/admin/subscriptions', { headers: await authHeader() });
       const json = await res.json();
       setSubs(json.subscriptions || []);
     } catch { /* ignore */ }
@@ -54,7 +60,7 @@ export default function AdminSubscriptions() {
   const act = async (s: Sub, action: 'pause' | 'resume' | 'delete') => {
     setBusy(`${s.user_id}|${s.frequency}`);
     await fetch('/api/admin/subscriptions', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
       body: JSON.stringify({ user_id: s.user_id, frequency: s.frequency, action }),
     });
     setBusy(null); setConfirmDel(null);
@@ -64,7 +70,7 @@ export default function AdminSubscriptions() {
   const saveFee = async (s: Sub) => {
     setBusy(`${s.user_id}|${s.frequency}`);
     await fetch('/api/admin/subscriptions', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
       body: JSON.stringify({ user_id: s.user_id, frequency: s.frequency, action: 'set_fee', fee: Number(feeInput) || 0 }),
     });
     setBusy(null);

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { roleOf } from '../../../../lib/permissions';
+import { requirePerm } from '../../../../lib/admin-auth';
 
 // Vérifie que l'appelant est administrateur (via son JWT).
 async function requireAdmin(request: Request): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
@@ -12,9 +13,9 @@ async function requireAdmin(request: Request): Promise<{ ok: true } | { ok: fals
   return { ok: true };
 }
 
-// Liste de tous les comptes (admin uniquement).
+// Liste des comptes — admin, gestionnaire "Utilisateurs" ou "Cagnottes" (annuaire).
 export async function GET(request: Request) {
-  const auth = await requireAdmin(request);
+  const auth = await requirePerm(request, ['users', 'wallets'], 'view');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const { data, error } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });

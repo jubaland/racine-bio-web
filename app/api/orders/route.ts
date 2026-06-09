@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabase-admin';
 import { sendOrderConfirmation, sendNewOrderAlert, sendStatusUpdate, sendPrepSlipToPreparers } from '../../../lib/emails';
+import { requirePerm } from '../../../lib/admin-auth';
 
 // POST — crée commande + articles avec vérification et décrémentation du stock
 export async function POST(request: Request) {
@@ -223,8 +224,10 @@ export async function POST(request: Request) {
   }
 }
 
-// GET — toutes les commandes avec articles (admin)
-export async function GET() {
+// GET — toutes les commandes avec articles (admin / gestionnaire "Commandes")
+export async function GET(request: Request) {
+  const auth = await requirePerm(request, 'orders', 'view');
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { data, error } = await supabaseAdmin
     .from('orders')
     .select(`
@@ -243,6 +246,8 @@ export async function GET() {
 
 // PATCH — modifier le statut + restaurer le stock si annulation
 export async function PATCH(request: Request) {
+  const auth = await requirePerm(request, 'orders', 'edit');
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { id, status } = await request.json();
 
   // Si annulation : récupérer les articles pour restaurer le stock

@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabase-admin';
+import { requirePerm } from '../../../lib/admin-auth';
 
-// Préparateurs de commandes — accès service role uniquement (emails non exposés publiquement).
+// Préparateurs de commandes — admin / gestionnaire avec droit "Préparateurs".
 
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = await requirePerm(request, 'preparers', 'view');
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { data, error } = await supabaseAdmin
     .from('preparers')
     .select('*')
@@ -13,6 +16,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const auth = await requirePerm(request, 'preparers', 'create');
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { name, email } = await request.json();
   if (!name?.trim() || !email?.trim()) {
     return NextResponse.json({ error: 'Nom et email requis.' }, { status: 400 });
@@ -27,6 +32,8 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const auth = await requirePerm(request, 'preparers', 'edit');
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { id, name, email, is_active } = await request.json();
   const patch: Record<string, any> = {};
   if (name !== undefined) patch.name = String(name).trim();
@@ -38,6 +45,8 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const auth = await requirePerm(request, 'preparers', 'delete');
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { id } = await request.json();
   const { error } = await supabaseAdmin.from('preparers').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
