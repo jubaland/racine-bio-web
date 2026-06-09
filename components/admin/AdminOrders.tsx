@@ -150,7 +150,7 @@ export default function AdminOrders() {
             const deliveryFee = order.delivery_fee != null ? order.delivery_fee : Math.max(0, Number(order.total) - subtotal);
 
             return (
-              <div key={order.id} className="bg-white rounded-2xl border border-[#d2e095] shadow-sm overflow-hidden">
+              <div key={order.id} className="bg-white rounded-2xl border-2 border-[#bcd36a] shadow-md overflow-hidden">
 
                 {/* ── En-tête commande ── */}
                 <div className="flex flex-wrap items-start gap-4 p-4 bg-[#f8fdf0] border-b border-[#d2e095]">
