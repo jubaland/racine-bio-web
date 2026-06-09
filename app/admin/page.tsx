@@ -181,6 +181,13 @@ export default function AdminPage() {
         {activeSection === null ? (
           /* Accueil : grille de cartes (modules autorisés) */
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 animate-tabfade">
+            <Link
+              href="/"
+              className="bg-white rounded-2xl p-5 border-2 border-[#d2e095] shadow-sm hover:border-[#a8c800] hover:shadow-md hover:-translate-y-0.5 transition flex flex-col items-center gap-2 text-center"
+            >
+              <span className="w-12 h-12 rounded-full bg-[#ecf4d5] flex items-center justify-center text-2xl">🌿</span>
+              <span className="text-sm font-semibold text-[#526500]">{t('admin.go_home', 'Page d\'accueil')}</span>
+            </Link>
             {visibleNav.map(item => (
               <button
                 key={item.id}

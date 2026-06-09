@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
 import { titleCase } from '../../lib/format';
+import { roleOf } from '../../lib/permissions';
 import { useLanguage } from '../../context/LanguageContext';
 
 type Mode = 'login' | 'register';
@@ -66,9 +67,11 @@ export default function LoginPage() {
         if (error) throw error;
         setSuccess(t('login.register_success', 'Compte créé ! Vérifiez votre email pour confirmer.'));
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        window.location.href = redirect;
+        // Un gestionnaire est dirigé vers le panneau d'administration par défaut
+        const isManager = roleOf(data.user?.user_metadata) === 'manager';
+        window.location.href = (redirect === '/' && isManager) ? '/admin' : redirect;
       }
     } catch (err: any) {
       setError(err.message);
