@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { supabase } from '../lib/supabase';
+import { roleOf } from '../lib/permissions';
 import { useLanguage } from '../context/LanguageContext';
 import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
@@ -40,6 +42,17 @@ export default function HomePage({ products, categories, promos, producers, sett
   const [promoOnly, setPromoOnly] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [referralBarDismissed, setReferralBarDismissed] = useState<boolean | null>(null);
+
+  // Un gestionnaire connecté est dirigé vers le panneau d'admin, sauf s'il a
+  // explicitement choisi de voir le site (carte « Page d'accueil » → flag).
+  useEffect(() => {
+    if (sessionStorage.getItem('hf_view_site') === '1') { sessionStorage.removeItem('hf_view_site'); return; }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session && roleOf(session.user?.user_metadata) === 'manager') {
+        window.location.href = '/admin';
+      }
+    });
+  }, []);
 
   useEffect(() => {
     setReferralBarDismissed(localStorage.getItem('hf_referral_bar') === '1');

@@ -171,7 +171,7 @@ export default function AdminPage() {
               <p className="text-xs text-white/60 truncate">{user?.email}</p>
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 <span className="bg-white/15 text-[#c8e050] text-[11px] font-semibold px-2.5 py-0.5 rounded-full">{roleLabel}</span>
-                <Link href="/" className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-white/10 text-white/80 hover:bg-white/20 transition">← {t('admin.back_to_site', 'Retour au site')}</Link>
+                <Link href="/" onClick={() => { try { sessionStorage.setItem('hf_view_site', '1'); } catch {} }} className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-white/10 text-white/80 hover:bg-white/20 transition">← {t('admin.back_to_site', 'Retour au site')}</Link>
                 <button onClick={handleSignOut} className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-white/10 text-white/80 hover:bg-white/20 transition">🚪 {t('admin.logout', 'Se déconnecter')}</button>
               </div>
             </div>
@@ -183,6 +183,7 @@ export default function AdminPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 animate-tabfade">
             <Link
               href="/"
+              onClick={() => { try { sessionStorage.setItem('hf_view_site', '1'); } catch {} }}
               className="bg-white rounded-2xl p-5 border-2 border-[#d2e095] shadow-sm hover:border-[#a8c800] hover:shadow-md hover:-translate-y-0.5 transition flex flex-col items-center gap-2 text-center"
             >
               <span className="w-12 h-12 rounded-full bg-[#ecf4d5] flex items-center justify-center text-2xl">🌿</span>
