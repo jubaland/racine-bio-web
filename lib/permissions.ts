@@ -6,7 +6,6 @@ export const ROLES: Role[] = ['client', 'producer', 'manager', 'admin'];
 // Modules du panneau admin et actions possibles par module.
 // 'view' = accès à la page ; create/edit/delete = actions dans le module.
 export const MODULES: { key: string; actions: string[] }[] = [
-  { key: 'dashboard',     actions: ['view'] },
   { key: 'products',      actions: ['view', 'create', 'edit', 'delete'] },
   { key: 'categories',    actions: ['view', 'create', 'edit', 'delete'] },
   { key: 'promos',        actions: ['view', 'create', 'edit', 'delete'] },

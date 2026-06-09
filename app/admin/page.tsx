@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import Link from 'next/link';
 import { useLanguage } from '../../context/LanguageContext';
-import AdminDashboard from '../../components/admin/AdminDashboard';
 import AdminProducts from '../../components/admin/AdminProducts';
 import AdminCategories from '../../components/admin/AdminCategories';
 import AdminPromos from '../../components/admin/AdminPromos';
@@ -22,15 +21,13 @@ import AdminForecast from '../../components/admin/AdminForecast';
 import { canAccessAdmin, hasPerm, roleOf } from '../../lib/permissions';
 import { AdminPermsProvider } from '../../context/AdminPermsContext';
 
-type Section = 'dashboard' | 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'preparers' | 'wallets' | 'subscriptions' | 'forecast' | 'requests' | 'users' | 'delivery' | 'notifications' | 'homepage';
-
-const SECTION_ORDER: Section[] = ['dashboard', 'products', 'categories', 'promos', 'producers', 'orders', 'preparers', 'requests', 'wallets', 'subscriptions', 'forecast', 'users', 'delivery', 'homepage', 'notifications'];
+type Section = 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'preparers' | 'wallets' | 'subscriptions' | 'forecast' | 'requests' | 'users' | 'delivery' | 'notifications' | 'homepage';
 
 export default function AdminPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
-  const [activeSection, setActiveSection] = useState<Section>('dashboard');
+  const [activeSection, setActiveSection] = useState<Section | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
   const { ui } = useLanguage();
@@ -38,7 +35,6 @@ export default function AdminPage() {
 
   const meta = user?.user_metadata;
   const NAV_ITEMS: { id: Section; emoji: string; label: string }[] = [
-    { id: 'dashboard', emoji: '📊', label: t('admin.nav_dashboard', 'Tableau de bord') },
     { id: 'products', emoji: '🥬', label: t('admin.nav_products', 'Produits') },
     { id: 'categories', emoji: '📂', label: t('admin.nav_categories', 'Catégories') },
     { id: 'promos', emoji: '🏷️', label: t('admin.nav_promos', 'Promotions') },
@@ -75,9 +71,6 @@ export default function AdminPage() {
         return;
       }
       setUser(u);
-      // Onglet initial = premier module autorisé
-      const first = SECTION_ORDER.find(s => hasPerm(meta, s, 'view'));
-      if (first) setActiveSection(first);
       setLoading(false);
 
       // Unread notifications count + realtime
@@ -104,11 +97,10 @@ export default function AdminPage() {
   };
 
   const renderSection = () => {
-    if (!hasPerm(meta, activeSection, 'view')) {
+    if (!activeSection || !hasPerm(meta, activeSection, 'view')) {
       return <p className="text-center text-gray-400 py-16">{t('admin.no_access', 'Accès non autorisé à ce module.')}</p>;
     }
     switch (activeSection) {
-      case 'dashboard': return <AdminDashboard />;
       case 'products': return <AdminProducts />;
       case 'categories': return <AdminCategories />;
       case 'promos': return <AdminPromos />;
@@ -186,26 +178,36 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Onglets */}
-        <div className="flex flex-wrap gap-2 mb-5">
-          {visibleNav.map(item => (
+        {activeSection === null ? (
+          /* Accueil : grille de cartes (modules autorisés) */
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 animate-tabfade">
+            {visibleNav.map(item => (
+              <button
+                key={item.id}
+                onClick={() => { setActiveSection(item.id); if (item.id === 'notifications') setUnreadCount(0); }}
+                className="relative bg-white rounded-2xl p-5 border-2 border-[#d2e095] shadow-sm hover:border-[#a8c800] hover:shadow-md hover:-translate-y-0.5 transition flex flex-col items-center gap-2 text-center"
+              >
+                <span className="w-12 h-12 rounded-full bg-[#ecf4d5] flex items-center justify-center text-2xl">{item.emoji}</span>
+                <span className="text-sm font-semibold text-[#526500]">{item.label}</span>
+                {item.id === 'notifications' && unreadCount > 0 && (
+                  <span className="absolute top-2 right-2 bg-[#f97316] text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">{unreadCount > 99 ? '99+' : unreadCount}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <>
             <button
-              key={item.id}
-              onClick={() => { setActiveSection(item.id); if (item.id === 'notifications') setUnreadCount(0); }}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-semibold whitespace-nowrap border transition ${activeSection === item.id ? 'bg-[#526500] text-white border-[#526500]' : 'bg-white text-[#526500] border-[#d2e095] hover:bg-[#ecf4d5]'}`}
+              onClick={() => setActiveSection(null)}
+              className="mb-4 inline-flex items-center gap-1.5 bg-white border border-[#d2e095] text-[#526500] text-sm font-semibold px-4 py-2 rounded-full hover:bg-[#ecf4d5] transition shadow-sm"
             >
-              <span>{item.emoji}</span><span>{item.label}</span>
-              {item.id === 'notifications' && unreadCount > 0 && (
-                <span className="ml-0.5 bg-[#f97316] text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">{unreadCount > 99 ? '99+' : unreadCount}</span>
-              )}
+              ← {t('admin.all_modules', 'Tous les modules')}
             </button>
-          ))}
-        </div>
-
-        {/* Contenu */}
-        <div key={activeSection} className="animate-tabfade">
-          <AdminPermsProvider meta={meta}>{renderSection()}</AdminPermsProvider>
-        </div>
+            <div key={activeSection} className="animate-tabfade">
+              <AdminPermsProvider meta={meta}>{renderSection()}</AdminPermsProvider>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
