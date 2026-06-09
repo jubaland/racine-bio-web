@@ -2,13 +2,27 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { supabase } from '../lib/supabase';
-import { roleOf } from '../lib/permissions';
 import { useLanguage } from '../context/LanguageContext';
 import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
 import Header from './Header';
 import CartDrawer from './CartDrawer';
+
+// Lit le rôle directement depuis le jeton stocké (synchrone, sans appel réseau)
+function localRole(): string | null {
+  try {
+    const key = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+    if (!key) return null;
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const token = parsed?.access_token || parsed?.currentSession?.access_token || (Array.isArray(parsed) ? parsed[0] : null);
+    if (!token || typeof token !== 'string') return null;
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const meta = payload?.user_metadata || {};
+    return meta.role || (meta.is_admin ? 'admin' : 'client');
+  } catch { return null; }
+}
 
 const ORIGIN_FLAGS: Record<string, string> = {
   DJ: '🇩🇯', ET: '🇪🇹', SO: '🇸🇴', YE: '🇾🇪', FR: '🇫🇷',
@@ -42,16 +56,17 @@ export default function HomePage({ products, categories, promos, producers, sett
   const [promoOnly, setPromoOnly] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [referralBarDismissed, setReferralBarDismissed] = useState<boolean | null>(null);
+  const [redirecting, setRedirecting] = useState(false);
 
   // Un gestionnaire connecté est dirigé vers le panneau d'admin, sauf s'il a
   // explicitement choisi de voir le site (carte « Page d'accueil » → flag).
+  // Décision synchrone (lecture du jeton local) pour éviter le flash de l'accueil.
   useEffect(() => {
     if (sessionStorage.getItem('hf_view_site') === '1') { sessionStorage.removeItem('hf_view_site'); return; }
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session && roleOf(session.user?.user_metadata) === 'manager') {
-        window.location.href = '/admin';
-      }
-    });
+    if (localRole() === 'manager') {
+      setRedirecting(true);
+      window.location.replace('/admin');
+    }
   }, []);
 
   useEffect(() => {
@@ -125,6 +140,15 @@ export default function HomePage({ products, categories, promos, producers, sett
 
   const localProducts = products.filter(p => p.is_local);
   const featuredProducts = products.filter(p => p.is_featured);
+
+  // Gestionnaire en cours de redirection vers /admin : on n'affiche pas la boutique
+  if (redirecting) {
+    return (
+      <div className="min-h-screen bg-[#faf7e8] flex items-center justify-center">
+        <p className="text-5xl animate-pulse">🌿</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#faf7e8]">
