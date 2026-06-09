@@ -19,8 +19,11 @@ import AdminWallets from '../../components/admin/AdminWallets';
 import AdminSubscriptions from '../../components/admin/AdminSubscriptions';
 import AdminHomepage from '../../components/admin/AdminHomepage';
 import AdminForecast from '../../components/admin/AdminForecast';
+import { canAccessAdmin, hasPerm } from '../../lib/permissions';
 
 type Section = 'dashboard' | 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'preparers' | 'wallets' | 'subscriptions' | 'forecast' | 'requests' | 'users' | 'delivery' | 'notifications' | 'homepage';
+
+const SECTION_ORDER: Section[] = ['dashboard', 'products', 'categories', 'promos', 'producers', 'orders', 'preparers', 'requests', 'wallets', 'subscriptions', 'forecast', 'users', 'delivery', 'homepage', 'notifications'];
 
 export default function AdminPage() {
   const [user, setUser] = useState<any>(null);
@@ -33,6 +36,7 @@ export default function AdminPage() {
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
 
+  const meta = user?.user_metadata;
   const NAV_ITEMS: { id: Section; emoji: string; label: string }[] = [
     { id: 'dashboard', emoji: '📊', label: t('admin.nav_dashboard', 'Tableau de bord') },
     { id: 'products', emoji: '🥬', label: t('admin.nav_products', 'Produits') },
@@ -50,6 +54,8 @@ export default function AdminPage() {
     { id: 'homepage', emoji: '🏠', label: t('admin.nav_homepage', 'Page d\'accueil') },
     { id: 'notifications', emoji: '🔔', label: t('admin.nav_notifications', 'Notifications') },
   ];
+  // Onglets visibles selon le rôle/droits (admin = tout)
+  const visibleNav = NAV_ITEMS.filter(i => hasPerm(meta, i.id, 'view'));
 
   useEffect(() => {
     const init = async () => {
@@ -58,14 +64,20 @@ export default function AdminPage() {
         window.location.href = '/login?redirect=/admin';
         return;
       }
-      // Admin check: set user_metadata.is_admin = true in Supabase Dashboard
-      const isAdmin = session.user?.user_metadata?.is_admin === true;
-      if (!isAdmin) {
+      // Métadonnées fraîches (rôle/droits récents définis par l'admin)
+      const { data: { user: fresh } } = await supabase.auth.getUser();
+      const u = fresh || session.user;
+      const meta = u?.user_metadata;
+      // Accès : administrateur OU gestionnaire ayant au moins un droit
+      if (!canAccessAdmin(meta)) {
         setAccessDenied(true);
         setLoading(false);
         return;
       }
-      setUser(session.user);
+      setUser(u);
+      // Onglet initial = premier module autorisé
+      const first = SECTION_ORDER.find(s => hasPerm(meta, s, 'view'));
+      if (first) setActiveSection(first);
       setLoading(false);
 
       // Unread notifications count + realtime
@@ -92,6 +104,9 @@ export default function AdminPage() {
   };
 
   const renderSection = () => {
+    if (!hasPerm(meta, activeSection, 'view')) {
+      return <p className="text-center text-gray-400 py-16">{t('admin.no_access', 'Accès non autorisé à ce module.')}</p>;
+    }
     switch (activeSection) {
       case 'dashboard': return <AdminDashboard />;
       case 'products': return <AdminProducts />;
@@ -175,7 +190,7 @@ export default function AdminPage() {
 
         {/* Navigation */}
         <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-          {NAV_ITEMS.map(item => (
+          {visibleNav.map(item => (
             <button
               key={item.id}
               onClick={() => {
