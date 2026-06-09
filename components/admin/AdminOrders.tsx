@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
+import { useCan } from '../../context/AdminPermsContext';
 import PrepSlip from './PrepSlip';
 
 interface OrderItem {
@@ -53,6 +54,7 @@ export default function AdminOrders() {
 
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
+  const { can } = useCan();
 
   const STATUS_META = {
     pending:    { label: t('admin.status_pending',    '⏳ En attente'), cls: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
@@ -183,16 +185,20 @@ export default function AdminOrders() {
                       <p className="text-xl font-bold text-[#526500]">{Number(order.total).toLocaleString()} Fdj</p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <select
-                        value={order.status}
-                        disabled={isUpdating}
-                        onChange={e => updateStatus(order.id, e.target.value)}
-                        className={`text-xs border rounded-xl px-2 py-1.5 font-semibold cursor-pointer focus:outline-none disabled:opacity-50 ${m.cls}`}
-                      >
-                        {STATUSES.map(s => (
-                          <option key={s} value={s}>{meta(s).label}</option>
-                        ))}
-                      </select>
+                      {can('orders', 'edit') ? (
+                        <select
+                          value={order.status}
+                          disabled={isUpdating}
+                          onChange={e => updateStatus(order.id, e.target.value)}
+                          className={`text-xs border rounded-xl px-2 py-1.5 font-semibold cursor-pointer focus:outline-none disabled:opacity-50 ${m.cls}`}
+                        >
+                          {STATUSES.map(s => (
+                            <option key={s} value={s}>{meta(s).label}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className={`text-xs border rounded-xl px-2 py-1.5 font-semibold ${m.cls}`}>{m.label}</span>
+                      )}
                       {isUpdating && <span className="text-xs text-gray-400">⏳</span>}
                       <button
                         onClick={() => setSlipOrder(order)}

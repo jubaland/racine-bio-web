@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
+import { useCan } from '../../context/AdminPermsContext';
 import Modal from './Modal';
 
 const authHeader = async (): Promise<Record<string, string>> => {
@@ -21,6 +22,8 @@ interface Sub {
 export default function AdminSubscriptions() {
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
+  const { can } = useCan();
+  const canEdit = can('subscriptions', 'edit');
 
   const [subs, setSubs] = useState<Sub[]>([]);
   const [loading, setLoading] = useState(true);
@@ -174,12 +177,14 @@ export default function AdminSubscriptions() {
                       <span className={isExpired(s) ? 'text-[#f97316] font-semibold' : 'text-gray-600'}>{fmtDate(s.valid_until)}</span>
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <label className="inline-flex items-center gap-1.5 cursor-pointer align-middle" title={t('admin.sub_suspend_hint', 'Suspendre / réactiver la livraison automatique')}>
-                        <input type="checkbox" checked={s.paused} disabled={busy === key} onChange={e => act(s, e.target.checked ? 'pause' : 'resume')} className="w-4 h-4 accent-[#a8c800]" />
-                        <span className="text-xs text-gray-600">{busy === key ? '⏳' : t('admin.sub_suspend', 'Suspendre')}</span>
-                      </label>
+                      {canEdit && (
+                        <label className="inline-flex items-center gap-1.5 cursor-pointer align-middle" title={t('admin.sub_suspend_hint', 'Suspendre / réactiver la livraison automatique')}>
+                          <input type="checkbox" checked={s.paused} disabled={busy === key} onChange={e => act(s, e.target.checked ? 'pause' : 'resume')} className="w-4 h-4 accent-[#a8c800]" />
+                          <span className="text-xs text-gray-600">{busy === key ? '⏳' : t('admin.sub_suspend', 'Suspendre')}</span>
+                        </label>
+                      )}
                       <button onClick={() => { setViewing(s); setFeeInput(String(Number(s.delivery_fee) || 0)); setFeeSaved(false); }} className="ml-3 text-[#7d9800] hover:text-[#526500] text-xs font-medium">{t('admin.sub_view', 'Panier')}</button>
-                      <button onClick={() => setConfirmDel(s)} className="ml-3 text-orange-400 hover:text-[#f97316] text-xs font-medium">{t('admin.delete', 'Supprimer')}</button>
+                      {canEdit && <button onClick={() => setConfirmDel(s)} className="ml-3 text-orange-400 hover:text-[#f97316] text-xs font-medium">{t('admin.delete', 'Supprimer')}</button>}
                     </td>
                   </tr>
                 );
@@ -217,6 +222,7 @@ export default function AdminSubscriptions() {
             </div>
 
             {/* Frais de transport personnalisés */}
+            {canEdit && (
             <div className="border-t border-[#d2e095] pt-3">
               <label className="text-sm font-medium text-gray-600 mb-1.5 block">🚚 {t('admin.sub_fee_label', 'Frais de transport')} ({PERIOD_WORD[viewing.frequency]})</label>
               <div className="flex gap-2">
@@ -237,6 +243,7 @@ export default function AdminSubscriptions() {
               </div>
               <p className="text-[11px] text-gray-400 mt-1">{t('admin.sub_fee_hint', 'Ajouté à chaque livraison et débité de la cagnotte.')}</p>
             </div>
+            )}
 
             <div className="flex items-center justify-between border-t border-[#d2e095] pt-3">
               <span className="text-sm font-semibold text-gray-700">{t('sub.total', 'Total')} {PERIOD_WORD[viewing.frequency]}</span>

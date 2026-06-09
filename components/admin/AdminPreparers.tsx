@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
+import { useCan } from '../../context/AdminPermsContext';
 import Modal, { ConfirmDelete, FormField, inputClass } from './Modal';
 
 const authHeader = async (): Promise<Record<string, string>> => {
@@ -26,6 +27,7 @@ export default function AdminPreparers() {
 
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
+  const { can } = useCan();
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -96,7 +98,7 @@ export default function AdminPreparers() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-800">🧑‍🍳 {t('admin.nav_preparers', 'Préparateurs')}</h1>
-        <button onClick={openAdd} className="bg-[#a8c800] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#7d9800] transition">{t('admin.add', '+ Ajouter')}</button>
+        {can('preparers', 'create') && <button onClick={openAdd} className="bg-[#a8c800] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#7d9800] transition">{t('admin.add', '+ Ajouter')}</button>}
       </div>
 
       <p className="text-sm text-gray-500 mb-4">
@@ -126,15 +128,16 @@ export default function AdminPreparers() {
                   <td className="px-4 py-3 text-gray-500">{p.email}</td>
                   <td className="px-4 py-3">
                     <button
-                      onClick={() => toggleActive(p)}
-                      className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${p.is_active ? 'bg-green-100 text-green-700 border-green-200' : 'bg-gray-100 text-gray-500 border-gray-200'}`}
+                      onClick={() => can('preparers', 'edit') && toggleActive(p)}
+                      disabled={!can('preparers', 'edit')}
+                      className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${p.is_active ? 'bg-green-100 text-green-700 border-green-200' : 'bg-gray-100 text-gray-500 border-gray-200'} disabled:opacity-60`}
                     >
                       {p.is_active ? t('admin.preparer_on', '✓ Actif') : t('admin.preparer_off', 'Inactif')}
                     </button>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button onClick={() => openEdit(p)} className="text-[#7d9800] hover:text-[#526500] text-xs font-medium mr-3">{t('admin.edit', 'Modifier')}</button>
-                    <button onClick={() => setDeleteId(p.id)} className="text-orange-400 hover:text-[#f97316] text-xs font-medium">{t('admin.delete', 'Supprimer')}</button>
+                    {can('preparers', 'edit') && <button onClick={() => openEdit(p)} className="text-[#7d9800] hover:text-[#526500] text-xs font-medium mr-3">{t('admin.edit', 'Modifier')}</button>}
+                    {can('preparers', 'delete') && <button onClick={() => setDeleteId(p.id)} className="text-orange-400 hover:text-[#f97316] text-xs font-medium">{t('admin.delete', 'Supprimer')}</button>}
                   </td>
                 </tr>
               ))}

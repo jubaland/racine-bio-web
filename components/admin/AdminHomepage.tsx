@@ -3,10 +3,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
+import { useCan } from '../../context/AdminPermsContext';
 
 export default function AdminHomepage() {
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
+  const { can } = useCan();
+  const canEdit = can('homepage', 'edit');
 
   // Blocs masquables de la page d'accueil (def = visibilité par défaut)
   const BLOCKS: { key: string; emoji: string; label: string; desc: string; def: boolean }[] = [
@@ -74,7 +77,7 @@ export default function AdminHomepage() {
                 </div>
                 <button
                   onClick={() => toggle(b.key, b.def)}
-                  disabled={busy === b.key}
+                  disabled={busy === b.key || !canEdit}
                   role="switch"
                   aria-checked={visible}
                   className={`relative w-12 h-7 rounded-full transition-colors flex-none disabled:opacity-60 ${visible ? 'bg-[#a8c800]' : 'bg-gray-200'}`}

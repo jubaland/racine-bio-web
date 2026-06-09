@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
+import { useCan } from '../../context/AdminPermsContext';
 import Modal from './Modal';
 
 const authHeader = async (): Promise<Record<string, string>> => {
@@ -33,6 +34,8 @@ export default function AdminWallets() {
 
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
+  const { can } = useCan();
+  const canEdit = can('wallets', 'edit');
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -122,14 +125,16 @@ export default function AdminWallets() {
                     {r.reference ? ` · réf. ${r.reference}` : ''} · {new Date(r.created_at).toLocaleDateString('fr-FR')}
                   </p>
                 </div>
-                <div className="flex gap-2 flex-none">
-                  <button onClick={() => review(r.id, 'reject')} disabled={reviewing === r.id} className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-orange-200 text-[#f97316] hover:bg-orange-50 transition disabled:opacity-50">
-                    {t('admin.deposit_reject', 'Refuser')}
-                  </button>
-                  <button onClick={() => review(r.id, 'approve')} disabled={reviewing === r.id} className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#a8c800] text-white hover:bg-[#7d9800] transition disabled:opacity-50">
-                    {reviewing === r.id ? '⏳' : `✅ ${t('admin.deposit_approve', 'Valider')}`}
-                  </button>
-                </div>
+                {canEdit && (
+                  <div className="flex gap-2 flex-none">
+                    <button onClick={() => review(r.id, 'reject')} disabled={reviewing === r.id} className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-orange-200 text-[#f97316] hover:bg-orange-50 transition disabled:opacity-50">
+                      {t('admin.deposit_reject', 'Refuser')}
+                    </button>
+                    <button onClick={() => review(r.id, 'approve')} disabled={reviewing === r.id} className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#a8c800] text-white hover:bg-[#7d9800] transition disabled:opacity-50">
+                      {reviewing === r.id ? '⏳' : `✅ ${t('admin.deposit_approve', 'Valider')}`}
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -208,14 +213,16 @@ export default function AdminWallets() {
                   className="w-full border border-[#d2e095] rounded-xl px-4 py-2.5 text-sm bg-[#faf7e8] focus:outline-none focus:border-[#a8c800]" />
               </div>
             </div>
-            <div className="flex gap-3">
-              <button onClick={() => credit(-1)} disabled={saving} className="flex-1 py-2.5 border border-orange-200 text-[#f97316] rounded-xl text-sm font-semibold hover:bg-orange-50 transition disabled:opacity-50">
-                ➖ {t('admin.wallet_debit', 'Débiter')}
-              </button>
-              <button onClick={() => credit(1)} disabled={saving} className="flex-1 py-2.5 bg-[#a8c800] text-white rounded-xl text-sm font-semibold hover:bg-[#7d9800] transition disabled:opacity-50">
-                ➕ {saving ? t('admin.saving', 'Enregistrement...') : t('admin.wallet_credit', 'Créditer')}
-              </button>
-            </div>
+            {canEdit && (
+              <div className="flex gap-3">
+                <button onClick={() => credit(-1)} disabled={saving} className="flex-1 py-2.5 border border-orange-200 text-[#f97316] rounded-xl text-sm font-semibold hover:bg-orange-50 transition disabled:opacity-50">
+                  ➖ {t('admin.wallet_debit', 'Débiter')}
+                </button>
+                <button onClick={() => credit(1)} disabled={saving} className="flex-1 py-2.5 bg-[#a8c800] text-white rounded-xl text-sm font-semibold hover:bg-[#7d9800] transition disabled:opacity-50">
+                  ➕ {saving ? t('admin.saving', 'Enregistrement...') : t('admin.wallet_credit', 'Créditer')}
+                </button>
+              </div>
+            )}
 
             <p className="text-sm font-semibold text-gray-700 pt-2">{t('admin.wallet_history', 'Historique')}</p>
             {loadingTx ? (

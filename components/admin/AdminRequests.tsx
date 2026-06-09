@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useLanguage } from '../../context/LanguageContext';
+import { useCan } from '../../context/AdminPermsContext';
 import Modal from './Modal';
 
 interface ProducerRequest {
@@ -48,6 +49,8 @@ export default function AdminRequests() {
 
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
+  const { can } = useCan();
+  const canEdit = can('requests', 'edit');
 
   const statusInfo = useCallback((s: string) => {
     const map: Record<string, { label: string; cls: string }> = {
@@ -176,7 +179,7 @@ export default function AdminRequests() {
                   <button onClick={() => setSelectedRequest(req)} className="text-xs text-[#7d9800] hover:text-[#526500] font-medium">
                     {t('admin.view_details', 'Voir détails')}
                   </button>
-                  {req.status === 'pending' && (
+                  {canEdit && req.status === 'pending' && (
                     <>
                       <button onClick={() => updateStatus(req.id, 'approved')} disabled={updating}
                         className="text-xs bg-green-500 text-white px-3 py-1.5 rounded-lg hover:bg-green-600 transition disabled:opacity-50 font-medium">
@@ -188,7 +191,7 @@ export default function AdminRequests() {
                       </button>
                     </>
                   )}
-                  {req.status !== 'pending' && (
+                  {canEdit && req.status !== 'pending' && (
                     <button onClick={() => updateStatus(req.id, 'pending')} disabled={updating}
                       className="text-xs border border-gray-200 text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition disabled:opacity-50">
                       {t('admin.request_reset', 'Remettre en attente')}
@@ -232,7 +235,7 @@ export default function AdminRequests() {
               </span>
               <p className="text-xs text-gray-400">{new Date(selectedRequest.created_at).toLocaleDateString('fr-FR')}</p>
             </div>
-            {selectedRequest.status === 'pending' && (
+            {canEdit && selectedRequest.status === 'pending' && (
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={() => { updateStatus(selectedRequest.id, 'rejected'); setSelectedRequest(null); }}

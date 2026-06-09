@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useLanguage } from '../../context/LanguageContext';
+import { useCan } from '../../context/AdminPermsContext';
 import Modal, { ConfirmDelete, FormField, inputClass } from './Modal';
 
 interface Promo { id: number; emoji: string; badge: string; title: string; sub: string; color_start: string; active: boolean; category?: string; }
@@ -23,6 +24,7 @@ export default function AdminPromos() {
 
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
+  const { can } = useCan();
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -79,7 +81,7 @@ export default function AdminPromos() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-800">🏷️ {t('admin.nav_promos', 'Promotions')}</h1>
-        <button onClick={openAdd} className="bg-[#a8c800] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#7d9800] transition">{t('admin.add', '+ Ajouter')}</button>
+        {can('promos', 'create') && <button onClick={openAdd} className="bg-[#a8c800] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#7d9800] transition">{t('admin.add', '+ Ajouter')}</button>}
       </div>
 
       {loading ? (
@@ -109,8 +111,8 @@ export default function AdminPromos() {
                 <p className="text-sm text-gray-400 truncate">{p.sub}</p>
               </div>
               <div className="flex gap-2 flex-shrink-0">
-                <button onClick={() => openEdit(p)} className="text-[#7d9800] hover:text-[#526500] text-xs font-medium">{t('admin.edit', 'Modifier')}</button>
-                <button onClick={() => setDeleteId(p.id)} className="text-orange-400 hover:text-[#f97316] text-xs font-medium">{t('admin.delete', 'Supprimer')}</button>
+                {can('promos', 'edit') && <button onClick={() => openEdit(p)} className="text-[#7d9800] hover:text-[#526500] text-xs font-medium">{t('admin.edit', 'Modifier')}</button>}
+                {can('promos', 'delete') && <button onClick={() => setDeleteId(p.id)} className="text-orange-400 hover:text-[#f97316] text-xs font-medium">{t('admin.delete', 'Supprimer')}</button>}
               </div>
             </div>
           ))}

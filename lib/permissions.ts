@@ -18,7 +18,7 @@ export const MODULES: { key: string; actions: string[] }[] = [
   { key: 'subscriptions', actions: ['view', 'edit'] },
   { key: 'forecast',      actions: ['view'] },
   { key: 'users',         actions: ['view', 'edit'] },
-  { key: 'delivery',      actions: ['view', 'edit'] },
+  { key: 'delivery',      actions: ['view', 'create', 'edit', 'delete'] },
   { key: 'homepage',      actions: ['view', 'edit'] },
   { key: 'notifications', actions: ['view'] },
 ];

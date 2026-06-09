@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useLanguage } from '../../context/LanguageContext';
+import { useCan } from '../../context/AdminPermsContext';
 import Modal, { ConfirmDelete, FormField, inputClass, selectClass } from './Modal';
 
 interface Product {
@@ -61,6 +62,7 @@ export default function AdminProducts() {
 
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
+  const { can } = useCan();
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -196,9 +198,11 @@ export default function AdminProducts() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-800">🥬 {t('admin.nav_products', 'Produits')}</h1>
-        <button onClick={openAdd} className="bg-[#a8c800] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#7d9800] transition">
-          {t('admin.add', '+ Ajouter')}
-        </button>
+        {can('products', 'create') && (
+          <button onClick={openAdd} className="bg-[#a8c800] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#7d9800] transition">
+            {t('admin.add', '+ Ajouter')}
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
@@ -273,8 +277,8 @@ export default function AdminProducts() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button onClick={() => openEdit(p)} className="text-[#7d9800] hover:text-[#526500] text-xs font-medium mr-3">{t('admin.edit', 'Modifier')}</button>
-                      <button onClick={() => { setError(''); setDeleteId(p.id); }} className="text-orange-400 hover:text-[#f97316] text-xs font-medium">{t('admin.delete', 'Supprimer')}</button>
+                      {can('products', 'edit') && <button onClick={() => openEdit(p)} className="text-[#7d9800] hover:text-[#526500] text-xs font-medium mr-3">{t('admin.edit', 'Modifier')}</button>}
+                      {can('products', 'delete') && <button onClick={() => { setError(''); setDeleteId(p.id); }} className="text-orange-400 hover:text-[#f97316] text-xs font-medium">{t('admin.delete', 'Supprimer')}</button>}
                     </td>
                   </tr>
                 ))}

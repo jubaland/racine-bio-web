@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useCan } from '../../context/AdminPermsContext';
 import Modal, { ConfirmDelete, FormField, inputClass } from './Modal';
 
 interface DeliveryOption {
@@ -27,6 +28,7 @@ export default function AdminDelivery() {
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
+  const { can } = useCan();
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -114,21 +116,25 @@ export default function AdminDelivery() {
             Modes et tarifs proposés au checkout. Le code parrainage ou un crédit annule les frais.
           </p>
         </div>
-        <button
-          onClick={openAdd}
-          className="bg-[#a8c800] text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-[#7d9800] transition text-sm"
-        >
-          + Ajouter
-        </button>
+        {can('delivery', 'create') && (
+          <button
+            onClick={openAdd}
+            className="bg-[#a8c800] text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-[#7d9800] transition text-sm"
+          >
+            + Ajouter
+          </button>
+        )}
       </div>
 
       {options.length === 0 ? (
         <div className="bg-white rounded-2xl p-12 text-center border border-[#d2e095]">
           <p className="text-4xl mb-3 opacity-20">🚚</p>
           <p className="text-gray-400 mb-4">Aucune option configurée.</p>
-          <button onClick={openAdd} className="text-[#7d9800] text-sm hover:underline">
-            + Créer la première option
-          </button>
+          {can('delivery', 'create') && (
+            <button onClick={openAdd} className="text-[#7d9800] text-sm hover:underline">
+              + Créer la première option
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
@@ -158,25 +164,31 @@ export default function AdminDelivery() {
                   )}
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => toggleActive(opt)}
-                    title={opt.is_active ? 'Désactiver' : 'Activer'}
-                    className={`relative w-11 h-6 rounded-full transition-colors ${opt.is_active ? 'bg-[#a8c800]' : 'bg-gray-200'}`}
-                  >
-                    <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${opt.is_active ? 'left-5' : 'left-0.5'}`} />
-                  </button>
-                  <button
-                    onClick={() => openEdit(opt)}
-                    className="px-3 py-1.5 text-xs font-medium text-gray-600 border border-[#d2e095] rounded-lg hover:bg-[#ecf4d5] transition"
-                  >
-                    Modifier
-                  </button>
-                  <button
-                    onClick={() => setDeleteId(opt.id)}
-                    className="px-3 py-1.5 text-xs font-medium text-[#f97316] border border-orange-100 rounded-lg hover:bg-orange-50 transition"
-                  >
-                    ✕
-                  </button>
+                  {can('delivery', 'edit') && (
+                    <button
+                      onClick={() => toggleActive(opt)}
+                      title={opt.is_active ? 'Désactiver' : 'Activer'}
+                      className={`relative w-11 h-6 rounded-full transition-colors ${opt.is_active ? 'bg-[#a8c800]' : 'bg-gray-200'}`}
+                    >
+                      <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${opt.is_active ? 'left-5' : 'left-0.5'}`} />
+                    </button>
+                  )}
+                  {can('delivery', 'edit') && (
+                    <button
+                      onClick={() => openEdit(opt)}
+                      className="px-3 py-1.5 text-xs font-medium text-gray-600 border border-[#d2e095] rounded-lg hover:bg-[#ecf4d5] transition"
+                    >
+                      Modifier
+                    </button>
+                  )}
+                  {can('delivery', 'delete') && (
+                    <button
+                      onClick={() => setDeleteId(opt.id)}
+                      className="px-3 py-1.5 text-xs font-medium text-[#f97316] border border-orange-100 rounded-lg hover:bg-orange-50 transition"
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

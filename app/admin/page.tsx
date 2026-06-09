@@ -20,6 +20,7 @@ import AdminSubscriptions from '../../components/admin/AdminSubscriptions';
 import AdminHomepage from '../../components/admin/AdminHomepage';
 import AdminForecast from '../../components/admin/AdminForecast';
 import { canAccessAdmin, hasPerm } from '../../lib/permissions';
+import { AdminPermsProvider } from '../../context/AdminPermsContext';
 
 type Section = 'dashboard' | 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'preparers' | 'wallets' | 'subscriptions' | 'forecast' | 'requests' | 'users' | 'delivery' | 'notifications' | 'homepage';
 
@@ -257,7 +258,7 @@ export default function AdminPage() {
 
         {/* Page content */}
         <main className="flex-1 p-4 md:p-6 overflow-auto">
-          {renderSection()}
+          <AdminPermsProvider meta={meta}>{renderSection()}</AdminPermsProvider>
         </main>
       </div>
     </div>

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useLanguage } from '../../context/LanguageContext';
 import { MODULES, ROLES, type Role } from '../../lib/permissions';
+import { useCan } from '../../context/AdminPermsContext';
 import Modal from './Modal';
 
 interface AuthUser {
@@ -25,6 +26,8 @@ const ambassadorLabel = (civility?: string | null) => civility === 'madame' ? 'A
 export default function AdminUsers() {
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
+  const { can } = useCan();
+  const canEdit = can('users', 'edit');
 
   const [users, setUsers] = useState<AuthUser[]>([]);
   const [stats, setStats] = useState<Record<string, Stat>>({});
@@ -244,6 +247,7 @@ export default function AdminUsers() {
               <div className="col-span-2"><p className="text-xs text-gray-400">Email</p><p className="font-medium text-gray-800 break-all">{selected.email || '—'}</p></div>
             </div>
 
+            {canEdit && (<>
             {/* Rôle */}
             <div className="bg-white border border-[#d2e095] rounded-xl px-4 py-3">
               <p className="text-sm font-medium text-gray-700 mb-2">{t('admin.col_role', 'Rôle')}</p>
@@ -311,6 +315,7 @@ export default function AdminUsers() {
               className={`w-full py-2.5 rounded-xl text-sm font-semibold transition disabled:opacity-50 ${selected.banned ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'}`}>
               {selected.banned ? `✅ ${t('admin.unblock_user', 'Débloquer le compte')}` : `🚫 ${t('admin.block_user', 'Bloquer le compte')}`}
             </button>
+            </>)}
 
             {/* Historique */}
             <p className="text-sm font-semibold text-gray-700 pt-1">{t('admin.order_history', 'Historique des commandes')}</p>

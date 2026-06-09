@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useLanguage } from '../../context/LanguageContext';
+import { useCan } from '../../context/AdminPermsContext';
 import Modal, { ConfirmDelete, FormField, inputClass } from './Modal';
 
 interface Category { id: number; slug: string; label: string; emoji: string; }
@@ -21,6 +22,7 @@ export default function AdminCategories() {
 
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
+  const { can } = useCan();
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -66,9 +68,11 @@ export default function AdminCategories() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-800">📂 {t('admin.nav_categories', 'Catégories')}</h1>
-        <button onClick={openAdd} className="bg-[#a8c800] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#7d9800] transition">
-          {t('admin.add', '+ Ajouter')}
-        </button>
+        {can('categories', 'create') && (
+          <button onClick={openAdd} className="bg-[#a8c800] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#7d9800] transition">
+            {t('admin.add', '+ Ajouter')}
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -94,8 +98,8 @@ export default function AdminCategories() {
                   <td className="px-4 py-3 font-medium text-gray-800">{c.label}</td>
                   <td className="px-4 py-3 text-gray-400 font-mono text-xs">{c.slug}</td>
                   <td className="px-4 py-3 text-right">
-                    <button onClick={() => openEdit(c)} className="text-[#7d9800] hover:text-[#526500] text-xs font-medium mr-3">{t('admin.edit', 'Modifier')}</button>
-                    <button onClick={() => setDeleteId(c.id)} className="text-orange-400 hover:text-[#f97316] text-xs font-medium">{t('admin.delete', 'Supprimer')}</button>
+                    {can('categories', 'edit') && <button onClick={() => openEdit(c)} className="text-[#7d9800] hover:text-[#526500] text-xs font-medium mr-3">{t('admin.edit', 'Modifier')}</button>}
+                    {can('categories', 'delete') && <button onClick={() => setDeleteId(c.id)} className="text-orange-400 hover:text-[#f97316] text-xs font-medium">{t('admin.delete', 'Supprimer')}</button>}
                   </td>
                 </tr>
               ))}
