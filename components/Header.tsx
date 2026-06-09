@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../context/LanguageContext';
+import { canAccessAdmin } from '../lib/permissions';
 import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
 import LanguageSelector from './LanguageSelector';
@@ -70,8 +71,8 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
         <div className="flex items-center gap-1.5 md:gap-3 flex-none shrink-0">
           <LanguageSelector />
 
-          {/* Admin */}
-          {user?.user_metadata?.is_admin && (
+          {/* Admin / Gestionnaire */}
+          {canAccessAdmin(user?.user_metadata) && (
             <Link href="/admin" className="flex items-center justify-center w-9 h-9 md:w-auto md:h-auto md:px-3 md:py-2 rounded-full bg-[#3a4800] text-[#c5d87a] md:gap-1.5 hover:bg-[#526500] transition">
               <span>⚙️</span>
               <span className="hidden md:block text-xs font-semibold">Admin</span>
