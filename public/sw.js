@@ -1,5 +1,5 @@
 // ─── PWA : cache offline (network-first, même origine uniquement) ───
-const CACHE = 'hf-cache-v3';
+const CACHE = 'hf-cache-v4';
 
 self.addEventListener('install', () => self.skipWaiting());
 
@@ -41,7 +41,7 @@ self.addEventListener('push', event => {
     self.registration.showNotification(data.title, {
       body: data.body,
       icon: '/icon-192.png',
-      badge: '/badge-96.png',
+      badge: '/badge-leaf.png',
       data: { url: data.url || '/' },
     })
   );
