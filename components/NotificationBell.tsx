@@ -100,7 +100,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-xl border border-[#e3eebf] z-50 overflow-hidden animate-tabfade">
+        <div className="fixed left-2 right-2 top-16 w-auto sm:absolute sm:inset-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80 bg-white rounded-2xl shadow-xl border border-[#e3eebf] z-50 overflow-hidden animate-tabfade">
           <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
             <span className="font-bold text-[#2d6410]">🔔 {t('notif.title', 'Notifications')}</span>
           </div>
