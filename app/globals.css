@@ -50,3 +50,13 @@ button {
   to   { opacity: 1; transform: translateY(0); }
 }
 .animate-tabfade { animation: tabfade 0.25s ease-out; }
+
+/* Texte défilant (bandeau promo) */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.animate-marquee { animation: marquee 20s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee { animation: none; }
+}
