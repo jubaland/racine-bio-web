@@ -55,7 +55,6 @@ export default function HomePage({ products, categories, promos, producers, sett
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [promoOnly, setPromoOnly] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
-  const [referralBarDismissed, setReferralBarDismissed] = useState<boolean | null>(null);
   const [redirecting, setRedirecting] = useState(false);
 
   // Un gestionnaire connecté est dirigé vers le panneau d'admin, sauf s'il a
@@ -70,7 +69,6 @@ export default function HomePage({ products, categories, promos, producers, sett
   }, []);
 
   useEffect(() => {
-    setReferralBarDismissed(localStorage.getItem('hf_orange_promo') === '1');
     // Capturer le code parrainage depuis l'URL (?ref=XXXXXX)
     const params = new URLSearchParams(window.location.search);
     const ref = params.get('ref');
@@ -81,11 +79,6 @@ export default function HomePage({ products, categories, promos, producers, sett
       window.history.replaceState({}, '', url.toString());
     }
   }, []);
-
-  const dismissReferralBar = () => {
-    localStorage.setItem('hf_orange_promo', '1');
-    setReferralBarDismissed(true);
-  };
 
   const t = (key: string, fallback: string) => ui[key] || fallback;
 
@@ -154,43 +147,6 @@ export default function HomePage({ products, categories, promos, producers, sett
     <div className="min-h-screen bg-[#faf7e8]">
 
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
-
-      {/* Bandeau promo — Oranges Bio de Somalie (texte défilant, stock limité) */}
-      {referralBarDismissed === false && (
-        <div className="bg-gradient-to-r from-[#f97316] via-[#fb8500] to-[#ea6a00] text-white">
-          <div className="max-w-7xl mx-auto pl-4 pr-3 py-2.5 flex items-center gap-2">
-            {/* Piste défilante */}
-            <div className="flex-1 overflow-hidden">
-              <div className="inline-flex w-max items-center animate-marquee hover:[animation-play-state:paused]">
-                {[0, 1].map(k => (
-                  <span key={k} className="inline-flex items-center text-sm font-semibold whitespace-nowrap pr-10">
-                    <span className="mr-2">🍊</span>
-                    {t('promo.orange_text', 'Oranges Bio de Somalie fraîchement arrivées — juteuses & parfumées.')}
-                    <span className="mx-3 bg-white/25 px-2 py-0.5 rounded-full">⏳ {t('promo.orange_limited', 'Stock limité')}</span>
-                    <span className="mx-3 opacity-70">•</span>
-                    <span className="mr-2">🍊</span>
-                    {t('promo.orange_text2', 'Fraîches de Hargeisa, en quantité limitée — ne tardez pas !')}
-                    <span className="mx-3 opacity-70">•</span>
-                  </span>
-                ))}
-              </div>
-            </div>
-            <Link
-              href="/product/15"
-              className="shrink-0 bg-white text-[#ea6a00] text-xs font-bold px-4 py-1.5 rounded-full hover:bg-[#fff3e8] transition shadow-sm"
-            >
-              {t('promo.orange_cta', 'J\'en profite →')}
-            </Link>
-            <button
-              onClick={dismissReferralBar}
-              aria-label="Fermer"
-              className="shrink-0 text-white/60 hover:text-white transition text-base leading-none font-bold px-1"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
 
       <Header onCartOpen={() => setCartOpen(true)} />
 
