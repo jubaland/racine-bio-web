@@ -10,6 +10,7 @@ import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
 import LanguageSelector from './LanguageSelector';
 import FavoritesDrawer from './FavoritesDrawer';
+import NotificationBell from './NotificationBell';
 
 export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
   const [user, setUser] = useState<any>(null);
@@ -78,6 +79,9 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
               <span className="hidden md:block text-xs font-semibold">Admin</span>
             </Link>
           )}
+
+          {/* Centre de notifications (connecté uniquement) */}
+          {user && <NotificationBell userId={user.id} />}
 
           {/* Profil / Connexion — état visuellement distinct */}
           {user ? (

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { requirePerm } from '../../../../lib/admin-auth';
-import { sendPushToAll } from '../../../../lib/push';
+import { notifyAllUsers } from '../../../../lib/notify';
 
 // GET — historique des annonces diffusées (admin)
 export async function GET(request: Request) {
@@ -44,14 +44,14 @@ export async function POST(request: Request) {
       .single();
     if (insErr) return NextResponse.json({ error: insErr.message }, { status: 500 });
 
-    // 3) Push PWA à tous les abonnés
-    const result = await sendPushToAll({
+    // 3) Centre de notifications de chaque client + push PWA à tous les abonnés
+    const result = await notifyAllUsers({
       title: cleanTitle,
-      body: cleanBody || '',
+      body: cleanBody,
       url: cleanUrl || '/',
     });
 
-    return NextResponse.json({ ok: true, announcement: ann, sent: result.sent, total: result.total });
+    return NextResponse.json({ ok: true, announcement: ann, sent: result.sent, total: result.total, recipients: result.recipients });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
