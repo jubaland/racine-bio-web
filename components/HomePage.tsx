@@ -70,7 +70,7 @@ export default function HomePage({ products, categories, promos, producers, sett
   }, []);
 
   useEffect(() => {
-    setReferralBarDismissed(localStorage.getItem('hf_referral_bar') === '1');
+    setReferralBarDismissed(localStorage.getItem('hf_orange_promo') === '1');
     // Capturer le code parrainage depuis l'URL (?ref=XXXXXX)
     const params = new URLSearchParams(window.location.search);
     const ref = params.get('ref');
@@ -83,7 +83,7 @@ export default function HomePage({ products, categories, promos, producers, sett
   }, []);
 
   const dismissReferralBar = () => {
-    localStorage.setItem('hf_referral_bar', '1');
+    localStorage.setItem('hf_orange_promo', '1');
     setReferralBarDismissed(true);
   };
 
@@ -155,26 +155,26 @@ export default function HomePage({ products, categories, promos, producers, sett
 
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
 
-      {/* Referral announcement bar */}
+      {/* Bandeau promo — Oranges Bio de Somalie (stock limité) */}
       {referralBarDismissed === false && (
-        <div className="bg-[#c8e050] text-[#1c3a05]">
+        <div className="bg-gradient-to-r from-[#f97316] via-[#fb8500] to-[#ea6a00] text-white">
           <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-center gap-3 relative">
-            <span className="hidden md:inline text-sm font-medium">
-              🎁 {t('referral.bar_text', 'Parrainez un ami — il reçoit la livraison offerte, et vous aussi sur votre prochaine commande.')}
+            <span className="hidden md:inline text-sm font-semibold">
+              🍊 {t('promo.orange_text', 'Oranges Bio de Somalie fraîchement arrivées — juteuses & parfumées.')} <span className="bg-white/25 px-2 py-0.5 rounded-full ml-1">⏳ {t('promo.orange_limited', 'Stock limité')}</span>
             </span>
-            <span className="md:hidden text-xs font-medium text-center">
-              🎁 {t('referral.bar_text_short', 'Parrainez un ami — livraison offerte pour vous deux.')}
+            <span className="md:hidden text-xs font-semibold text-center">
+              🍊 {t('promo.orange_text_short', 'Oranges Bio de Somalie')} · ⏳ {t('promo.orange_limited', 'Stock limité')}
             </span>
             <Link
-              href="/profile"
-              className="shrink-0 bg-[#1c3a05] text-white text-xs font-semibold px-4 py-1.5 rounded-full hover:bg-[#2d6410] transition"
+              href="/product/15"
+              className="shrink-0 bg-white text-[#ea6a00] text-xs font-bold px-4 py-1.5 rounded-full hover:bg-[#fff3e8] transition"
             >
-              {t('referral.bar_cta', 'Parrainer →')}
+              {t('promo.orange_cta', 'J\'en profite →')}
             </Link>
             <button
               onClick={dismissReferralBar}
               aria-label="Fermer"
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-[#1c3a05]/50 hover:text-[#1c3a05] transition text-base leading-none font-bold"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-white transition text-base leading-none font-bold"
             >
               ✕
             </button>
