@@ -29,8 +29,13 @@ export default function AdminBroadcast() {
   const [loading, setLoading] = useState(true);
 
   const authHeader = useCallback(async () => {
-    const tk = (await supabase.auth.getSession()).data.session?.access_token;
-    return { Authorization: `Bearer ${tk}`, 'Content-Type': 'application/json' };
+    let { data: { session } } = await supabase.auth.getSession();
+    // Rafraîchir si le jeton est absent, expiré ou proche de l'expiration (< 60 s)
+    if (!session || (session.expires_at && session.expires_at * 1000 < Date.now() + 60000)) {
+      const { data } = await supabase.auth.refreshSession();
+      session = data.session;
+    }
+    return { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' };
   }, []);
 
   const fetchHistory = useCallback(async () => {
