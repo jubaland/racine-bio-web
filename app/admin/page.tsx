@@ -13,6 +13,7 @@ import AdminRequests from '../../components/admin/AdminRequests';
 import AdminUsers from '../../components/admin/AdminUsers';
 import AdminDelivery from '../../components/admin/AdminDelivery';
 import AdminNotifications from '../../components/admin/AdminNotifications';
+import AdminBroadcast from '../../components/admin/AdminBroadcast';
 import AdminPreparers from '../../components/admin/AdminPreparers';
 import AdminWallets from '../../components/admin/AdminWallets';
 import AdminSubscriptions from '../../components/admin/AdminSubscriptions';
@@ -21,7 +22,7 @@ import AdminForecast from '../../components/admin/AdminForecast';
 import { canAccessAdmin, hasPerm, roleOf } from '../../lib/permissions';
 import { AdminPermsProvider } from '../../context/AdminPermsContext';
 
-type Section = 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'preparers' | 'wallets' | 'subscriptions' | 'forecast' | 'requests' | 'users' | 'delivery' | 'notifications' | 'homepage';
+type Section = 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'preparers' | 'wallets' | 'subscriptions' | 'forecast' | 'requests' | 'users' | 'delivery' | 'notifications' | 'homepage' | 'announcements';
 
 export default function AdminPage() {
   const [user, setUser] = useState<any>(null);
@@ -49,6 +50,7 @@ export default function AdminPage() {
     { id: 'delivery', emoji: '🚚', label: t('admin.nav_delivery', 'Livraison') },
     { id: 'homepage', emoji: '🏠', label: t('admin.nav_homepage', 'Page d\'accueil') },
     { id: 'notifications', emoji: '🔔', label: t('admin.nav_notifications', 'Notifications') },
+    { id: 'announcements', emoji: '📣', label: t('admin.nav_announcements', 'Annonces') },
   ];
   // Onglets visibles selon le rôle/droits (admin = tout)
   const visibleNav = NAV_ITEMS.filter(i => hasPerm(meta, i.id, 'view'));
@@ -115,6 +117,7 @@ export default function AdminPage() {
       case 'users': return <AdminUsers />;
       case 'delivery': return <AdminDelivery />;
       case 'notifications': return <AdminNotifications />;
+      case 'announcements': return <AdminBroadcast />;
     }
   };
 

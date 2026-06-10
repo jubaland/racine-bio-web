@@ -11,6 +11,38 @@ function initVapid() {
   return true;
 }
 
+export async function sendPushToAll(payload: { title: string; body: string; url?: string }) {
+  const ready = initVapid();
+  console.log('[push] sendPushToAll | initVapid:', ready);
+  if (!ready) return { sent: 0, total: 0 };
+
+  const { data: subs, error } = await supabaseAdmin
+    .from('push_subscriptions')
+    .select('endpoint, p256dh, auth');
+
+  console.log('[push] subs total (broadcast):', subs?.length ?? 0, '| error:', error?.message ?? 'none');
+  if (!subs || subs.length === 0) return { sent: 0, total: 0 };
+
+  let sent = 0;
+  await Promise.allSettled(
+    subs.map(async sub => {
+      try {
+        await webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          JSON.stringify(payload)
+        );
+        sent++;
+      } catch (e: any) {
+        if (e?.statusCode === 410 || e?.statusCode === 404) {
+          await supabaseAdmin.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+        } else console.error('[push] broadcast sendNotification failed:', e?.statusCode, e?.body);
+      }
+    })
+  );
+  console.log('[push] broadcast sent:', sent, '/', subs.length);
+  return { sent, total: subs.length };
+}
+
 export async function sendPushToUser(userId: string, payload: { title: string; body: string; url?: string }) {
   const ready = initVapid();
   console.log('[push] sendPushToUser | initVapid:', ready, '| userId:', userId);
