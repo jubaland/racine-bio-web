@@ -54,6 +54,9 @@ export default function CheckoutPage() {
   const [guestMode, setGuestMode] = useState(false);
 
   const [step, setStep] = useState(1);
+  // Validation : passe à true quand l'utilisateur tente de continuer avec des
+  // champs obligatoires manquants → affiche les messages d'erreur sous les champs.
+  const [showErrors, setShowErrors] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('waafi');
   const [phoneDigits, setPhoneDigits] = useState('');
   const [phoneFocused, setPhoneFocused] = useState(false);
@@ -115,15 +118,25 @@ export default function CheckoutPage() {
   const showAddressCards = !!(user && savedAddresses.length > 0);
   const showNewAddressForm = !showAddressCards || selectedAddressId === 'new';
   const phoneValid = phoneDigits.length === 6;
+  const nameValid = name.trim().length > 0;
+  const addressValid = address.trim().length > 0;
   // Invité (non connecté) : email valide + confirmation du téléphone obligatoires
   const isGuest = !user;
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const phoneConfirmValid = phoneConfirmDigits === phoneDigits;
   const guestContactValid = !isGuest || (emailValid && phoneConfirmValid);
-  const formFilled = name.trim().length > 0 && phoneValid && address.trim().length > 0 && guestContactValid;
-  const canContinueStep2 = (showAddressCards && selectedAddressId !== 'new'
+  const formFilled = nameValid && phoneValid && addressValid && guestContactValid;
+  // Adresse renseignée : carte sauvegardée sélectionnée OU formulaire complet
+  const addressStepValid = (showAddressCards && selectedAddressId !== 'new')
     ? selectedAddressId !== null
-    : formFilled) && selectedDeliveryId !== null;
+    : formFilled;
+  const canContinueStep2 = addressStepValid && selectedDeliveryId !== null;
+
+  // Tentative de passage à l'étape paiement : valide ou affiche les erreurs.
+  const tryContinueStep2 = () => {
+    if (canContinueStep2) { setShowErrors(false); setStep(3); }
+    else { setShowErrors(true); }
+  };
 
   const selectSavedAddress = (addr: SavedAddress) => {
     setSelectedAddressId(addr.id);
@@ -596,8 +609,11 @@ export default function CheckoutPage() {
                       value={name}
                       onChange={e => setName(e.target.value)}
                       placeholder={t('checkout.name_placeholder', 'Ex: Ahmed Hassan')}
-                      className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] bg-white"
+                      className={`w-full border rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none bg-white ${showErrors && !nameValid ? 'border-[#f97316] focus:border-[#f97316]' : 'border-[#d2e095] focus:border-[#a8c800]'}`}
                     />
+                    {showErrors && !nameValid && (
+                      <p className="text-xs text-[#f97316] mt-1.5">⚠️ {t('checkout.name_required', 'Le nom est requis')}</p>
+                    )}
                   </div>
 
                   <div>
@@ -619,8 +635,10 @@ export default function CheckoutPage() {
                         className="flex-1 px-4 py-3 text-sm text-gray-800 bg-transparent focus:outline-none"
                       />
                     </div>
-                    {!phoneFocused && phoneDigits.length > 0 && !phoneValid && (
-                      <p className="text-xs text-[#f97316] mt-1.5">⚠️ {t('checkout.phone_error', 'Le numéro doit contenir 8 chiffres au total (77 + 6 chiffres)')}</p>
+                    {((!phoneFocused && phoneDigits.length > 0) || showErrors) && !phoneValid && (
+                      <p className="text-xs text-[#f97316] mt-1.5">⚠️ {phoneDigits.length === 0
+                        ? t('checkout.phone_required', 'Le téléphone est requis')
+                        : t('checkout.phone_error', 'Le numéro doit contenir 8 chiffres au total (77 + 6 chiffres)')}</p>
                     )}
                   </div>
 
@@ -644,8 +662,10 @@ export default function CheckoutPage() {
                           className="flex-1 px-4 py-3 text-sm text-gray-800 bg-transparent focus:outline-none"
                         />
                       </div>
-                      {phoneConfirmDigits.length === 6 && !phoneConfirmValid && (
-                        <p className="text-xs text-[#f97316] mt-1.5">⚠️ {t('checkout.phone_confirm_error', 'Les numéros ne correspondent pas')}</p>
+                      {((phoneConfirmDigits.length === 6) || showErrors) && !phoneConfirmValid && (
+                        <p className="text-xs text-[#f97316] mt-1.5">⚠️ {phoneConfirmDigits.length === 0
+                          ? t('checkout.phone_confirm_required', 'Veuillez confirmer votre téléphone')
+                          : t('checkout.phone_confirm_error', 'Les numéros ne correspondent pas')}</p>
                       )}
                     </div>
                   )}
@@ -661,10 +681,12 @@ export default function CheckoutPage() {
                         value={email}
                         onChange={e => setEmail(e.target.value)}
                         placeholder={t('checkout.email_placeholder', 'ex: ahmed@email.com')}
-                        className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] bg-white"
+                        className={`w-full border rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none bg-white ${(showErrors || email.trim().length > 0) && !emailValid ? 'border-[#f97316] focus:border-[#f97316]' : 'border-[#d2e095] focus:border-[#a8c800]'}`}
                       />
-                      {email.trim().length > 0 && !emailValid && (
-                        <p className="text-xs text-[#f97316] mt-1.5">⚠️ {t('checkout.email_error', 'Adresse email invalide')}</p>
+                      {(email.trim().length > 0 || showErrors) && !emailValid && (
+                        <p className="text-xs text-[#f97316] mt-1.5">⚠️ {email.trim().length === 0
+                          ? t('checkout.email_required', "L'adresse email est requise")
+                          : t('checkout.email_error', 'Adresse email invalide')}</p>
                       )}
                       <p className="text-xs text-gray-400 mt-1.5">{t('checkout.email_hint', 'Pour vous envoyer la confirmation et le suivi de votre commande.')}</p>
                     </div>
@@ -679,8 +701,11 @@ export default function CheckoutPage() {
                       onChange={e => setAddress(e.target.value)}
                       placeholder={t('checkout.address_placeholder', 'Ex: Quartier 4, Rue de la Paix, Djibouti-Ville')}
                       rows={3}
-                      className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a8c800] bg-white resize-none"
+                      className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none bg-white resize-none ${showErrors && !addressValid ? 'border-[#f97316] focus:border-[#f97316]' : 'border-[#d2e095] focus:border-[#a8c800]'}`}
                     />
+                    {showErrors && !addressValid && (
+                      <p className="text-xs text-[#f97316] mt-1.5">⚠️ {t('checkout.address_required', "L'adresse de livraison est requise")}</p>
+                    )}
                   </div>
 
                   {/* Checkbox sauvegarder (connectés uniquement) */}
@@ -756,6 +781,17 @@ export default function CheckoutPage() {
               </div>
             )}
 
+            {/* Message si aucun mode de livraison choisi */}
+            {showErrors && selectedDeliveryId === null && (
+              <p className="text-sm text-[#f97316] mb-2">⚠️ {t('checkout.delivery_required', 'Veuillez choisir un mode de livraison.')}</p>
+            )}
+            {/* Récapitulatif d'erreur (champs obligatoires manquants) */}
+            {showErrors && !canContinueStep2 && (
+              <div className="bg-orange-50 border border-orange-200 rounded-2xl px-4 py-3 mb-3">
+                <p className="text-sm text-[#f97316] font-semibold">⚠️ {t('checkout.fix_errors', 'Veuillez corriger les champs en surbrillance avant de continuer.')}</p>
+              </div>
+            )}
+
             <div className="flex gap-3">
               <button
                 onClick={() => setStep(1)}
@@ -764,9 +800,8 @@ export default function CheckoutPage() {
                 {t('checkout.back', '← Retour')}
               </button>
               <button
-                onClick={() => setStep(3)}
-                disabled={!canContinueStep2}
-                className="flex-1 bg-[#a8c800] text-white py-4 rounded-2xl font-semibold hover:bg-[#7d9800] transition disabled:opacity-50"
+                onClick={tryContinueStep2}
+                className={`flex-1 py-4 rounded-2xl font-semibold transition text-white ${canContinueStep2 ? 'bg-[#a8c800] hover:bg-[#7d9800]' : 'bg-[#a8c800]/60 hover:bg-[#a8c800]/80'}`}
               >
                 {t('checkout.continue_payment', 'Continuer → Paiement')}
               </button>
