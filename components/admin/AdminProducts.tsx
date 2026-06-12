@@ -11,6 +11,7 @@ interface Product {
   name: string;
   price: number;
   old_price: number | null;
+  cost_price: number | null;
   stock_qty: number;
   unit: string;
   farm: string;
@@ -37,7 +38,7 @@ interface Product {
 }
 
 const EMPTY_FORM = {
-  name: '', price: '', old_price: '', unit: 'kg', farm: '', category: '',
+  name: '', price: '', old_price: '', cost_price: '', unit: 'kg', farm: '', category: '',
   product_type: 'bio', origin_country: 'DJ', image_url: '', description: '',
   is_local: true, region: '', emoji: '', bg_color: '#ecf4d5', tag: '', tag_label: '',
   rating: '', reviews_count: '', badges: '', in_stock: true, status: 'published',
@@ -85,6 +86,7 @@ export default function AdminProducts() {
     setEditingId(p.id);
     setForm({
       name: p.name ?? '', price: String(p.price), old_price: String(p.old_price ?? ''),
+      cost_price: String(p.cost_price ?? ''),
       unit: p.unit ?? '', farm: p.farm ?? '', category: p.category ?? '', product_type: p.product_type ?? 'bio',
       origin_country: p.origin_country ?? '', image_url: p.image_url ?? '',
       description: p.description ?? '', is_local: p.is_local, region: p.region ?? '',
@@ -130,6 +132,7 @@ export default function AdminProducts() {
       const payload = {
         name: s(form.name), price: parseFloat(form.price),
         old_price: form.old_price ? parseFloat(form.old_price) : null,
+        cost_price: form.cost_price !== '' ? parseFloat(form.cost_price) : null,
         unit: s(form.unit), farm: s(form.farm), category: s(form.category),
         product_type: form.product_type, origin_country: s(form.origin_country),
         image_url: s(form.image_url) || null, description: s(form.description),
@@ -308,6 +311,10 @@ export default function AdminProducts() {
               </FormField>
               <FormField label={t('admin.field_old_price', 'Ancien prix (Fdj)')}>
                 <input type="number" value={form.old_price} onChange={e => set('old_price', e.target.value)} className={inputClass} placeholder="600" />
+              </FormField>
+              <FormField label={t('admin.field_cost_price', 'Prix d\'achat / coût (Fdj)')}>
+                <input type="number" value={form.cost_price} onChange={e => set('cost_price', e.target.value)} className={inputClass} placeholder="350" />
+                <p className="text-[11px] text-gray-400 mt-1">{t('admin.field_cost_hint', 'Sert au calcul de la marge (Finances). Laisser vide si inconnu.')}</p>
               </FormField>
               <div className="col-span-2">
                 <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">

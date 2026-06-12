@@ -12,12 +12,12 @@ export async function POST(request: Request) {
     const productIds = items.map((i: any) => i.product_id);
     const { data: stockData, error: stockErr } = await supabaseAdmin
       .from('products')
-      .select('id, name, stock_qty, unit')
+      .select('id, name, stock_qty, unit, cost_price')
       .in('id', productIds);
 
     if (stockErr) return NextResponse.json({ error: stockErr.message }, { status: 400 });
 
-    const stockMap: Record<number, { name: string; stock_qty: number; unit: string }> =
+    const stockMap: Record<number, { name: string; stock_qty: number; unit: string; cost_price: number | null }> =
       Object.fromEntries((stockData || []).map((p: any) => [p.id, p]));
 
     const insufficientItems = items.filter((item: any) => {
@@ -82,6 +82,7 @@ export async function POST(request: Request) {
           product_image_url: item.product_image_url ?? null,
           product_unit:      item.product_unit      ?? null,
           product_farm:      item.product_farm      ?? null,
+          product_cost:      stockMap[item.product_id]?.cost_price ?? null,
         }))
       );
 

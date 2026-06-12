@@ -14,6 +14,7 @@ import AdminUsers from '../../components/admin/AdminUsers';
 import AdminDelivery from '../../components/admin/AdminDelivery';
 import AdminNotifications from '../../components/admin/AdminNotifications';
 import AdminBroadcast from '../../components/admin/AdminBroadcast';
+import AdminFinances from '../../components/admin/AdminFinances';
 import AdminPreparers from '../../components/admin/AdminPreparers';
 import AdminWallets from '../../components/admin/AdminWallets';
 import AdminSubscriptions from '../../components/admin/AdminSubscriptions';
@@ -22,7 +23,7 @@ import AdminForecast from '../../components/admin/AdminForecast';
 import { canAccessAdmin, hasPerm, roleOf } from '../../lib/permissions';
 import { AdminPermsProvider } from '../../context/AdminPermsContext';
 
-type Section = 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'preparers' | 'wallets' | 'subscriptions' | 'forecast' | 'requests' | 'users' | 'delivery' | 'notifications' | 'homepage' | 'announcements';
+type Section = 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'preparers' | 'wallets' | 'subscriptions' | 'forecast' | 'requests' | 'users' | 'delivery' | 'notifications' | 'homepage' | 'announcements' | 'finances';
 
 export default function AdminPage() {
   const [user, setUser] = useState<any>(null);
@@ -51,6 +52,7 @@ export default function AdminPage() {
     { id: 'homepage', emoji: '🏠', label: t('admin.nav_homepage', 'Page d\'accueil') },
     { id: 'notifications', emoji: '🔔', label: t('admin.nav_notifications', 'Notifications') },
     { id: 'announcements', emoji: '📣', label: t('admin.nav_announcements', 'Annonces') },
+    { id: 'finances', emoji: '📊', label: t('admin.nav_finances', 'Finances') },
   ];
   // Onglets visibles selon le rôle/droits (admin = tout)
   const visibleNav = NAV_ITEMS.filter(i => hasPerm(meta, i.id, 'view'));
@@ -118,6 +120,7 @@ export default function AdminPage() {
       case 'delivery': return <AdminDelivery />;
       case 'notifications': return <AdminNotifications />;
       case 'announcements': return <AdminBroadcast />;
+      case 'finances': return <AdminFinances />;
     }
   };
 
