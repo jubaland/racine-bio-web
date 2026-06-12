@@ -108,6 +108,7 @@ export default function ProfilePage() {
   // Push navigateur
   const [pushSupported, setPushSupported] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushPermission, setPushPermission] = useState<NotificationPermission>('default');
   const [pushLoading, setPushLoading] = useState(false);
   const [pushError, setPushError] = useState('');
 
@@ -223,37 +224,31 @@ export default function ProfilePage() {
         .eq('user_id', session.user.id).eq('status', 'pending').order('created_at', { ascending: false })
         .then(({ data }) => setPendingDeposits(data || []));
 
-      // Push navigateur — activé par défaut (auto-souscription)
+      // Push navigateur
       if ('serviceWorker' in navigator && 'PushManager' in window) {
         setPushSupported(true);
+        setPushPermission(Notification.permission);
         const reg = await navigator.serviceWorker.register('/sw.js');
         let existing = await reg.pushManager.getSubscription();
 
-        // Activer automatiquement : si l'autorisation est déjà accordée on souscrit
-        // silencieusement (couvre les clients existants) ; sinon on la demande une
-        // seule fois par appareil. Un refus ne peut pas être contourné (sécurité navigateur).
-        if (!existing) {
-          let permission = Notification.permission;
-          if (permission === 'default' && localStorage.getItem('hf_push_auto') !== '1') {
-            localStorage.setItem('hf_push_auto', '1');
-            try { permission = await Notification.requestPermission(); } catch {}
-          }
-          if (permission === 'granted') {
-            const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-            if (vapidKey) {
-              try {
-                const sub = await reg.pushManager.subscribe({
-                  userVisibleOnly: true,
-                  applicationServerKey: urlBase64ToUint8Array(vapidKey),
-                });
-                await fetch('/api/push', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', ...(session.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
-                  body: JSON.stringify({ subscription: sub.toJSON(), action: 'subscribe' }),
-                });
-                existing = sub;
-              } catch (e) { console.error('[push] auto-subscribe failed:', e); }
-            }
+        // Ré-abonnement SILENCIEUX uniquement si la permission est DÉJÀ accordée.
+        // On ne demande jamais l'autorisation ici : iOS la bloque hors geste
+        // utilisateur (l'appui sur le bouton « Activer » s'en charge, lui).
+        if (!existing && Notification.permission === 'granted') {
+          const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+          if (vapidKey) {
+            try {
+              const sub = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(vapidKey),
+              });
+              await fetch('/api/push', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...(session.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
+                body: JSON.stringify({ subscription: sub.toJSON(), action: 'subscribe' }),
+              });
+              existing = sub;
+            } catch (e) { console.error('[push] auto-subscribe failed:', e); }
           }
         }
         setPushEnabled(!!existing);
@@ -389,6 +384,7 @@ export default function ProfilePage() {
         setPushEnabled(false);
       } else {
         const permission = await Notification.requestPermission();
+        setPushPermission(permission);
         if (permission === 'denied') {
           const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
           const isFirefox = /Firefox/.test(navigator.userAgent);
@@ -544,6 +540,22 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+
+        {/* Invitation à activer les notifications (tant que non activé sur cet appareil) */}
+        {pushSupported && !pushEnabled && pushPermission !== 'denied' && (
+          <button
+            onClick={togglePush}
+            disabled={pushLoading}
+            className="w-full mb-5 flex items-center gap-3 bg-white border-2 border-[#d2e095] rounded-2xl px-4 py-3 text-left shadow-sm hover:border-[#a8c800] hover:shadow-md transition disabled:opacity-60"
+          >
+            <span className="w-10 h-10 rounded-full bg-[#ecf4d5] flex items-center justify-center text-xl flex-none">🔔</span>
+            <span className="flex-1 min-w-0">
+              <span className="block text-sm font-semibold text-[#526500]">{t('profile.notif_invite_title', 'Activez les notifications')}</span>
+              <span className="block text-xs text-gray-400">{t('profile.notif_invite_desc', 'Pour suivre vos commandes et nos offres sur cet appareil.')}</span>
+            </span>
+            <span className="flex-none bg-[#a8c800] text-white text-xs font-bold px-4 py-2 rounded-full">{pushLoading ? '…' : t('profile.notif_enable', 'Activer')}</span>
+          </button>
+        )}
 
         {/* Onglets */}
         <div className="flex gap-1.5 overflow-x-auto pb-2 mb-5 -mx-1 px-1">
@@ -1114,14 +1126,30 @@ export default function ProfilePage() {
                           <p className="text-sm font-medium text-gray-700">🔔 {t('profile.notif_push', 'Notifications navigateur')}</p>
                           <p className="text-xs text-gray-400 mt-0.5">{t('profile.notif_push_desc', 'Alertes instantanées sur cet appareil')}</p>
                         </div>
-                        <button
-                          onClick={togglePush}
-                          disabled={pushLoading}
-                          className={`relative w-11 h-6 rounded-full transition-colors flex-none ${pushEnabled ? 'bg-[#a8c800]' : 'bg-gray-200'} disabled:opacity-60`}
-                        >
-                          <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${pushEnabled ? 'translate-x-5' : 'translate-x-1'}`} />
-                        </button>
+                        {pushEnabled ? (
+                          <button
+                            onClick={togglePush}
+                            disabled={pushLoading}
+                            aria-label={t('profile.notif_push', 'Notifications navigateur')}
+                            className="relative w-11 h-6 rounded-full transition-colors flex-none bg-[#a8c800] disabled:opacity-60"
+                          >
+                            <span className="absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform translate-x-5" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={togglePush}
+                            disabled={pushLoading || pushPermission === 'denied'}
+                            className="flex-none bg-[#a8c800] text-white text-xs font-bold px-4 py-2 rounded-full hover:bg-[#7d9800] transition disabled:opacity-50"
+                          >
+                            {pushLoading ? '…' : t('profile.notif_enable', 'Activer')}
+                          </button>
+                        )}
                       </div>
+                      {!pushEnabled && pushPermission === 'denied' && (
+                        <p className="text-xs text-[#f97316] bg-orange-50 rounded-lg px-3 py-2">
+                          🔕 {t('profile.notif_blocked', 'Notifications bloquées dans les réglages de votre navigateur. Autorisez hornafresh.com pour les réactiver.')}
+                        </p>
+                      )}
                     </div>
                   )}
                   {pushError && (
