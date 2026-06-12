@@ -122,9 +122,11 @@ export default function CheckoutPage() {
   const addressValid = address.trim().length > 0;
   // Invité (non connecté) : email valide + confirmation du téléphone obligatoires
   const isGuest = !user;
+  // Email facultatif : vide = OK ; s'il est renseigné, il doit être valide.
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const emailOptionalValid = email.trim() === '' || emailValid;
   const phoneConfirmValid = phoneConfirmDigits === phoneDigits;
-  const guestContactValid = !isGuest || (emailValid && phoneConfirmValid);
+  const guestContactValid = !isGuest || (emailOptionalValid && phoneConfirmValid);
   const formFilled = nameValid && phoneValid && addressValid && guestContactValid;
   // Adresse renseignée : carte sauvegardée sélectionnée OU formulaire complet
   const addressStepValid = (showAddressCards && selectedAddressId !== 'new')
@@ -281,7 +283,7 @@ export default function CheckoutPage() {
             status:               'pending',
             payment_method:       paymentMethod,
             phone:   '77' + phoneDigits,
-            email:   isGuest ? email.trim().toLowerCase() : null,
+            email:   isGuest && email.trim() ? email.trim().toLowerCase() : null,
             address: titleCase(address),
             customer_name: titleCase(name),
           },
@@ -674,21 +676,19 @@ export default function CheckoutPage() {
                   {isGuest && (
                     <div>
                       <label className="text-sm font-medium text-gray-600 mb-1 block">
-                        {t('checkout.email', 'Adresse email *')}
+                        {t('checkout.email_optional', 'Adresse email (facultatif)')}
                       </label>
                       <input
                         type="email"
                         value={email}
                         onChange={e => setEmail(e.target.value)}
                         placeholder={t('checkout.email_placeholder', 'ex: ahmed@email.com')}
-                        className={`w-full border rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none bg-white ${(showErrors || email.trim().length > 0) && !emailValid ? 'border-[#f97316] focus:border-[#f97316]' : 'border-[#d2e095] focus:border-[#a8c800]'}`}
+                        className={`w-full border rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none bg-white ${email.trim().length > 0 && !emailValid ? 'border-[#f97316] focus:border-[#f97316]' : 'border-[#d2e095] focus:border-[#a8c800]'}`}
                       />
-                      {(email.trim().length > 0 || showErrors) && !emailValid && (
-                        <p className="text-xs text-[#f97316] mt-1.5">⚠️ {email.trim().length === 0
-                          ? t('checkout.email_required', "L'adresse email est requise")
-                          : t('checkout.email_error', 'Adresse email invalide')}</p>
+                      {email.trim().length > 0 && !emailValid && (
+                        <p className="text-xs text-[#f97316] mt-1.5">⚠️ {t('checkout.email_error', 'Adresse email invalide')}</p>
                       )}
-                      <p className="text-xs text-gray-400 mt-1.5">{t('checkout.email_hint', 'Pour vous envoyer la confirmation et le suivi de votre commande.')}</p>
+                      <p className="text-xs text-gray-400 mt-1.5">{t('checkout.email_hint_optional', 'Recommandé : pour recevoir la confirmation et le suivi de votre commande.')}</p>
                     </div>
                   )}
 
