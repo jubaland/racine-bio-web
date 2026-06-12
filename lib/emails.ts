@@ -217,6 +217,12 @@ export async function sendNewOrderAlert(order: any, items: any[], customerEmail:
 export async function sendStatusUpdate(order: any, customerEmail: string) {
   const shortId = String(order.id).slice(0, 8).toUpperCase();
   const statusLabel = STATUS_LABELS[order.status] || order.status;
+  // Sépare l'emoji du texte au PREMIER espace (les emojis ont des longueurs
+  // variables en JS : ✅/⏳/❌ = 1 caractère, 🚚/📦 = 2). Un slice fixe coupait
+  // la 1ʳᵉ lettre du libellé (« ✅ Livré » → « ivré »).
+  const _sp = statusLabel.indexOf(' ');
+  const statusEmoji = _sp > 0 ? statusLabel.slice(0, _sp) : '';
+  const statusText  = _sp > 0 ? statusLabel.slice(_sp + 1) : statusLabel;
 
   const messages: Record<string, string> = {
     processing: "Votre commande est en cours de préparation. Nous vous contacterons dès qu'elle est prête.",
@@ -232,8 +238,8 @@ export async function sendStatusUpdate(order: any, customerEmail: string) {
     <p style="margin:0 0 24px;color:#6b7280;font-size:14px;">Référence : <strong>#${shortId}</strong></p>
 
     <div style="text-align:center;padding:24px;background:#f0f7e0;border-radius:12px;margin-bottom:24px;">
-      <p style="margin:0;font-size:32px;">${statusLabel.split(' ')[0]}</p>
-      <p style="margin:8px 0 0;font-size:18px;font-weight:bold;color:#526500;">${statusLabel.slice(3)}</p>
+      <p style="margin:0;font-size:32px;">${statusEmoji}</p>
+      <p style="margin:8px 0 0;font-size:18px;font-weight:bold;color:#526500;">${statusText}</p>
     </div>
 
     <p style="color:#374151;font-size:14px;line-height:1.6;">${message}</p>
