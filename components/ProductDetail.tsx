@@ -6,6 +6,7 @@ import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
 import Header from './Header';
 import CartDrawer from './CartDrawer';
+import LikeButton from './LikeButton';
 import Link from 'next/link';
 
 const ORIGIN_FLAGS: Record<string, string> = {
@@ -98,6 +99,9 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
                 {product.origin_country === 'DJ' && product.farm && (
                   <p className="text-sm text-[#7d9800] font-medium">🌱 {product.farm}{product.region ? ` · ${product.region}` : ''}</p>
                 )}
+                <div className="mt-3">
+                  <LikeButton productId={product.id} initialCount={product.likes_count ?? 0} />
+                </div>
               </div>
 
               {/* Description */}

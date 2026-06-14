@@ -286,6 +286,11 @@ export default function HomePage({ products, categories, promos, producers, sett
                         🌿 {t('product.type_bio', 'Bio')}
                       </div>
                     )}
+                    {(p.likes_count ?? 0) > 0 && (
+                      <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm text-[#526500] text-xs font-bold px-2 py-0.5 rounded-full shadow-sm">
+                        👍 {p.likes_count}
+                      </div>
+                    )}
                   </div>
                   <div className="p-3">
                     {p.featured_badge && (
@@ -364,6 +369,11 @@ export default function HomePage({ products, categories, promos, producers, sett
                         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                       </svg>
                     </button>
+                    {(p.likes_count ?? 0) > 0 && (
+                      <div className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm text-[#526500] text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">
+                        👍 {p.likes_count}
+                      </div>
+                    )}
                   </div>
                   <div className="p-3">
                     <p className="text-sm font-medium text-gray-800 truncate">{getProductName(p)}</p>
