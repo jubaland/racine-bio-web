@@ -637,7 +637,7 @@ export default function ProfilePage() {
                 {walletTx.map(m => (
                   <div key={m.id} className="flex items-center justify-between text-sm bg-[#faf7e8] rounded-lg px-3 py-2">
                     <span className="text-gray-600">
-                      {m.note || (m.type === 'deposit' ? t('profile.wallet_deposit', 'Dépôt') : m.type === 'debit' ? t('profile.wallet_debit', 'Livraison') : t('profile.wallet_adjust', 'Ajustement'))}
+                      {m.note || (m.type === 'deposit' ? t('profile.wallet_deposit', 'Dépôt') : m.type === 'debit' ? t('profile.wallet_debit', 'Livraison') : m.type === 'refund' ? t('profile.wallet_refund', 'Remboursement') : t('profile.wallet_adjust', 'Ajustement'))}
                       <span className="text-gray-400 text-xs ml-2">{new Date(m.created_at).toLocaleDateString('fr-FR')}</span>
                     </span>
                     <span className={`font-bold ${m.amount >= 0 ? 'text-[#526500]' : 'text-[#f97316]'}`}>{m.amount > 0 ? '+' : ''}{Number(m.amount).toLocaleString()}</span>

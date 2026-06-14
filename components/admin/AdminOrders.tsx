@@ -49,6 +49,7 @@ export default function AdminOrders() {
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [removingItemId, setRemovingItemId] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [slipOrder, setSlipOrder] = useState<Order | null>(null);
 
@@ -96,6 +97,45 @@ export default function AdminOrders() {
     });
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
     setUpdatingId(null);
+  };
+
+  const removeItem = async (order: Order, item: OrderItem) => {
+    const amt = `${(Number(item.price) * item.quantity).toLocaleString()} Fdj`;
+    const refundMsg =
+      order.payment_method === 'wallet' ? t('admin.remove_refund_wallet', 'Le montant sera recrédité sur la cagnotte du client.')
+      : order.payment_method === 'cash' ? t('admin.remove_refund_cash', 'Le montant à payer du client sera réduit.')
+      : t('admin.remove_refund_waafi', 'Pensez à rembourser ce montant au client par Waafi.');
+    const name = item.product_name || t('admin.this_item', 'cet article');
+    if (!confirm(`${t('admin.remove_item_confirm', 'Retirer')} « ${name} » (${amt}) ?\n\n${refundMsg}\n${t('admin.remove_item_stock', 'Le stock sera remis à disposition.')}`)) return;
+
+    setRemovingItemId(item.id);
+    try {
+      const tk = (await supabase.auth.getSession()).data.session?.access_token;
+      const res = await fetch('/api/admin/orders/remove-item', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tk}` },
+        body: JSON.stringify({ order_id: order.id, item_id: item.id }),
+      });
+      const j = await res.json();
+      if (!res.ok) {
+        const map: Record<string, string> = {
+          order_locked: t('admin.remove_err_locked', 'Commande déjà expédiée/livrée : modification impossible.'),
+          last_item: t('admin.remove_err_last', 'Dernier article : annulez plutôt la commande entière.'),
+        };
+        alert('⚠️ ' + (map[j.error] || j.error || 'Erreur'));
+        return;
+      }
+      setOrders(prev => prev.map(o => o.id === order.id
+        ? { ...o, total: j.newTotal, order_items: o.order_items.filter(it => it.id !== item.id) }
+        : o));
+      if (j.refundMethod === 'manual') {
+        alert(`✅ ${t('admin.remove_done', 'Article retiré.')} ${t('admin.remove_refund_waafi_amount', 'À rembourser par Waafi')} : ${Number(j.refundAmount).toLocaleString()} Fdj`);
+      }
+    } catch (e: any) {
+      alert('⚠️ ' + e.message);
+    } finally {
+      setRemovingItemId(null);
+    }
   };
 
   const statusFilters = [
@@ -252,6 +292,15 @@ export default function AdminOrders() {
                             <p className="text-sm font-bold text-[#526500]">
                               {Number(subtotal).toLocaleString()} Fdj
                             </p>
+                            {can('orders', 'edit') && ['pending', 'processing'].includes(order.status) && items.length > 1 && (
+                              <button
+                                onClick={() => removeItem(order, item)}
+                                disabled={removingItemId === item.id}
+                                className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-[#f97316] border border-orange-200 rounded-lg px-2 py-1 hover:bg-orange-50 transition disabled:opacity-50"
+                              >
+                                {removingItemId === item.id ? '⏳' : '🗑️'} {t('admin.remove_item', 'Retirer')}
+                              </button>
+                            )}
                           </div>
                         </div>
                       );
