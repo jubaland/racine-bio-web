@@ -24,6 +24,17 @@ input, select, textarea {
   -webkit-text-fill-color: #1f2937;
 }
 
+/* Placeholders : gris + italique pour qu'ils soient clairement perçus comme un
+   exemple/guide (et non un texte déjà saisi). Utile pour les utilisateurs peu
+   habitués aux formulaires. */
+input::placeholder,
+textarea::placeholder {
+  color: #9aa0a6 !important;
+  -webkit-text-fill-color: #9aa0a6 !important;
+  font-style: italic;
+  opacity: 1;
+}
+
 button {
   cursor: pointer;
 }

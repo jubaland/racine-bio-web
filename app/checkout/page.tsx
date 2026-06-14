@@ -610,7 +610,7 @@ export default function CheckoutPage() {
                       type="text"
                       value={name}
                       onChange={e => setName(e.target.value)}
-                      placeholder={t('checkout.name_placeholder', 'Ex: Ahmed Hassan')}
+                      placeholder={t('checkout.name_placeholder', 'Ex : Ahmed Hassan')}
                       className={`w-full border rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none bg-white ${showErrors && !nameValid ? 'border-[#f97316] focus:border-[#f97316]' : 'border-[#d2e095] focus:border-[#a8c800]'}`}
                     />
                     {showErrors && !nameValid && (
@@ -682,7 +682,7 @@ export default function CheckoutPage() {
                         type="email"
                         value={email}
                         onChange={e => setEmail(e.target.value)}
-                        placeholder={t('checkout.email_placeholder', 'ex: ahmed@email.com')}
+                        placeholder={t('checkout.email_placeholder', 'Ex : ahmed@email.com')}
                         className={`w-full border rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none bg-white ${email.trim().length > 0 && !emailValid ? 'border-[#f97316] focus:border-[#f97316]' : 'border-[#d2e095] focus:border-[#a8c800]'}`}
                       />
                       {email.trim().length > 0 && !emailValid && (
@@ -699,7 +699,7 @@ export default function CheckoutPage() {
                     <textarea
                       value={address}
                       onChange={e => setAddress(e.target.value)}
-                      placeholder={t('checkout.address_placeholder', 'Ex: Quartier 4, Rue de la Paix, Djibouti-Ville')}
+                      placeholder={t('checkout.address_placeholder', 'Ex : Quartier 4, Rue de la Paix, Djibouti-Ville')}
                       rows={3}
                       className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none bg-white resize-none ${showErrors && !addressValid ? 'border-[#f97316] focus:border-[#f97316]' : 'border-[#d2e095] focus:border-[#a8c800]'}`}
                     />
@@ -926,7 +926,7 @@ export default function CheckoutPage() {
                         value={refCodeInput}
                         onChange={e => { setRefCodeInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')); setCodeError(''); }}
                         onKeyDown={e => e.key === 'Enter' && applyCode()}
-                        placeholder={t('checkout.referral_placeholder', 'Ex: R4K7NP')}
+                        placeholder={t('checkout.referral_placeholder', 'Ex : R4K7NP')}
                         maxLength={8}
                         className="flex-1 border border-[#d2e095] rounded-xl px-4 py-3 text-sm bg-white focus:outline-none focus:border-[#a8c800] tracking-widest uppercase"
                       />
