@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabase-admin';
-import { sendOrderConfirmation, sendNewOrderAlert, sendStatusUpdate, sendPrepSlipToPreparers } from '../../../lib/emails';
+import { sendOrderConfirmation, sendNewOrderAlert, sendStatusUpdate, sendPrepSlipToPreparers, sendOrderCancelledToPreparers } from '../../../lib/emails';
 import { requirePerm } from '../../../lib/admin-auth';
 import { refundOrderAmount } from '../../../lib/order-refund';
 
@@ -311,6 +311,13 @@ export async function PATCH(request: Request) {
       customerEmail = updatedOrder?.email ?? null; // commande invité
     }
     if (customerEmail) await sendStatusUpdate(updatedOrder, customerEmail);
+
+    // Annulation : prévenir les préparateurs de ne pas préparer
+    if (updatedOrder?.status === 'cancelled') {
+      const { data: preps } = await supabaseAdmin.from('preparers').select('email').eq('is_active', true);
+      const prepEmails = (preps || []).map((p: any) => p.email).filter(Boolean);
+      if (prepEmails.length) await sendOrderCancelledToPreparers(updatedOrder, prepEmails);
+    }
 
     // Push — uniquement pour les utilisateurs connectés (les invités n'ont pas d'abonnement)
     if (updatedOrder?.user_id) {

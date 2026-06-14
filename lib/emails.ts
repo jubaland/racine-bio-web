@@ -258,7 +258,7 @@ export async function sendStatusUpdate(order: any, customerEmail: string) {
 }
 
 // ── 4. Bordereau de préparation → préparateurs ───────────────────────────────
-export async function sendPrepSlipToPreparers(order: any, items: any[], emails: string[]) {
+export async function sendPrepSlipToPreparers(order: any, items: any[], emails: string[], isUpdate = false) {
   if (!emails.length) return;
   const shortId = String(order.id).slice(0, 8).toUpperCase();
   const ordered = new Date(order.created_at);
@@ -287,6 +287,10 @@ export async function sendPrepSlipToPreparers(order: any, items: any[], emails: 
     </div>` : '';
 
   const html = baseLayout(`
+    ${isUpdate ? `<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:12px;padding:12px 14px;margin-bottom:14px;">
+      <p style="margin:0;font-weight:bold;color:#c2410c;font-size:14px;">🔄 Bordereau mis à jour</p>
+      <p style="margin:4px 0 0;color:#9a3412;font-size:13px;">Cette commande a été modifiée. Préparez selon CE bordereau (il remplace le précédent).</p>
+    </div>` : ''}
     <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">🧑‍🍳 Bordereau de préparation</h2>
     <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">Commande <strong>#${shortId}</strong></p>
 
@@ -326,10 +330,24 @@ export async function sendPrepSlipToPreparers(order: any, items: any[], emails: 
   await resend.emails.send({
     from: FROM,
     to: emails,
-    subject: `🧑‍🍳 À préparer — Commande #${shortId}`,
+    subject: isUpdate ? `🔄 Commande modifiée — #${shortId}` : `🧑‍🍳 À préparer — Commande #${shortId}`,
     html,
     attachments,
   });
+}
+
+// ── 4b. Commande annulée → préparateurs (ne pas préparer) ────────────────────
+export async function sendOrderCancelledToPreparers(order: any, emails: string[]) {
+  if (!emails.length) return;
+  const shortId = String(order.id).slice(0, 8).toUpperCase();
+  const html = baseLayout(`
+    <div style="background:#fff1f2;border:1px solid #fca5a5;border-radius:12px;padding:14px;margin-bottom:14px;">
+      <p style="margin:0;font-weight:bold;color:#b91c1c;font-size:16px;">❌ Commande #${shortId} annulée</p>
+      <p style="margin:6px 0 0;color:#991b1b;font-size:14px;">Ne préparez pas cette commande. Si elle est déjà prête, contactez l'administrateur.</p>
+    </div>
+    <p style="margin:0;color:#374151;font-size:14px;">Client : <strong>${order.customer_name || '—'}</strong></p>
+  `);
+  await resend.emails.send({ from: FROM, to: emails, subject: `❌ Commande annulée — #${shortId}`, html });
 }
 
 // ── 5. Abonnement mis en pause (solde insuffisant) → client ──────────────────

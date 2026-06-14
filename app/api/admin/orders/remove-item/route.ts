@@ -89,5 +89,20 @@ export async function POST(request: Request) {
     } catch { /* ignore */ }
   }
 
+  // 6) Renvoyer un bordereau MIS À JOUR aux préparateurs (ils avaient l'ancien)
+  try {
+    const { data: fresh } = await supabaseAdmin
+      .from('orders')
+      .select('id, total, payment_method, delivery_option_name, customer_name, phone, address, special_instructions, created_at, order_items ( product_id, quantity, product_name, product_unit, product_farm )')
+      .eq('id', order_id)
+      .single();
+    const { data: preps } = await supabaseAdmin.from('preparers').select('email').eq('is_active', true);
+    const prepEmails = (preps || []).map((p: any) => p.email).filter(Boolean);
+    if (fresh && prepEmails.length) {
+      const { sendPrepSlipToPreparers } = await import('../../../../../lib/emails');
+      await sendPrepSlipToPreparers(fresh, fresh.order_items || [], prepEmails, true);
+    }
+  } catch (e) { console.error('[prep] re-send slip failed:', e); }
+
   return NextResponse.json({ ok: true, newTotal, refundAmount, refundMethod, removed: isRemoval });
 }
