@@ -5,9 +5,13 @@
 CREATE TABLE IF NOT EXISTS product_likes (
   product_id bigint NOT NULL,
   user_id    uuid   NOT NULL,
+  user_name  text,                       -- prénom figé au moment du like (affichage « qui a aimé »)
   created_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (product_id, user_id)
 );
+
+-- Si la table existe déjà :
+ALTER TABLE product_likes ADD COLUMN IF NOT EXISTS user_name text;
 
 ALTER TABLE products ADD COLUMN IF NOT EXISTS likes_count integer NOT NULL DEFAULT 0;
 

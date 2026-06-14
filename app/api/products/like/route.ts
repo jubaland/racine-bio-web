@@ -49,6 +49,18 @@ export async function GET(request: Request) {
   const productId = Number(url.searchParams.get('product_id'));
   if (!productId) return NextResponse.json({ error: 'product_id requis' }, { status: 400 });
 
+  // Liste publique des personnes ayant aimé (prénom + date), comme un mini-avis.
+  if (url.searchParams.get('list')) {
+    const { data: rows } = await supabaseAdmin
+      .from('product_likes')
+      .select('user_name, created_at')
+      .eq('product_id', productId)
+      .order('created_at', { ascending: false })
+      .limit(60);
+    const likers = (rows || []).map((r: any) => ({ name: r.user_name || 'Client', date: r.created_at }));
+    return NextResponse.json({ likers });
+  }
+
   const { data: prod } = await supabaseAdmin.from('products').select('likes_count').eq('id', productId).maybeSingle();
   const count = prod?.likes_count ?? 0;
 
@@ -80,7 +92,9 @@ export async function POST(request: Request) {
     if (!(await isEligible(user.id, productId))) {
       return NextResponse.json({ error: 'not_eligible' }, { status: 403 });
     }
-    await supabaseAdmin.from('product_likes').insert({ product_id: productId, user_id: user.id });
+    // Fige le prénom au moment du like (affichage « qui a aimé »)
+    const firstName = String(user.user_metadata?.full_name || '').trim().split(/\s+/)[0] || null;
+    await supabaseAdmin.from('product_likes').insert({ product_id: productId, user_id: user.id, user_name: firstName });
   }
 
   const count = await countLikes(productId);
