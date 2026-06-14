@@ -129,6 +129,7 @@ export default function ProfilePage() {
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState<number | null>(null);
   const [addrLabel, setAddrLabel] = useState('Maison');
+  const [addrCustomLabel, setAddrCustomLabel] = useState('');
   const [addrName, setAddrName] = useState('');
   const [addrPhoneDigits, setAddrPhoneDigits] = useState('');
   const [addrPhoneFocused, setAddrPhoneFocused] = useState(false);
@@ -154,7 +155,14 @@ export default function ProfilePage() {
 
   const startEdit = (addr: SavedAddress) => {
     setEditingAddressId(addr.id);
-    setAddrLabel(addr.label);
+    // Libellé personnalisé (hors Maison/Bureau/Autre) → sélecteur sur « Autre » + champ texte
+    if (ADDRESS_LABELS.includes(addr.label)) {
+      setAddrLabel(addr.label);
+      setAddrCustomLabel('');
+    } else {
+      setAddrLabel('Autre');
+      setAddrCustomLabel(addr.label);
+    }
     setAddrName(addr.recipient_name);
     setAddrPhoneDigits(addr.phone.replace(/\D/g, '').slice(2));
     setAddrText(addr.address);
@@ -165,6 +173,7 @@ export default function ProfilePage() {
     setShowAddressForm(false);
     setEditingAddressId(null);
     setAddrLabel('Maison');
+    setAddrCustomLabel('');
     setAddrName('');
     setAddrPhoneDigits('');
     setAddrText('');
@@ -173,8 +182,12 @@ export default function ProfilePage() {
   const saveAddress = async () => {
     if (!user || !addrFormValid) return;
     setSavingAddress(true);
+    // « Autre » + texte saisi → libellé personnalisé ; sinon le type choisi
+    const effectiveLabel = addrLabel === 'Autre' && addrCustomLabel.trim()
+      ? addrCustomLabel.trim().slice(0, 40)
+      : addrLabel;
     const payload = {
-      label:          addrLabel,
+      label:          effectiveLabel,
       recipient_name: titleCase(addrName),
       phone:          '77' + addrPhoneDigits,
       address:        titleCase(addrText),
@@ -872,6 +885,21 @@ export default function ProfilePage() {
                   </button>
                 ))}
               </div>
+
+              {/* Libellé personnalisé (si « Autre ») */}
+              {addrLabel === 'Autre' && (
+                <div>
+                  <input
+                    type="text"
+                    value={addrCustomLabel}
+                    onChange={e => setAddrCustomLabel(e.target.value)}
+                    maxLength={40}
+                    placeholder={t('profile.addr_custom_ph', 'Ex : Résidence secondaire, Maison de ma mère…')}
+                    className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm bg-white focus:outline-none focus:border-[#a8c800]"
+                  />
+                  <p className="text-[11px] text-gray-400 mt-1">{t('profile.addr_custom_hint', 'Donnez un nom à cette adresse (optionnel).')}</p>
+                </div>
+              )}
 
               {/* Nom */}
               <input
