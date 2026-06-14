@@ -33,7 +33,7 @@ export default function LikeButton({ productId, initialCount = 0 }: { productId:
     setMsg('');
     const token = (await supabase.auth.getSession()).data.session?.access_token;
     if (!token) { setMsg(t('like.login', 'Connectez-vous pour aimer ce produit.')); return; }
-    if (!eligible) { setMsg(t('like.not_eligible', 'Aimez ce produit après l\'avoir reçu (commande livrée).')); return; }
+    if (!eligible) { setMsg(t('like.not_eligible', 'Aimez ce produit après l\'avoir reçu.')); return; }
     setLoading(true);
     // Optimiste
     const next = !liked;

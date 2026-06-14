@@ -27,7 +27,7 @@ export default function CardLike({
     setMsg('');
     const token = (await supabase.auth.getSession()).data.session?.access_token;
     if (!token) { setMsg(t('like.login', 'Connectez-vous pour aimer ce produit.')); return; }
-    if (!eligible) { setMsg(t('like.not_eligible', "Aimez ce produit après l'avoir reçu (commande livrée).")); return; }
+    if (!eligible) { setMsg(t('like.not_eligible', "Aimez ce produit après l'avoir reçu.")); return; }
     setLoading(true);
     const next = !liked;
     setLiked(next); setCount(c => c + (next ? 1 : -1));
