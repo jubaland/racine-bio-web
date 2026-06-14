@@ -99,14 +99,19 @@ export default function AdminOrders() {
     setUpdatingId(null);
   };
 
-  const removeItem = async (order: Order, item: OrderItem) => {
-    const amt = `${(Number(item.price) * item.quantity).toLocaleString()} Fdj`;
+  // newQty === 0 → retrait complet ; sinon réduction à newQty
+  const modifyItem = async (order: Order, item: OrderItem, newQty: number) => {
+    const removedQty = item.quantity - newQty;
+    const amt = `${(Number(item.price) * removedQty).toLocaleString()} Fdj`;
     const refundMsg =
       order.payment_method === 'wallet' ? t('admin.remove_refund_wallet', 'Le montant sera recrédité sur la cagnotte du client.')
       : order.payment_method === 'cash' ? t('admin.remove_refund_cash', 'Le montant à payer du client sera réduit.')
       : t('admin.remove_refund_waafi', 'Pensez à rembourser ce montant au client par Waafi.');
     const name = item.product_name || t('admin.this_item', 'cet article');
-    if (!confirm(`${t('admin.remove_item_confirm', 'Retirer')} « ${name} » (${amt}) ?\n\n${refundMsg}\n${t('admin.remove_item_stock', 'Le stock sera remis à disposition.')}`)) return;
+    const action = newQty === 0
+      ? `${t('admin.remove_item_confirm', 'Retirer')} « ${name} »`
+      : `${t('admin.reduce_qty_confirm', 'Réduire')} « ${name} » → ${newQty} ${item.product_unit || ''}`;
+    if (!confirm(`${action} (−${amt}) ?\n\n${refundMsg}\n${t('admin.remove_item_stock', 'Le stock sera remis à disposition.')}`)) return;
 
     setRemovingItemId(item.id);
     try {
@@ -114,7 +119,7 @@ export default function AdminOrders() {
       const res = await fetch('/api/admin/orders/remove-item', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tk}` },
-        body: JSON.stringify({ order_id: order.id, item_id: item.id }),
+        body: JSON.stringify({ order_id: order.id, item_id: item.id, new_quantity: newQty }),
       });
       const j = await res.json();
       if (!res.ok) {
@@ -126,10 +131,16 @@ export default function AdminOrders() {
         return;
       }
       setOrders(prev => prev.map(o => o.id === order.id
-        ? { ...o, total: j.newTotal, order_items: o.order_items.filter(it => it.id !== item.id) }
+        ? {
+            ...o,
+            total: j.newTotal,
+            order_items: j.removed
+              ? o.order_items.filter(it => it.id !== item.id)
+              : o.order_items.map(it => it.id === item.id ? { ...it, quantity: newQty } : it),
+          }
         : o));
       if (j.refundMethod === 'manual') {
-        alert(`✅ ${t('admin.remove_done', 'Article retiré.')} ${t('admin.remove_refund_waafi_amount', 'À rembourser par Waafi')} : ${Number(j.refundAmount).toLocaleString()} Fdj`);
+        alert(`✅ ${t('admin.remove_done', 'Modification effectuée.')} ${t('admin.remove_refund_waafi_amount', 'À rembourser par Waafi')} : ${Number(j.refundAmount).toLocaleString()} Fdj`);
       }
     } catch (e: any) {
       alert('⚠️ ' + e.message);
@@ -292,14 +303,28 @@ export default function AdminOrders() {
                             <p className="text-sm font-bold text-[#526500]">
                               {Number(subtotal).toLocaleString()} Fdj
                             </p>
-                            {can('orders', 'edit') && ['pending', 'processing'].includes(order.status) && items.length > 1 && (
-                              <button
-                                onClick={() => removeItem(order, item)}
-                                disabled={removingItemId === item.id}
-                                className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-[#f97316] border border-orange-200 rounded-lg px-2 py-1 hover:bg-orange-50 transition disabled:opacity-50"
-                              >
-                                {removingItemId === item.id ? '⏳' : '🗑️'} {t('admin.remove_item', 'Retirer')}
-                              </button>
+                            {can('orders', 'edit') && ['pending', 'processing'].includes(order.status) && (
+                              <div className="flex items-center justify-end gap-1.5 mt-1">
+                                {item.quantity > 1 && (
+                                  <button
+                                    onClick={() => modifyItem(order, item, item.quantity - 1)}
+                                    disabled={removingItemId === item.id}
+                                    title={t('admin.reduce_qty', 'Réduire la quantité')}
+                                    className="inline-flex items-center gap-1 text-[11px] font-medium text-[#526500] border border-[#d2e095] rounded-lg px-2 py-1 hover:bg-[#ecf4d5] transition disabled:opacity-50"
+                                  >
+                                    − 1 {item.product_unit || ''}
+                                  </button>
+                                )}
+                                {items.length > 1 && (
+                                  <button
+                                    onClick={() => modifyItem(order, item, 0)}
+                                    disabled={removingItemId === item.id}
+                                    className="inline-flex items-center gap-1 text-[11px] font-medium text-[#f97316] border border-orange-200 rounded-lg px-2 py-1 hover:bg-orange-50 transition disabled:opacity-50"
+                                  >
+                                    {removingItemId === item.id ? '⏳' : '🗑️'} {t('admin.remove_item', 'Retirer')}
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </div>
                         </div>

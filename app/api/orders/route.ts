@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabase-admin';
 import { sendOrderConfirmation, sendNewOrderAlert, sendStatusUpdate, sendPrepSlipToPreparers } from '../../../lib/emails';
 import { requirePerm } from '../../../lib/admin-auth';
+import { refundOrderAmount } from '../../../lib/order-refund';
 
 // POST — crée commande + articles avec vérification et décrémentation du stock
 export async function POST(request: Request) {
@@ -251,11 +252,11 @@ export async function PATCH(request: Request) {
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { id, status } = await request.json();
 
-  // Si annulation : récupérer les articles pour restaurer le stock
+  // Si annulation : restaurer le stock ET rembourser selon le moyen de paiement
   if (status === 'cancelled') {
     const { data: currentOrder } = await supabaseAdmin
       .from('orders')
-      .select('status')
+      .select('status, total, payment_method, user_id')
       .eq('id', id)
       .single();
 
@@ -282,6 +283,13 @@ export async function PATCH(request: Request) {
             .eq('id', item.product_id)
         ));
       }
+
+      // Remboursement du montant restant (cagnotte auto / espèces rien / Waafi manuel)
+      await refundOrderAmount(
+        { id, payment_method: currentOrder.payment_method, user_id: currentOrder.user_id },
+        Number(currentOrder.total) || 0,
+        'Remboursement : commande annulée',
+      );
     }
   }
 
