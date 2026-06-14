@@ -7,6 +7,8 @@ import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
 import Header from './Header';
 import CartDrawer from './CartDrawer';
+import CardLike from './CardLike';
+import { supabase } from '../lib/supabase';
 
 // Lit le rôle directement depuis le jeton stocké (synchrone, sans appel réseau)
 function localRole(): string | null {
@@ -50,6 +52,25 @@ export default function HomePage({ products, categories, promos, producers, sett
   const { isFavorite, addFavorite, removeFavorite } = useFavorites();
   const [activeCategory, setActiveCategory] = useState('all');
   const [activeType, setActiveType] = useState('all');
+  // État « J'aime » de l'utilisateur courant (récupéré en 1 requête groupée)
+  const [likedSet, setLikedSet] = useState<Set<number>>(new Set());
+  const [eligibleSet, setEligibleSet] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    let on = true;
+    (async () => {
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      if (!token) return;
+      try {
+        const res = await fetch('/api/products/like?mine=1', { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok || !on) return;
+        const j = await res.json();
+        setLikedSet(new Set((j.liked || []).map(Number)));
+        setEligibleSet(new Set((j.eligible || []).map(Number)));
+      } catch { /* ignore */ }
+    })();
+    return () => { on = false; };
+  }, []);
   const [activeOrigin, setActiveOrigin] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -286,11 +307,6 @@ export default function HomePage({ products, categories, promos, producers, sett
                         🌿 {t('product.type_bio', 'Bio')}
                       </div>
                     )}
-                    {(p.likes_count ?? 0) > 0 && (
-                      <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm text-[#526500] text-xs font-bold px-2 py-0.5 rounded-full shadow-sm">
-                        👍 {p.likes_count}
-                      </div>
-                    )}
                   </div>
                   <div className="p-3">
                     {p.featured_badge && (
@@ -319,6 +335,7 @@ export default function HomePage({ products, categories, promos, producers, sett
                         className="w-8 h-8 bg-[#a8c800] rounded-full flex items-center justify-center text-white text-lg font-bold hover:bg-[#7d9800] transition disabled:opacity-30 disabled:cursor-not-allowed"
                       >+</button>
                     </div>
+                    <CardLike productId={p.id} initialCount={p.likes_count ?? 0} initiallyLiked={likedSet.has(p.id)} eligible={eligibleSet.has(p.id)} />
                   </div>
                 </Link>
               );
@@ -369,11 +386,6 @@ export default function HomePage({ products, categories, promos, producers, sett
                         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                       </svg>
                     </button>
-                    {(p.likes_count ?? 0) > 0 && (
-                      <div className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm text-[#526500] text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">
-                        👍 {p.likes_count}
-                      </div>
-                    )}
                   </div>
                   <div className="p-3">
                     <p className="text-sm font-medium text-gray-800 truncate">{getProductName(p)}</p>
@@ -397,6 +409,7 @@ export default function HomePage({ products, categories, promos, producers, sett
                         className="w-7 h-7 bg-[#a8c800] rounded-full flex items-center justify-center text-white font-bold hover:bg-[#7d9800] transition disabled:opacity-30 disabled:cursor-not-allowed"
                       >+</button>
                     </div>
+                    <CardLike productId={p.id} initialCount={p.likes_count ?? 0} initiallyLiked={likedSet.has(p.id)} eligible={eligibleSet.has(p.id)} />
                   </div>
                 </Link>
               );

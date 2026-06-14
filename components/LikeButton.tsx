@@ -72,6 +72,9 @@ export default function LikeButton({ productId, initialCount = 0 }: { productId:
           {count > 1 ? t('like.count_plural', "clients ont aimé") : t('like.count_one', 'client a aimé')}
         </span>
       )}
+      {count === 0 && !msg && (
+        <span className="text-xs text-[#7d9800]">🌟 {t('like.be_first', 'Goûtez-le et soyez le premier à partager votre coup de cœur !')}</span>
+      )}
       {msg && <span className="text-xs text-[#f97316]">{msg}</span>}
     </div>
   );

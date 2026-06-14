@@ -25,9 +25,28 @@ async function countLikes(productId: number) {
   return count || 0;
 }
 
-// GET ?product_id= : { count, liked, eligible } (liked/eligible si connecté)
+// GET ?mine=1 : { liked: number[], eligible: number[] } pour l'utilisateur courant.
+// Permet à l'accueil de connaître l'état de tous les produits en UNE requête.
 export async function GET(request: Request) {
-  const productId = Number(new URL(request.url).searchParams.get('product_id'));
+  const url = new URL(request.url);
+
+  if (url.searchParams.get('mine')) {
+    const user = await getUser(request);
+    if (!user) return NextResponse.json({ liked: [], eligible: [] });
+    const { data: likes } = await supabaseAdmin
+      .from('product_likes').select('product_id').eq('user_id', user.id);
+    const { data: orders } = await supabaseAdmin
+      .from('orders').select('id').eq('user_id', user.id).eq('status', 'delivered');
+    const ids = (orders || []).map(o => o.id);
+    let eligible: number[] = [];
+    if (ids.length) {
+      const { data: oi } = await supabaseAdmin.from('order_items').select('product_id').in('order_id', ids);
+      eligible = [...new Set((oi || []).map((r: any) => r.product_id))];
+    }
+    return NextResponse.json({ liked: (likes || []).map(l => l.product_id), eligible });
+  }
+
+  const productId = Number(url.searchParams.get('product_id'));
   if (!productId) return NextResponse.json({ error: 'product_id requis' }, { status: 400 });
 
   const { data: prod } = await supabaseAdmin.from('products').select('likes_count').eq('id', productId).maybeSingle();
