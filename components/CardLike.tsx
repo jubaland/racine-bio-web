@@ -66,9 +66,17 @@ export default function CardLike({
         )}
       </div>
       {count === 0 && !msg && (
-        <p className="text-[11px] text-[#7d9800] mt-1 leading-snug">🌟 {t('like.be_first_short', "Soyez le premier à l'aimer !")}</p>
+        <p className="flex items-start gap-1 text-[11px] text-[#7d9800] mt-1 leading-snug">
+          <span className="flex-none">🌟</span>
+          <span>{t('like.be_first_short', "Soyez le premier à l'aimer !")}</span>
+        </p>
       )}
-      {msg && <p className="text-[11px] text-[#f97316] mt-1 leading-snug">{msg}</p>}
+      {msg && (
+        <p className="flex items-start gap-1 text-[11px] text-[#f97316] mt-1 leading-snug">
+          <span className="flex-none">⚠️</span>
+          <span>{msg}</span>
+        </p>
+      )}
     </div>
   );
 }

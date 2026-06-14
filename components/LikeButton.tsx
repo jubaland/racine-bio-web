@@ -54,7 +54,7 @@ export default function LikeButton({ productId, initialCount = 0 }: { productId:
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
       <button
         onClick={toggle}
         disabled={loading}
