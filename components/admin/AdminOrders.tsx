@@ -50,6 +50,8 @@ export default function AdminOrders() {
   const [filterStatus, setFilterStatus] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [removingItemId, setRemovingItemId] = useState<string | null>(null);
+  const [changeReqs, setChangeReqs] = useState<any[]>([]);
+  const [resolvingId, setResolvingId] = useState<number | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [slipOrder, setSlipOrder] = useState<Order | null>(null);
 
@@ -78,6 +80,12 @@ export default function AdminOrders() {
       let orders: Order[] = json.orders || [];
       if (filterStatus) orders = orders.filter(o => o.status === filterStatus);
       setOrders(orders);
+      // Demandes de modification en attente
+      try {
+        const rr = await fetch('/api/orders/change-request', { headers: { Authorization: `Bearer ${tk}` } });
+        const rj = await rr.json();
+        if (rr.ok) setChangeReqs(rj.requests || []);
+      } catch { /* ignore */ }
     } catch (e: any) {
       setFetchError(e.message);
     } finally {
@@ -97,6 +105,36 @@ export default function AdminOrders() {
     });
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
     setUpdatingId(null);
+  };
+
+  const resolveReq = async (req: any, action: 'approve' | 'reject') => {
+    if (action === 'approve' && !confirm(t('admin.req_approve_confirm', 'Approuver cette demande ? La modification et le remboursement seront appliqués.'))) return;
+    if (action === 'reject' && !confirm(t('admin.req_reject_confirm', 'Refuser cette demande ?'))) return;
+    setResolvingId(req.id);
+    try {
+      const tk = (await supabase.auth.getSession()).data.session?.access_token;
+      const res = await fetch('/api/orders/change-request/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tk}` },
+        body: JSON.stringify({ request_id: req.id, action }),
+      });
+      const j = await res.json();
+      if (!res.ok) {
+        const map: Record<string, string> = {
+          order_locked: t('admin.remove_err_locked', 'Commande déjà expédiée/livrée : modification impossible.'),
+          last_item: t('admin.remove_err_last', 'Dernier article : annulez plutôt la commande entière.'),
+          already_resolved: t('admin.req_already', 'Demande déjà traitée.'),
+        };
+        alert('⚠️ ' + (map[j.error] || j.error || 'Erreur'));
+        return;
+      }
+      setChangeReqs(prev => prev.filter(r => r.id !== req.id));
+      if (action === 'approve') fetchAll(); // refléter total/articles à jour
+    } catch (e: any) {
+      alert('⚠️ ' + e.message);
+    } finally {
+      setResolvingId(null);
+    }
   };
 
   // newQty === 0 → retrait complet ; sinon réduction à newQty
@@ -175,6 +213,40 @@ export default function AdminOrders() {
           ))}
         </div>
       </div>
+
+      {/* Demandes de modification en attente */}
+      {can('orders', 'edit') && changeReqs.length > 0 && (
+        <div className="mb-6 bg-amber-50 border-2 border-amber-200 rounded-2xl p-4">
+          <p className="font-bold text-amber-800 mb-3">✋ {t('admin.req_title', 'Demandes de modification')} ({changeReqs.length})</p>
+          <div className="space-y-2">
+            {changeReqs.map(req => {
+              const shortId = String(req.order_id).slice(0, 8).toUpperCase();
+              const isRemove = req.type === 'remove' || req.new_quantity === 0;
+              const label = isRemove
+                ? `${t('admin.req_remove', 'Retrait')} « ${req.product_name || '—'} »`
+                : `${t('admin.req_reduce', 'Réduction')} « ${req.product_name || '—'} » : ${req.current_quantity} → ${req.new_quantity} ${req.unit || ''}`;
+              return (
+                <div key={req.id} className="bg-white rounded-xl border border-amber-200 px-4 py-3 flex flex-wrap items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-800">#{shortId} · {req.order?.customer_name || '—'}</p>
+                    <p className="text-xs text-gray-500">{label} · −{Number(req.refund_amount).toLocaleString()} Fdj · {PAYMENT_LABELS[req.order?.payment_method] || ''}</p>
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <button onClick={() => resolveReq(req, 'approve')} disabled={resolvingId === req.id}
+                      className="text-xs font-semibold bg-[#a8c800] text-white rounded-lg px-3 py-1.5 hover:bg-[#7d9800] transition disabled:opacity-50">
+                      {resolvingId === req.id ? '⏳' : '✅ ' + t('admin.req_approve', 'Approuver')}
+                    </button>
+                    <button onClick={() => resolveReq(req, 'reject')} disabled={resolvingId === req.id}
+                      className="text-xs font-semibold border border-red-200 text-red-500 rounded-lg px-3 py-1.5 hover:bg-red-50 transition disabled:opacity-50">
+                      ✖ {t('admin.req_reject', 'Refuser')}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center h-48">

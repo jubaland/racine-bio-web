@@ -89,6 +89,10 @@ export default function ProfilePage() {
   const t = (key: string, fallback: string) => ui[key] || fallback;
   const [reordering, setReordering] = useState<string | null>(null);
   const [reorderMsg, setReorderMsg] = useState('');
+  // Demandes de modification (client demande → admin valide)
+  const [changeReqs, setChangeReqs] = useState<Record<string, any>>({});
+  const [reqBusy, setReqBusy] = useState<string | null>(null);
+  const [reqMsg, setReqMsg] = useState('');
   const [receiptLoading, setReceiptLoading] = useState<string | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
 
@@ -423,6 +427,52 @@ export default function ProfilePage() {
     STATUS_META[s] ?? { label: s, cls: 'bg-gray-100 text-gray-600' };
 
   // Recommander : recharge le panier avec les articles d'une commande (prix/stock actuels)
+  // Charger les demandes de modification en attente du client
+  useEffect(() => {
+    if (orders.length === 0) return;
+    (async () => {
+      const { data } = await supabase
+        .from('order_change_requests')
+        .select('item_id, type, new_quantity, status')
+        .eq('status', 'pending');
+      if (data) setChangeReqs(Object.fromEntries(data.map((r: any) => [String(r.item_id), r])));
+    })();
+  }, [orders]);
+
+  const requestChange = async (order: Order, item: OrderItem, newQty: number) => {
+    const removedQty = item.quantity - newQty;
+    const amt = `${(Number(item.price) * removedQty).toLocaleString()} Fdj`;
+    const name = item.product_name || '';
+    const verb = newQty === 0
+      ? t('profile.req_remove', 'Demander le retrait de')
+      : `${t('profile.req_reduce', 'Demander la réduction de')} (→ ${newQty} ${item.product_unit || ''})`;
+    if (!confirm(`${verb} « ${name} » (−${amt}) ?\n\n${t('profile.req_note', 'Votre demande sera validée par notre équipe avant tout remboursement.')}`)) return;
+    setReqBusy(item.id); setReqMsg('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/orders/change-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ order_id: order.id, item_id: item.id, new_quantity: newQty }),
+      });
+      const j = await res.json();
+      if (!res.ok) {
+        const map: Record<string, string> = {
+          order_locked: t('profile.req_err_locked', 'Cette commande ne peut plus être modifiée.'),
+          last_item: t('profile.req_err_last', 'Dernier article : contactez-nous pour annuler la commande.'),
+          already_requested: t('profile.req_err_dup', 'Une demande est déjà en attente pour cet article.'),
+        };
+        setReqMsg('⚠️ ' + (map[j.error] || j.error || 'Erreur'));
+      } else {
+        setChangeReqs(prev => ({ ...prev, [String(item.id)]: { item_id: item.id, new_quantity: newQty, status: 'pending' } }));
+        setReqMsg('✅ ' + t('profile.req_sent', 'Demande envoyée. Vous serez notifié de la décision.'));
+      }
+    } catch (e: any) {
+      setReqMsg('⚠️ ' + e.message);
+    }
+    setReqBusy(null);
+  };
+
   const reorder = async (order: Order) => {
     setReorderMsg('');
     setReordering(order.id);
@@ -959,6 +1009,7 @@ export default function ProfilePage() {
         <div id="section-orders" className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">📦 {t('profile.my_orders', 'Mes commandes')}</h3>
           {reorderMsg && <p className="mb-3 text-xs text-[#f97316] bg-[#fff3e8] rounded-xl px-3 py-2">⚠️ {reorderMsg}</p>}
+          {reqMsg && <p className={`mb-3 text-xs rounded-xl px-3 py-2 ${reqMsg.startsWith('✅') ? 'text-green-700 bg-green-50' : 'text-[#f97316] bg-[#fff3e8]'}`}>{reqMsg}</p>}
 
           {ordersError ? (
             <div className="text-center py-6 text-xs text-[#f97316] bg-[#fff3e8] rounded-2xl px-4 font-mono">
@@ -1029,24 +1080,52 @@ export default function ProfilePage() {
                           const image = item.product_image_url ?? null;
                           const subtotal = item.price * item.quantity;
 
+                          const editable = ['pending', 'processing'].includes(order.status);
+                          const pendingReq = changeReqs[String(item.id)];
                           return (
-                            <div key={item.id} className="flex items-center gap-3 p-3">
-                              <div className="w-12 h-12 rounded-xl overflow-hidden bg-[#ecf4d5] flex-shrink-0">
-                                {image ? (
-                                  <img src={image} alt={name} className="w-full h-full object-cover" />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-xl opacity-20">📷</div>
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-gray-800 truncate">{name}</p>
-                                <p className="text-xs text-gray-400">
-                                  {Number(item.price).toLocaleString()} Fdj / {unit} × {item.quantity}
+                            <div key={item.id} className="p-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-xl overflow-hidden bg-[#ecf4d5] flex-shrink-0">
+                                  {image ? (
+                                    <img src={image} alt={name} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-xl opacity-20">📷</div>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-semibold text-gray-800 truncate">{name}</p>
+                                  <p className="text-xs text-gray-400">
+                                    {Number(item.price).toLocaleString()} Fdj / {unit} × {item.quantity}
+                                  </p>
+                                </div>
+                                <p className="text-sm font-bold text-[#526500] flex-shrink-0">
+                                  {Number(subtotal).toLocaleString()} Fdj
                                 </p>
                               </div>
-                              <p className="text-sm font-bold text-[#526500] flex-shrink-0">
-                                {Number(subtotal).toLocaleString()} Fdj
-                              </p>
+                              {editable && (
+                                <div className="flex items-center justify-end gap-1.5 mt-1.5">
+                                  {pendingReq ? (
+                                    <span className="text-[11px] text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
+                                      ⏳ {t('profile.req_pending', 'Demande en attente')}
+                                    </span>
+                                  ) : (
+                                    <>
+                                      {item.quantity > 1 && (
+                                        <button onClick={() => requestChange(order, item, item.quantity - 1)} disabled={reqBusy === item.id}
+                                          className="text-[11px] font-medium text-[#526500] border border-[#d2e095] rounded-lg px-2 py-1 hover:bg-[#ecf4d5] transition disabled:opacity-50">
+                                          − {t('profile.req_reduce_btn', 'Réduire')}
+                                        </button>
+                                      )}
+                                      {items.length > 1 && (
+                                        <button onClick={() => requestChange(order, item, 0)} disabled={reqBusy === item.id}
+                                          className="text-[11px] font-medium text-[#f97316] border border-orange-200 rounded-lg px-2 py-1 hover:bg-orange-50 transition disabled:opacity-50">
+                                          {reqBusy === item.id ? '⏳' : '🗑️'} {t('profile.req_remove_btn', 'Demander le retrait')}
+                                        </button>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           );
                         })}
