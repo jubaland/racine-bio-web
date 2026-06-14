@@ -269,7 +269,7 @@ export default function BecomeProducerPage() {
                 value={form.products_description}
                 onChange={e => set('products_description', e.target.value)}
                 className={inputCls + ' h-28 resize-none'}
-                placeholder={t('bp.field_products_placeholder', 'Légumes frais, fruits, plantes aromatiques, œufs...')}
+                placeholder={t('bp.field_products_placeholder', 'Ex : Légumes frais, fruits, plantes aromatiques, œufs…')}
               />
             </div>
 

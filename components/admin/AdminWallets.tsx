@@ -209,7 +209,7 @@ export default function AdminWallets() {
               </div>
               <div className="col-span-2">
                 <label className="text-sm font-medium text-gray-600 mb-1 block">{t('admin.wallet_note', 'Note (optionnel)')}</label>
-                <input value={note} onChange={e => setNote(e.target.value)} placeholder={t('admin.wallet_note_ph', 'Ex: Dépôt Waafi réf. 1234')}
+                <input value={note} onChange={e => setNote(e.target.value)} placeholder={t('admin.wallet_note_ph', 'Ex : Dépôt Waafi réf. 1234')}
                   className="w-full border border-[#d2e095] rounded-xl px-4 py-2.5 text-sm bg-[#faf7e8] focus:outline-none focus:border-[#a8c800]" />
               </div>
             </div>

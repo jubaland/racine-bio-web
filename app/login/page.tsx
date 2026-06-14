@@ -281,7 +281,7 @@ export default function LoginPage() {
                   type="text"
                   value={fullName}
                   onChange={e => setFullName(e.target.value)}
-                  placeholder={t('login.name_placeholder', 'Ahmed Hassan')}
+                  placeholder={t('login.name_placeholder', 'Ex : Ahmed Hassan')}
                   className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] focus:ring-2 focus:ring-[#a8c800]/20 bg-[#faf7e8] transition"
                 />
               </div>
@@ -295,7 +295,7 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder={t('login.email_placeholder', 'ton@email.com')}
+                placeholder={t('login.email_placeholder', 'Ex : ton@email.com')}
                 required
                 className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] focus:ring-2 focus:ring-[#a8c800]/20 bg-[#faf7e8] transition"
               />
@@ -331,7 +331,7 @@ export default function LoginPage() {
                 <textarea
                   value={address}
                   onChange={e => setAddress(e.target.value)}
-                  placeholder={t('login.address_placeholder', 'Ex: Quartier 4, Balbala, Djibouti')}
+                  placeholder={t('login.address_placeholder', 'Ex : Quartier 4, Balbala, Djibouti')}
                   rows={2}
                   required
                   className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] focus:ring-2 focus:ring-[#a8c800]/20 bg-[#faf7e8] transition resize-none"
