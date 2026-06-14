@@ -585,6 +585,7 @@ export default function HomePage({ products, categories, promos, producers, sett
                         className="w-8 h-8 bg-[#a8c800] rounded-full flex items-center justify-center text-white text-lg font-bold hover:bg-[#7d9800] transition disabled:opacity-30 disabled:cursor-not-allowed"
                       >+</button>
                     </div>
+                    <CardLike productId={product.id} initialCount={product.likes_count ?? 0} initiallyLiked={likedSet.has(product.id)} eligible={eligibleSet.has(product.id)} />
                   </div>
                 </Link>
               );
