@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
+import ProductReport from './ProductReport';
 
 type Product = {
   product_id: number;
@@ -33,6 +34,18 @@ export default function AdminFinances() {
   const [period, setPeriod] = useState<'month' | '30d' | 'year' | 'all'>('month');
   const [data, setData] = useState<Data | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reportProduct, setReportProduct] = useState<number | null>(null);
+
+  // Bornes de date (YYYY-MM-DD) correspondant à la période sélectionnée
+  const periodRange = (): { from: string; to: string } => {
+    const now = new Date();
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const today = iso(now);
+    if (period === 'month') return { from: iso(new Date(now.getFullYear(), now.getMonth(), 1)), to: today };
+    if (period === '30d') return { from: iso(new Date(now.getTime() - 30 * 86400000)), to: today };
+    if (period === 'year') return { from: iso(new Date(now.getFullYear(), 0, 1)), to: today };
+    return { from: '', to: '' };
+  };
 
   const PERIODS: { id: typeof period; label: string }[] = [
     { id: 'month', label: t('fin.period_month', 'Ce mois') },
@@ -109,8 +122,9 @@ export default function AdminFinances() {
 
           {/* Tableau par produit */}
           <div className="bg-white rounded-2xl border-2 border-[#d2e095] shadow-sm overflow-hidden">
-            <div className="px-5 py-3 border-b border-[#ecf4d5]">
+            <div className="px-5 py-3 border-b border-[#ecf4d5] flex items-center justify-between gap-2">
               <h3 className="font-bold text-[#526500] text-sm">{t('fin.by_product', 'Détail par produit')}</h3>
+              <span className="text-[11px] text-gray-400">👆 {t('fin.click_hint', 'Cliquez un produit pour le rapport détaillé')}</span>
             </div>
             {data!.products.length === 0 ? (
               <p className="text-center text-gray-400 py-12 text-sm">{t('fin.no_sales', 'Aucune vente livrée sur cette période.')}</p>
@@ -128,7 +142,8 @@ export default function AdminFinances() {
                   </thead>
                   <tbody>
                     {data!.products.map(p => (
-                      <tr key={p.product_id} className="border-b border-[#f5f9ea] last:border-0">
+                      <tr key={p.product_id} onClick={() => setReportProduct(p.product_id)}
+                        className="border-b border-[#f5f9ea] last:border-0 cursor-pointer hover:bg-[#f7fbe9] transition">
                         <td className="px-4 py-2.5">
                           <span className="font-medium text-gray-800">{p.name}</span>
                           {!p.costComplete && <span className="ml-1.5 text-[10px] text-orange-500" title={t('fin.cost_partial', 'Coût manquant')}>⚠️</span>}
@@ -149,6 +164,15 @@ export default function AdminFinances() {
             )}
           </div>
         </>
+      )}
+
+      {reportProduct != null && (
+        <ProductReport
+          productId={reportProduct}
+          defaultFrom={periodRange().from}
+          defaultTo={periodRange().to}
+          onClose={() => setReportProduct(null)}
+        />
       )}
     </div>
   );
