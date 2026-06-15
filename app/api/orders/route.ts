@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabase-admin';
-import { sendOrderConfirmation, sendNewOrderAlert, sendStatusUpdate, sendPrepSlipToPreparers, sendOrderCancelledToPreparers } from '../../../lib/emails';
+import { sendOrderConfirmation, sendNewOrderAlert, sendStatusUpdate, sendPrepSlipToPreparers } from '../../../lib/emails';
 import { requirePerm } from '../../../lib/admin-auth';
-import { refundOrderAmount } from '../../../lib/order-refund';
+import { executeCancellation } from '../../../lib/order-cancel';
+import { roleOf } from '../../../lib/permissions';
 
 // POST — crée commande + articles avec vérification et décrémentation du stock
 export async function POST(request: Request) {
@@ -246,53 +247,45 @@ export async function GET(request: Request) {
   return NextResponse.json({ orders: data });
 }
 
-// PATCH — modifier le statut + restaurer le stock si annulation
+// PATCH — modifier le statut. Annulation : admin = immédiate ; gestionnaire = demande à valider.
 export async function PATCH(request: Request) {
   const auth = await requirePerm(request, 'orders', 'edit');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { id, status } = await request.json();
+  const role = roleOf(auth.user?.user_metadata);
 
-  // Si annulation : restaurer le stock ET rembourser selon le moyen de paiement
+  // ── Annulation ───────────────────────────────────────────────────────────
   if (status === 'cancelled') {
-    const { data: currentOrder } = await supabaseAdmin
-      .from('orders')
-      .select('status, total, payment_method, user_id')
-      .eq('id', id)
-      .single();
+    // Gestionnaire : créer une demande d'annulation (validée par un admin).
+    if (role !== 'admin') {
+      const { data: dup } = await supabaseAdmin
+        .from('order_cancel_requests').select('id').eq('order_id', id).eq('status', 'pending').maybeSingle();
+      if (dup) return NextResponse.json({ ok: true, pending_validation: true });
 
-    if (currentOrder && currentOrder.status !== 'cancelled') {
-      const { data: orderItems } = await supabaseAdmin
-        .from('order_items')
-        .select('product_id, quantity')
-        .eq('order_id', id);
-
-      if (orderItems && orderItems.length > 0) {
-        const productIds = orderItems.map((i: any) => i.product_id);
-        const { data: stockData } = await supabaseAdmin
-          .from('products')
-          .select('id, stock_qty')
-          .in('id', productIds);
-
-        const stockMap: Record<number, number> =
-          Object.fromEntries((stockData || []).map((p: any) => [p.id, p.stock_qty ?? 0]));
-
-        await Promise.all(orderItems.map((item: any) =>
-          supabaseAdmin
-            .from('products')
-            .update({ stock_qty: (stockMap[item.product_id] ?? 0) + item.quantity })
-            .eq('id', item.product_id)
-        ));
-      }
-
-      // Remboursement du montant restant (cagnotte auto / espèces rien / Waafi manuel)
-      await refundOrderAmount(
-        { id, payment_method: currentOrder.payment_method, user_id: currentOrder.user_id },
-        Number(currentOrder.total) || 0,
-        'Remboursement : commande annulée',
-      );
+      await supabaseAdmin.from('order_cancel_requests').insert({
+        order_id: id,
+        requested_by: auth.user?.id ?? null,
+        requested_by_name: auth.user?.user_metadata?.full_name || auth.user?.email || null,
+        status: 'pending',
+      });
+      try {
+        const { sendPushToAdmin } = await import('../../../lib/push');
+        await sendPushToAdmin({
+          title: '🛑 Demande d\'annulation',
+          body: `Commande #${String(id).slice(0, 8).toUpperCase()} — à valider`,
+          url: '/admin',
+        });
+      } catch { /* ignore */ }
+      return NextResponse.json({ ok: true, pending_validation: true });
     }
+
+    // Admin : annulation immédiate (stock, remboursement, notifs).
+    const r = await executeCancellation(id);
+    if (!r.ok) return NextResponse.json({ error: r.error || 'Erreur' }, { status: 400 });
+    return NextResponse.json({ ok: true });
   }
 
+  // ── Autres statuts : mise à jour directe ───────────────────────────────────
   const { data: updatedOrder, error } = await supabaseAdmin
     .from('orders')
     .update({ status })
@@ -311,13 +304,6 @@ export async function PATCH(request: Request) {
       customerEmail = updatedOrder?.email ?? null; // commande invité
     }
     if (customerEmail) await sendStatusUpdate(updatedOrder, customerEmail);
-
-    // Annulation : prévenir les préparateurs de ne pas préparer
-    if (updatedOrder?.status === 'cancelled') {
-      const { data: preps } = await supabaseAdmin.from('preparers').select('email').eq('is_active', true);
-      const prepEmails = (preps || []).map((p: any) => p.email).filter(Boolean);
-      if (prepEmails.length) await sendOrderCancelledToPreparers(updatedOrder, prepEmails);
-    }
 
     // Push — uniquement pour les utilisateurs connectés (les invités n'ont pas d'abonnement)
     if (updatedOrder?.user_id) {

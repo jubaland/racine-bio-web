@@ -51,13 +51,15 @@ export default function AdminOrders() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [removingItemId, setRemovingItemId] = useState<string | null>(null);
   const [changeReqs, setChangeReqs] = useState<any[]>([]);
+  const [cancelReqs, setCancelReqs] = useState<any[]>([]);
+  const [cancelBusyId, setCancelBusyId] = useState<number | null>(null);
   const [resolvingId, setResolvingId] = useState<number | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [slipOrder, setSlipOrder] = useState<Order | null>(null);
 
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
-  const { can } = useCan();
+  const { can, isAdmin } = useCan();
 
   const STATUS_META = {
     pending:    { label: t('admin.status_pending',    '⏳ En attente'), cls: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
@@ -86,6 +88,12 @@ export default function AdminOrders() {
         const rj = await rr.json();
         if (rr.ok) setChangeReqs(rj.requests || []);
       } catch { /* ignore */ }
+      // Demandes d'annulation en attente
+      try {
+        const cr = await fetch('/api/orders/cancel-request', { headers: { Authorization: `Bearer ${tk}` } });
+        const cj = await cr.json();
+        if (cr.ok) setCancelReqs(cj.requests || []);
+      } catch { /* ignore */ }
     } catch (e: any) {
       setFetchError(e.message);
     } finally {
@@ -98,13 +106,50 @@ export default function AdminOrders() {
   const updateStatus = async (orderId: string, status: string) => {
     setUpdatingId(orderId);
     const tk = (await supabase.auth.getSession()).data.session?.access_token;
-    await fetch('/api/orders', {
+    const res = await fetch('/api/orders', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tk}` },
       body: JSON.stringify({ id: orderId, status }),
     });
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
+    const j = await res.json().catch(() => ({}));
+    if (j.pending_validation) {
+      // Gestionnaire : l'annulation n'est pas appliquée, une demande part en validation admin
+      alert('🛑 ' + t('admin.cancel_requested', 'Demande d\'annulation envoyée à l\'administrateur pour validation.'));
+      fetchAll();
+    } else {
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
+    }
     setUpdatingId(null);
+  };
+
+  const resolveCancel = async (req: any, action: 'approve' | 'reject') => {
+    if (!confirm(action === 'approve'
+      ? t('admin.cancel_approve_confirm', 'Valider l\'annulation ? La commande sera annulée et remboursée.')
+      : t('admin.cancel_reject_confirm', 'Refuser cette demande d\'annulation ?'))) return;
+    setCancelBusyId(req.id);
+    try {
+      const tk = (await supabase.auth.getSession()).data.session?.access_token;
+      const res = await fetch('/api/orders/cancel-request/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tk}` },
+        body: JSON.stringify({ request_id: req.id, action }),
+      });
+      const j = await res.json();
+      if (!res.ok) {
+        const map: Record<string, string> = {
+          admin_only: t('admin.cancel_admin_only', 'Seul un administrateur peut valider une annulation.'),
+          already_resolved: t('admin.req_already', 'Demande déjà traitée.'),
+        };
+        alert('⚠️ ' + (map[j.error] || j.error || 'Erreur'));
+        return;
+      }
+      setCancelReqs(prev => prev.filter(r => r.id !== req.id));
+      if (action === 'approve') fetchAll();
+    } catch (e: any) {
+      alert('⚠️ ' + e.message);
+    } finally {
+      setCancelBusyId(null);
+    }
   };
 
   const resolveReq = async (req: any, action: 'approve' | 'reject') => {
@@ -213,6 +258,44 @@ export default function AdminOrders() {
           ))}
         </div>
       </div>
+
+      {/* Demandes d'annulation en attente (validation admin) */}
+      {can('orders', 'edit') && cancelReqs.length > 0 && (
+        <div className="mb-6 bg-red-50 border-2 border-red-200 rounded-2xl p-4">
+          <p className="font-bold text-red-700 mb-3">🛑 {t('admin.cancel_req_title', 'Demandes d\'annulation')} ({cancelReqs.length})</p>
+          <div className="space-y-2">
+            {cancelReqs.map(req => {
+              const shortId = String(req.order_id).slice(0, 8).toUpperCase();
+              return (
+                <div key={req.id} className="bg-white rounded-xl border border-red-200 px-4 py-3 flex flex-wrap items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-800">#{shortId} · {req.order?.customer_name || '—'}
+                      {req.order?.total != null && <span className="ml-2 text-[11px] font-normal text-gray-400">{Number(req.order.total).toLocaleString()} Fdj · {PAYMENT_LABELS[req.order?.payment_method] || ''}</span>}
+                    </p>
+                    <p className="text-xs text-gray-500">{t('admin.cancel_req_by', 'Demandé par')} {req.requested_by_name || '—'}</p>
+                  </div>
+                  {isAdmin ? (
+                    <div className="flex gap-2 flex-shrink-0">
+                      <button onClick={() => resolveCancel(req, 'approve')} disabled={cancelBusyId === req.id}
+                        className="text-xs font-semibold bg-red-500 text-white rounded-lg px-3 py-1.5 hover:bg-red-600 transition disabled:opacity-50">
+                        {cancelBusyId === req.id ? '⏳' : '✅ ' + t('admin.cancel_approve', 'Valider l\'annulation')}
+                      </button>
+                      <button onClick={() => resolveCancel(req, 'reject')} disabled={cancelBusyId === req.id}
+                        className="text-xs font-semibold border border-gray-300 text-gray-600 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition disabled:opacity-50">
+                        ✖ {t('admin.cancel_reject', 'Refuser')}
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-[11px] text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 flex-shrink-0">
+                      ⏳ {t('admin.cancel_pending_admin', 'En attente de validation admin')}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Demandes de modification en attente */}
       {can('orders', 'edit') && changeReqs.length > 0 && (
