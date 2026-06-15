@@ -14,7 +14,9 @@ type Data = {
   rows: Row[];
   summary: {
     count: number; qty: number; revenue: number; cost: number; margin: number;
-    marginPct: number | null; avgPrice: number; deliveredQty: number; deliveredRevenue: number;
+    marginPct: number | null; avgPrice: number;
+    deliveredQty: number; deliveredRevenue: number;
+    deliveredMargin: number; deliveredMarginPct: number | null; deliveredAvgPrice: number;
   };
 };
 
@@ -116,19 +118,21 @@ export default function ProductReport({
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <Kpi label={t('report.qty', 'Quantité')} value={`${(deliveredOnly ? s.deliveredQty : s.qty).toLocaleString('fr-FR')} ${unit}`} />
                 <Kpi label={t('report.ca', 'CA')} value={fdj(deliveredOnly ? s.deliveredRevenue : s.revenue)} accent />
-                <Kpi label={t('report.margin', 'Marge')} value={deliveredOnly ? '—' : fdj(s.margin)} hint={!deliveredOnly && s.marginPct != null ? `${s.marginPct}%` : undefined} />
-                <Kpi label={t('report.avg_price', 'Prix moyen')} value={fdj(s.avgPrice)} />
+                <Kpi label={t('report.margin', 'Marge')}
+                  value={fdj(deliveredOnly ? s.deliveredMargin : s.margin)}
+                  hint={(deliveredOnly ? s.deliveredMarginPct : s.marginPct) != null ? `${deliveredOnly ? s.deliveredMarginPct : s.marginPct}%` : undefined} />
+                <Kpi label={t('report.avg_price', 'Prix moyen')} value={fdj(deliveredOnly ? s.deliveredAvgPrice : s.avgPrice)} />
               </div>
               <p className="text-[11px] text-gray-400 mt-2 mb-1">{rows.length} {t('report.lines', 'ligne(s)')} · {t('report.scope', 'hors commandes annulées')}</p>
             </div>
 
             {/* Tableau (zone défilante, en-tête figé) */}
             <div className="flex-1 overflow-auto px-5 pb-5 min-h-0">
-              <table className="w-full text-sm border-separate border-spacing-0 min-w-[600px]">
+              <table className="w-full text-sm border-separate border-spacing-0 min-w-[720px]">
                 <thead>
                   <tr className="text-gray-500 text-[11px]">
                     {([
-                      ['report.date', 'Date', false], ['report.order', 'Commande', false], ['report.status', 'Statut', false],
+                      ['report.date', 'Date', false], ['report.order', 'Commande', false], ['report.client', 'Client', false], ['report.status', 'Statut', false],
                       ['report.qty', 'Qté', true], ['report.price', 'P.U.', true], ['report.cost', 'Coût u.', true], ['report.margin', 'Marge', true],
                     ] as [string, string, boolean][]).map(([k, f, right]) => (
                       <th key={k} className={`sticky top-0 bg-[#ecf4d5] font-semibold px-2.5 py-2 whitespace-nowrap first:rounded-l-lg last:rounded-r-lg ${right ? 'text-right' : 'text-left'}`}>
@@ -139,11 +143,12 @@ export default function ProductReport({
                 </thead>
                 <tbody>
                   {rows.length === 0 ? (
-                    <tr><td colSpan={7} className="text-center text-gray-400 py-10">{t('report.empty', 'Aucune vente sur cette période.')}</td></tr>
+                    <tr><td colSpan={8} className="text-center text-gray-400 py-10">{t('report.empty', 'Aucune vente sur cette période.')}</td></tr>
                   ) : rows.map((r, i) => (
                     <tr key={i} className="even:bg-[#f9fcf0] hover:bg-[#f1f8df] transition">
                       <td className="px-2.5 py-2 text-gray-600 whitespace-nowrap border-b border-[#f0f7e0]">{dateFmt(r.date)}</td>
                       <td className="px-2.5 py-2 font-mono text-xs text-gray-500 border-b border-[#f0f7e0]">#{String(r.order_id).slice(0, 8).toUpperCase()}</td>
+                      <td className="px-2.5 py-2 text-gray-700 whitespace-nowrap border-b border-[#f0f7e0] max-w-[160px] truncate">{r.customer || '—'}</td>
                       <td className="px-2.5 py-2 border-b border-[#f0f7e0]">
                         <span className={`inline-block text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap ${STATUS_CLS[r.status] || 'bg-gray-100 text-gray-600'}`}>
                           {STATUS_EMOJI[r.status] || ''} {t(`admin.status_${r.status}`, r.status)}
