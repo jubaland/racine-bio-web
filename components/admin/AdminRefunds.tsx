@@ -11,10 +11,10 @@ type Refund = {
   amount: number;
   method: 'wallet' | 'manual';
   reason: string | null;
-  status: 'pending' | 'done';
+  status: 'pending' | 'done' | 'rejected';
   created_at: string;
   done_at: string | null;
-  order: { customer_name: string | null; payment_method: string | null; phone: string | null } | null;
+  order: { customer_name: string | null; payment_method: string | null; phone: string | null; user_id: string | null } | null;
 };
 
 const PAYMENT_LABELS: Record<string, string> = { waafi: '📱 Waafi', dmoney: '💳 D-Money', cash: '💵 Espèces', wallet: '💰 Cagnotte' };
@@ -41,17 +41,33 @@ export default function AdminRefunds() {
   }, []);
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const markDone = async (r: Refund) => {
-    if (!confirm(t('refunds.mark_confirm', 'Confirmer que ce remboursement a bien été effectué ?'))) return;
+  const resolve = async (r: Refund, action: 'waafi' | 'wallet' | 'reject') => {
+    const confirms: Record<string, string> = {
+      waafi: t('refunds.confirm_waafi', 'Confirmer le remboursement par Waafi ?'),
+      wallet: t('refunds.confirm_wallet', 'Créditer ce montant sur la cagnotte du client ?'),
+      reject: t('refunds.confirm_reject', 'Rejeter ce remboursement (aucun montant ne sera rendu) ?'),
+    };
+    if (!confirm(confirms[action])) return;
     setBusyId(r.id);
     try {
       const tk = (await supabase.auth.getSession()).data.session?.access_token;
       const res = await fetch('/api/admin/refunds', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tk}` },
-        body: JSON.stringify({ refund_id: r.id }),
+        body: JSON.stringify({ refund_id: r.id, action }),
       });
-      if (res.ok) setRefunds(prev => prev.map(x => x.id === r.id ? { ...x, status: 'done', done_at: new Date().toISOString() } : x));
+      const j = await res.json();
+      if (!res.ok) {
+        const map: Record<string, string> = {
+          no_account: t('refunds.err_no_account', 'Ce client n\'a pas de compte : impossible de créditer une cagnotte.'),
+          already_resolved: t('refunds.err_resolved', 'Remboursement déjà traité.'),
+        };
+        alert('⚠️ ' + (map[j.error] || j.error || 'Erreur'));
+        return;
+      }
+      setRefunds(prev => prev.map(x => x.id === r.id
+        ? { ...x, status: j.status, method: j.method || x.method, done_at: new Date().toISOString() }
+        : x));
     } catch { /* ignore */ }
     setBusyId(null);
   };
@@ -60,7 +76,7 @@ export default function AdminRefunds() {
   const date = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 
   const pending = refunds.filter(r => r.status === 'pending');
-  const done = refunds.filter(r => r.status === 'done');
+  const history = refunds.filter(r => r.status !== 'pending');
   const pendingTotal = pending.reduce((s, r) => s + Number(r.amount), 0);
 
   const Row = ({ r }: { r: Refund }) => (
@@ -75,14 +91,30 @@ export default function AdminRefunds() {
       <span className="font-bold text-[#526500] flex-none">{fdj(r.amount)}</span>
       {r.status === 'pending' ? (
         canEdit ? (
-          <button onClick={() => markDone(r)} disabled={busyId === r.id}
-            className="flex-none text-xs font-semibold bg-[#a8c800] text-white rounded-lg px-3 py-1.5 hover:bg-[#7d9800] transition disabled:opacity-50">
-            {busyId === r.id ? '⏳' : '✅ ' + t('refunds.mark_done', 'Marquer remboursé')}
-          </button>
+          <div className="flex flex-wrap gap-1.5 flex-none">
+            {r.order?.user_id && (
+              <button onClick={() => resolve(r, 'wallet')} disabled={busyId === r.id}
+                className="text-xs font-semibold bg-[#526500] text-white rounded-lg px-3 py-1.5 hover:bg-[#3a4800] transition disabled:opacity-50">
+                💰 {t('refunds.act_wallet', 'Créditer cagnotte')}
+              </button>
+            )}
+            <button onClick={() => resolve(r, 'waafi')} disabled={busyId === r.id}
+              className="text-xs font-semibold bg-[#a8c800] text-white rounded-lg px-3 py-1.5 hover:bg-[#7d9800] transition disabled:opacity-50">
+              📱 {t('refunds.act_waafi', 'Remboursé Waafi')}
+            </button>
+            <button onClick={() => resolve(r, 'reject')} disabled={busyId === r.id}
+              className="text-xs font-semibold border border-red-200 text-red-500 rounded-lg px-3 py-1.5 hover:bg-red-50 transition disabled:opacity-50">
+              ✖ {t('refunds.act_reject', 'Rejeter')}
+            </button>
+          </div>
         ) : <span className="text-[11px] text-amber-600">⏳ {t('refunds.todo', 'À effectuer')}</span>
+      ) : r.status === 'rejected' ? (
+        <span className="flex-none text-[11px] text-red-500 bg-red-50 border border-red-200 rounded-lg px-2 py-1">
+          ✖ {t('refunds.rejected', 'Rejeté')}{r.done_at ? ` · ${date(r.done_at)}` : ''}
+        </span>
       ) : (
         <span className="flex-none text-[11px] text-green-600 bg-green-50 border border-green-200 rounded-lg px-2 py-1">
-          ✅ {r.method === 'wallet' ? t('refunds.auto', 'Cagnotte (auto)') : t('refunds.done', 'Effectué')}{r.done_at ? ` · ${date(r.done_at)}` : ''}
+          ✅ {r.method === 'wallet' ? t('refunds.via_wallet', 'Cagnotte') : t('refunds.via_waafi', 'Waafi')}{r.done_at ? ` · ${date(r.done_at)}` : ''}
         </span>
       )}
     </div>
@@ -110,13 +142,13 @@ export default function AdminRefunds() {
             )}
           </div>
 
-          {/* Effectués */}
+          {/* Historique (effectués + rejetés) */}
           <div>
-            <h3 className="font-bold text-gray-600 mb-2">✅ {t('refunds.done_title', 'Effectués')} ({done.length})</h3>
-            {done.length === 0 ? (
-              <p className="text-sm text-gray-400">{t('refunds.done_empty', 'Aucun remboursement effectué pour le moment.')}</p>
+            <h3 className="font-bold text-gray-600 mb-2">🗂️ {t('refunds.history_title', 'Historique')} ({history.length})</h3>
+            {history.length === 0 ? (
+              <p className="text-sm text-gray-400">{t('refunds.done_empty', 'Aucun remboursement traité pour le moment.')}</p>
             ) : (
-              <div className="space-y-2">{done.map(r => <Row key={r.id} r={r} />)}</div>
+              <div className="space-y-2">{history.map(r => <Row key={r.id} r={r} />)}</div>
             )}
           </div>
         </>
