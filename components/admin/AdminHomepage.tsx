@@ -66,6 +66,33 @@ export default function AdminHomepage() {
         <div className="flex items-center justify-center h-48"><p className="text-gray-400">{t('admin.loading', 'Chargement...')}</p></div>
       ) : (
         <div className="space-y-3">
+          {/* Fermeture temporaire du site (remplace l'accueil par « On se retrouve en septembre ») */}
+          {(() => {
+            const closed = settings['site.closed'] ?? false;
+            return (
+              <div className={`rounded-2xl border-2 p-4 flex items-center gap-4 ${closed ? 'bg-red-50 border-red-300' : 'bg-white border-[#d2e095]'}`}>
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-2xl flex-none ${closed ? 'bg-red-100' : 'bg-[#ecf4d5]'}`}>{closed ? '🔒' : '🌿'}</div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-800">{t('admin.site_closed', 'Fermer la boutique')}</p>
+                  <p className="text-xs text-gray-500">
+                    {closed
+                      ? t('admin.site_closed_on', 'La page d\'accueil affiche « On se retrouve en septembre ». Désactivez pour rouvrir.')
+                      : t('admin.site_closed_off', 'Remplace la page d\'accueil par un message de fermeture. Réversible à tout moment.')}
+                  </p>
+                </div>
+                <button
+                  onClick={() => toggle('site.closed', false)}
+                  disabled={busy === 'site.closed' || !canEdit}
+                  role="switch"
+                  aria-checked={closed}
+                  className={`relative w-12 h-7 rounded-full transition-colors flex-none disabled:opacity-60 ${closed ? 'bg-red-500' : 'bg-gray-200'}`}
+                >
+                  <span className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${closed ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+            );
+          })()}
+
           {BLOCKS.map(b => {
             const visible = settings[b.key] ?? b.def;
             return (

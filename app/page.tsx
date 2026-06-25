@@ -1,5 +1,6 @@
 import { fetchProducts, fetchCategories, fetchPromos, fetchProducers, fetchSiteSettings } from '../lib/supabase';
 import HomePage from '../components/HomePage';
+import SiteClosed from '../components/SiteClosed';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +13,9 @@ export default async function Home() {
       fetchProducers(),
       fetchSiteSettings(),
     ]);
+
+    // Boutique en pause (réglage activable depuis l'admin → Page d'accueil)
+    if (settings && settings['site.closed']) return <SiteClosed />;
 
     return (
       <HomePage
