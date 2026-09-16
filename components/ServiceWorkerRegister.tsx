@@ -23,7 +23,14 @@ export default function ServiceWorkerRegister() {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return; // ré-abonnement lié au compte uniquement
         const existing = await reg.pushManager.getSubscription();
-        if (existing) return;
+        if (existing) {
+          // Le navigateur a un abonnement : est-il encore connu du serveur ?
+          // S'il a été expiré (410) et supprimé, on le remplace par un abonnement neuf.
+          const chk = await fetch(`/api/push?endpoint=${encodeURIComponent(existing.endpoint)}`);
+          const { registered } = chk.ok ? await chk.json() : { registered: true };
+          if (registered) return;
+          try { await existing.unsubscribe(); } catch { /* ignore */ }
+        }
         const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
         if (!vapidKey) return;
         const sub = await reg.pushManager.subscribe({

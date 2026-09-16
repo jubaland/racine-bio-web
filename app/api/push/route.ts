@@ -1,6 +1,16 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabase-admin';
 
+// GET ?endpoint= — l'abonnement est-il connu du serveur ? (auto-réparation côté client :
+// un abonnement gardé par le navigateur mais absent ici a été expiré/supprimé → à renouveler)
+export async function GET(request: Request) {
+  const endpoint = new URL(request.url).searchParams.get('endpoint');
+  if (!endpoint) return NextResponse.json({ registered: false });
+  const { data } = await supabaseAdmin
+    .from('push_subscriptions').select('endpoint').eq('endpoint', endpoint).maybeSingle();
+  return NextResponse.json({ registered: !!data });
+}
+
 // POST — enregistre ou supprime un abonnement push
 export async function POST(request: Request) {
   try {
