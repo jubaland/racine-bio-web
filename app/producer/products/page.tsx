@@ -91,9 +91,11 @@ function ProductsContent({ producer }: { producer: any }) {
       is_local: form.is_local,
       region: form.region.trim(),
     };
+    // owner_id = compte propriétaire (exigé par la RLS pour créer/éditer ses produits)
+    const { data: { user } } = await supabase.auth.getUser();
     const { error: err } = editingId
       ? await supabase.from('products').update(payload).eq('id', editingId)
-      : await supabase.from('products').insert(payload);
+      : await supabase.from('products').insert({ ...payload, owner_id: user?.id ?? null });
     if (err) { setError(err.message); setSaving(false); return; }
     setSaving(false);
     setShowModal(false);
