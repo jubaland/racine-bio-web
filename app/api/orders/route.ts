@@ -14,13 +14,27 @@ export async function POST(request: Request) {
     const productIds = items.map((i: any) => i.product_id);
     const { data: stockData, error: stockErr } = await supabaseAdmin
       .from('products')
-      .select('id, name, stock_qty, unit, cost_price')
+      .select('id, name, stock_qty, unit, cost_price, status, owner_id')
       .in('id', productIds);
 
     if (stockErr) return NextResponse.json({ error: stockErr.message }, { status: 400 });
 
+    // Produit marchand : commandable seulement si le marchand a un abonnement actif
+    const ownerIds = [...new Set((stockData || []).map((p: any) => p.owner_id).filter(Boolean))];
+    const activeOwners = new Set<string>();
+    if (ownerIds.length) {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data: subs } = await supabaseAdmin
+        .from('merchant_subscriptions').select('user_id')
+        .in('user_id', ownerIds).eq('status', 'active').gte('ends_at', today);
+      (subs || []).forEach((s: any) => activeOwners.add(s.user_id));
+    }
+    // Un produit non publié ou d'un marchand inactif est traité comme indisponible (stock 0)
     const stockMap: Record<number, { name: string; stock_qty: number; unit: string; cost_price: number | null }> =
-      Object.fromEntries((stockData || []).map((p: any) => [p.id, p]));
+      Object.fromEntries((stockData || []).map((p: any) => {
+        const orderable = p.status === 'published' && (!p.owner_id || activeOwners.has(p.owner_id));
+        return [p.id, { ...p, stock_qty: orderable ? p.stock_qty : 0 }];
+      }));
 
     const insufficientItems = items.filter((item: any) => {
       const available = stockMap[item.product_id]?.stock_qty ?? 0;
