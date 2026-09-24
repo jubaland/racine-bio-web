@@ -120,6 +120,10 @@ drop trigger if exists products_moderation_trg on public.products;
 create trigger products_moderation_trg before insert or update on public.products
   for each row execute function public.products_moderation();
 
+-- ── Correctif (24/09) : colonne de présentation obligatoire sans défaut → défaut ──
+-- (le formulaire marchand ne la renseigne pas ; toutes les fiches existantes valent '#ecf4d5')
+alter table public.products alter column bg_color set default '#ecf4d5';
+
 -- =====================================================================
 -- ROLLBACK ①
 -- drop trigger if exists products_moderation_trg on public.products;
