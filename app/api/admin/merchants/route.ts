@@ -26,14 +26,16 @@ export async function GET(request: Request) {
   const auth = await requirePerm(request, 'merchants', 'view');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-  const [users, { data: subs }, { data: plans }, { data: prods }, { data: reqs }] = await Promise.all([
+  const [users, { data: subs }, { data: plans }, { data: prods }, { data: reqs }, { data: profiles }] = await Promise.all([
     allUsers(),
     supabaseAdmin.from('merchant_subscriptions').select('*').order('created_at', { ascending: false }),
     supabaseAdmin.from('merchant_plans').select('*').order('id'),
     supabaseAdmin.from('products').select('id, name, price, unit, image_url, status, owner_id, review_note, created_at').not('owner_id', 'is', null),
     supabaseAdmin.from('producer_requests').select('*').order('created_at', { ascending: false }),
+    supabaseAdmin.from('merchant_profiles').select('user_id, shop_name'),
   ]);
   const userMap = Object.fromEntries(users.map(u => [u.id, u]));
+  const shopMap: Record<string, string> = Object.fromEntries((profiles || []).map((m: any) => [m.user_id, m.shop_name]));
   const merchants = users.filter(u => roleOf(u.user_metadata) === 'producer');
   const t = today();
 
@@ -47,7 +49,7 @@ export async function GET(request: Request) {
     const state = active ? 'active' : pending ? 'pending_payment' : last?.status === 'suspended' ? 'suspended' : last ? 'expired' : 'none';
     return {
       id: u.id, email: u.email, name: nameOf(u), phone: u.user_metadata?.phone || null,
-      farm_name: req?.farm_name || null, created_at: u.created_at,
+      farm_name: shopMap[u.id] || req?.farm_name || null, created_at: u.created_at,
       state, active, pending, last,
       products: { total: mp.length, published: mp.filter((p: any) => p.status === 'published').length, pending: mp.filter((p: any) => p.status === 'pending_review').length },
     };
@@ -58,7 +60,7 @@ export async function GET(request: Request) {
     merchants: view,
     pending_payments: (subs || []).filter((s: any) => s.status === 'pending_payment').map(withMerchant),
     pending_products: (prods || []).filter((p: any) => p.status === 'pending_review')
-      .map((p: any) => ({ ...p, merchant: { id: p.owner_id, name: nameOf(userMap[p.owner_id]) } })),
+      .map((p: any) => ({ ...p, merchant: { id: p.owner_id, name: shopMap[p.owner_id] ? `${shopMap[p.owner_id]} — ${nameOf(userMap[p.owner_id])}` : nameOf(userMap[p.owner_id]) } })),
     plans: plans || [],
     requests: (reqs || []).filter((r: any) => r.status === 'pending'),
   });
@@ -91,7 +93,24 @@ export async function POST(request: Request) {
     }
   }
 
+  // Enseigne : source unique (merchant_profiles) + instantané `farm` sur les fiches du marchand
+  async function setShopName(userId: string, shopName: string) {
+    const { error } = await supabaseAdmin.from('merchant_profiles')
+      .upsert({ user_id: userId, shop_name: shopName, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+    if (error) throw error;
+    await supabaseAdmin.from('products').update({ farm: shopName }).eq('owner_id', userId);
+  }
+
   try {
+    // Enseigne affichée sur les cartes (« 🏪 Boutique Zak »)
+    if (action === 'set_shop_name') {
+      const { user_id, shop_name } = body;
+      const name = String(shop_name || '').trim().slice(0, 60);
+      if (!user_id || name.length < 2) return NextResponse.json({ error: 'Enseigne invalide (2 caractères minimum)' }, { status: 400 });
+      await setShopName(user_id, name);
+      return NextResponse.json({ ok: true });
+    }
+
     // Activation directe (paiement reçu hors ligne : espèces / Waafi vérifié)
     if (action === 'grant') {
       const { user_id, plan_id, payment_method, reference } = body;
@@ -186,7 +205,12 @@ export async function POST(request: Request) {
       await supabaseAdmin.from('producer_requests').update({ status: approve ? 'approved' : 'rejected' }).eq('id', request_id);
       const user = (await allUsers()).find(u => u.email?.toLowerCase() === req.email?.toLowerCase());
       if (user) {
-        if (approve) await supabaseAdmin.auth.admin.updateUserById(user.id, { user_metadata: { ...(user.user_metadata || {}), role: 'producer' } });
+        if (approve) {
+          await supabaseAdmin.auth.admin.updateUserById(user.id, { user_metadata: { ...(user.user_metadata || {}), role: 'producer' } });
+          // Enseigne initiale = nom de ferme déclaré (modifiable ensuite dans le module Marchands)
+          const { data: existing } = await supabaseAdmin.from('merchant_profiles').select('user_id').eq('user_id', user.id).maybeSingle();
+          if (!existing) await setShopName(user.id, (req.farm_name || '').trim() || `Boutique ${nameOf(user)}`);
+        }
         await notifyMerchant(user.id,
           approve ? '🎉 Adhésion acceptée' : 'Adhésion non retenue',
           approve ? `Bienvenue ! Activez votre abonnement pour publier vos produits (${req.farm_name}).` : 'Votre demande n\'a pas été retenue pour le moment. Contactez-nous au 77 43 26 15.',

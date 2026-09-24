@@ -91,6 +91,20 @@ function ProductsContent({ producer }: { producer: any }) {
       setError(t('admin.error_products', 'Nom, prix et unité sont requis.'));
       return;
     }
+    // Produit déjà publié + champ sensible modifié → repassera en validation (et sera masqué entre-temps)
+    if (editingId) {
+      const orig = products.find(p => p.id === editingId);
+      const sensitiveChanged = !!orig && orig.status === 'published' && (
+        (orig.name || '') !== form.name.trim() ||
+        Number(orig.price) !== parseFloat(form.price) ||
+        (orig.description || '') !== form.description.trim() ||
+        (orig.image_url || '') !== form.image_url.trim() ||
+        (orig.category || '') !== form.category.trim() ||
+        (orig.unit || '') !== form.unit.trim()
+      );
+      if (sensitiveChanged && !confirm(t('producer.edit_warning',
+        'Vous modifiez le nom, le prix, la description, la photo, la catégorie ou l\'unité d\'un produit publié.\n\nIl repassera « À valider » par Hornafresh et ne sera plus visible sur le site jusqu\'à sa validation.\n\nContinuer ?'))) return;
+    }
     setSaving(true);
     setError('');
     const payload = {

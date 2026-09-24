@@ -44,11 +44,13 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
       const isMerchant = roleOf(meta) === 'producer' || !!req;
       if (!isMerchant) { setProducer(null); setLoading(false); return; }
 
-      // État de l'abonnement (RLS : le marchand lit ses propres lignes)
+      // État de l'abonnement (RLS : le marchand lit ses propres lignes) + enseigne (merchant_profiles, gérée par l'admin)
       const today = new Date().toISOString().slice(0, 10);
-      const { data: subs } = await supabase
-        .from('merchant_subscriptions').select('status, ends_at, created_at')
-        .eq('user_id', user.id).order('created_at', { ascending: false });
+      const [{ data: subs }, { data: profile }] = await Promise.all([
+        supabase.from('merchant_subscriptions').select('status, ends_at, created_at')
+          .eq('user_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('merchant_profiles').select('shop_name').eq('user_id', user.id).maybeSingle(),
+      ]);
       const active = (subs || []).find(s => s.status === 'active' && s.ends_at >= today) || null;
       const pending = (subs || []).find(s => s.status === 'pending_payment') || null;
       const last = (subs || [])[0] || null;
@@ -59,7 +61,7 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
         user_id: user.id,
         email: user.email || '',
         full_name: meta.full_name || req?.full_name || user.email || '',
-        farm_name: req?.farm_name || meta.shop_name || meta.full_name || t('producer.default_shop', 'Ma boutique'),
+        farm_name: profile?.shop_name || req?.farm_name || meta.shop_name || meta.full_name || t('producer.default_shop', 'Ma boutique'),
         region: req?.region || '',
         subscription: { state, ends_at: active?.ends_at || null, days_left },
       });

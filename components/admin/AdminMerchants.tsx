@@ -155,7 +155,22 @@ export default function AdminMerchants() {
                     <div key={m.id} className="bg-white rounded-2xl border-2 border-[#d2e095] px-4 py-3">
                       <div className="flex flex-wrap items-center gap-3">
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-gray-800">{m.farm_name ? `${m.farm_name} — ` : ''}{m.name} <span className={`ml-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${st.cls}`}>{st.label}</span></p>
+                          <p className="font-semibold text-gray-800">
+                            {m.farm_name ? `🏪 ${m.farm_name} — ` : ''}{m.name}
+                            {canEdit && (
+                              <button
+                                type="button"
+                                title={t('mer.shop_name', 'Enseigne')}
+                                disabled={busy === 'sn' + m.id}
+                                onClick={() => {
+                                  const v = prompt(`${t('mer.shop_name', 'Enseigne')} (${t('mer.shop_name_ph', 'Ex : Boutique Zak')})`, m.farm_name || '');
+                                  if (v !== null && v.trim() && v.trim() !== m.farm_name) act({ action: 'set_shop_name', user_id: m.id, shop_name: v.trim() }, 'sn' + m.id);
+                                }}
+                                className="ml-1 text-xs text-gray-400 hover:text-[#7d9800] disabled:opacity-50"
+                              >✏️</button>
+                            )}
+                            <span className={`ml-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${st.cls}`}>{st.label}</span>
+                          </p>
                           <p className="text-xs text-gray-500">{m.email}{m.phone ? ` · 📞 ${m.phone}` : ''} · {t('mer.products', 'produits')} : {m.products.published} {t('mer.published', 'publiés')}{m.products.pending ? `, ${m.products.pending} ${t('mer.to_review', 'à valider')}` : ''}</p>
                           {m.active && <p className="text-xs text-green-700 mt-0.5">✅ {t('mer.active_until', 'Actif jusqu\'au')} {dateFr(m.active.ends_at)} · {fdj(m.active.amount)}</p>}
                           {!m.active && m.last && <p className="text-xs text-gray-400 mt-0.5">{t('mer.last', 'Dernier')} : {m.last.status} · {dateFr(m.last.ends_at)}</p>}

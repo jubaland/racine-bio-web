@@ -319,7 +319,9 @@ export default function HomePage({ products, categories, promos, producers, sett
                       <p className="text-xs text-gray-400">{t('product.origin_label', 'Origine')}</p>
                       <span className="text-base flex-none ml-1">{flag}</span>
                     </div>
-                    {p.origin_country === 'DJ' && p.farm && (
+                    {p.shop_name ? (
+                      <p className="text-xs text-[#7d9800] truncate mt-0.5">🏪 {p.shop_name}</p>
+                    ) : p.origin_country === 'DJ' && p.farm && (
                       <p className="text-xs text-gray-400 truncate mt-0.5">🌱 {p.farm}</p>
                     )}
                     <div className="flex items-center justify-between mt-3">
@@ -393,7 +395,9 @@ export default function HomePage({ products, categories, promos, producers, sett
                       <p className="text-xs text-gray-400">{t('product.origin_label', 'Origine')}</p>
                       <span className="text-base flex-none ml-1">{flag}</span>
                     </div>
-                    {p.origin_country === 'DJ' && p.farm && (
+                    {p.shop_name ? (
+                      <p className="text-xs text-[#7d9800] truncate mt-0.5">🏪 {p.shop_name}</p>
+                    ) : p.origin_country === 'DJ' && p.farm && (
                       <p className="text-xs text-gray-400 truncate mt-0.5">🌱 {p.farm}</p>
                     )}
                     <div className="flex items-center justify-between mt-2">
@@ -464,7 +468,9 @@ export default function HomePage({ products, categories, promos, producers, sett
                     </div>
                     <div className="text-left flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-800 truncate">{getProductName(p)}</p>
-                      {p.origin_country === 'DJ' && p.farm && <p className="text-xs text-gray-400 truncate">🌱 {p.farm}</p>}
+                      {p.shop_name
+                        ? <p className="text-xs text-[#7d9800] truncate">🏪 {p.shop_name}</p>
+                        : p.origin_country === 'DJ' && p.farm && <p className="text-xs text-gray-400 truncate">🌱 {p.farm}</p>}
                     </div>
                     <span className="text-xs text-[#a8c800] font-semibold flex-none">{Number(p.price).toLocaleString()} Fdj</span>
                   </button>
@@ -569,7 +575,9 @@ export default function HomePage({ products, categories, promos, producers, sett
                       <p className="text-xs text-gray-400">{t('product.origin_label', 'Origine')}</p>
                       <span className="text-base flex-none ml-1">{origin.flag}</span>
                     </div>
-                    {product.origin_country === 'DJ' && product.farm && (
+                    {product.shop_name ? (
+                      <p className="text-xs text-[#7d9800] truncate mt-0.5">🏪 {product.shop_name}</p>
+                    ) : product.origin_country === 'DJ' && product.farm && (
                       <p className="text-xs text-gray-400 truncate mt-0.5">🌱 {product.farm}</p>
                     )}
                     <div className="flex items-center justify-between mt-3">

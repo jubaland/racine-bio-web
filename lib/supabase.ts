@@ -13,7 +13,16 @@ export async function fetchProducts() {
     .select('*')
     .eq('status', 'published')
     .order('created_at', { ascending: false });
-  return data || [];
+  const products = data || [];
+  // Enseigne du vendeur pour les produits marchands (owner_id) — une seule requête, uniquement si nécessaire
+  const ownerIds = [...new Set(products.map((p: any) => p.owner_id).filter(Boolean))];
+  if (ownerIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from('merchant_profiles').select('user_id, shop_name').in('user_id', ownerIds);
+    const names = Object.fromEntries((profiles || []).map((m: any) => [m.user_id, m.shop_name]));
+    products.forEach((p: any) => { if (p.owner_id) p.shop_name = names[p.owner_id] || p.farm || null; });
+  }
+  return products;
 }
 
 export async function fetchCategories() {
