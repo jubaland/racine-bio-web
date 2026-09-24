@@ -18,12 +18,12 @@ function DashboardContent({ producer }: { producer: any }) {
       const { count: productsCount } = await supabase
         .from('products')
         .select('id', { count: 'exact', head: true })
-        .eq('farm', producer.farm_name);
+        .eq('owner_id', producer.user_id);
 
       const { data: myProducts } = await supabase
         .from('products')
         .select('id')
-        .eq('farm', producer.farm_name);
+        .eq('owner_id', producer.user_id);
 
       const productIds = (myProducts || []).map((p: any) => p.id);
       let revenue = 0;
@@ -58,7 +58,7 @@ function DashboardContent({ producer }: { producer: any }) {
       setLoading(false);
     };
     load();
-  }, [producer.farm_name]);
+  }, [producer.user_id]);
 
   const statusInfo = (s: string) => {
     const map: Record<string, { label: string; cls: string }> = {

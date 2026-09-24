@@ -21,7 +21,7 @@ function OrdersContent({ producer }: { producer: any }) {
     const { data: myProducts } = await supabase
       .from('products')
       .select('id')
-      .eq('farm', producer.farm_name);
+      .eq('owner_id', producer.user_id);
 
     const productIds = (myProducts || []).map((p: any) => p.id);
     setMyProductIds(productIds);
@@ -56,7 +56,7 @@ function OrdersContent({ producer }: { producer: any }) {
     const { data: ordersData } = await query;
     setOrders(ordersData || []);
     setLoading(false);
-  }, [producer.farm_name, filterStatus]);
+  }, [producer.user_id, filterStatus]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 

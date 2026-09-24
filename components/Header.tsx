@@ -72,6 +72,14 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
         <div className="flex items-center gap-1.5 md:gap-3 flex-none shrink-0">
           <LanguageSelector />
 
+          {/* Marchand / Producteur */}
+          {user?.user_metadata?.role === 'producer' && (
+            <Link href="/producer/dashboard" className="flex items-center justify-center w-9 h-9 md:w-auto md:h-auto md:px-3 md:py-2 rounded-full bg-[#ecf4d5] text-[#526500] md:gap-1.5 hover:bg-[#d2e095] transition" title={t('nav.merchant_space', 'Mon espace marchand')}>
+              <span>🏪</span>
+              <span className="hidden md:block text-xs font-semibold">{t('nav.merchant_space_short', 'Ma boutique')}</span>
+            </Link>
+          )}
+
           {/* Admin / Gestionnaire */}
           {canAccessAdmin(user?.user_metadata) && (
             <Link href="/admin" className="flex items-center justify-center w-9 h-9 md:w-auto md:h-auto md:px-3 md:py-2 rounded-full bg-[#3a4800] text-[#c5d87a] md:gap-1.5 hover:bg-[#526500] transition">

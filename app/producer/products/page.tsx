@@ -32,14 +32,14 @@ function ProductsContent({ producer }: { producer: any }) {
       supabase
         .from('products')
         .select('*')
-        .eq('farm', producer.farm_name)
+        .eq('owner_id', producer.user_id)
         .order('created_at', { ascending: false }),
       supabase.from('categories').select('*').order('id'),
     ]);
     setProducts(prods || []);
     setCategories(cats || []);
     setLoading(false);
-  }, [producer.farm_name]);
+  }, [producer.user_id]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -165,6 +165,9 @@ function ProductsContent({ producer }: { producer: any }) {
                   <th className="text-left px-4 py-3 text-gray-500 font-medium">
                     {t('admin.col_type', 'Type')}
                   </th>
+                  <th className="text-left px-4 py-3 text-gray-500 font-medium">
+                    {t('admin.col_status', 'Statut')}
+                  </th>
                   <th className="text-right px-4 py-3 text-gray-500 font-medium">
                     {t('admin.actions', 'Actions')}
                   </th>
@@ -201,6 +204,17 @@ function ProductsContent({ producer }: { producer: any }) {
                       <span className={`px-2 py-1 rounded-full text-xs ${p.product_type === 'bio' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}`}>
                         {p.product_type === 'bio' ? t('admin.type_bio', '🌿 Bio') : t('admin.type_conv', '🌾 Conv.')}
                       </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {p.status === 'published' ? (
+                        <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">✅ {t('producer.st_published', 'Publié')}</span>
+                      ) : p.status === 'pending_review' ? (
+                        <span className="px-2 py-1 rounded-full text-xs bg-amber-100 text-amber-800">⏳ {t('producer.st_pending', 'À valider')}</span>
+                      ) : p.status === 'rejected' ? (
+                        <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-600" title={p.review_note || ''}>❌ {t('producer.st_rejected', 'Refusé')}{p.review_note ? ` — ${p.review_note}` : ''}</span>
+                      ) : (
+                        <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600">{p.status || '—'}</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button
