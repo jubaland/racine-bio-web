@@ -46,7 +46,8 @@ export async function GET(request: Request) {
     const last = mine[0] || null;
     const req = (reqs || []).find((r: any) => r.email?.toLowerCase() === u.email?.toLowerCase() && r.status === 'approved');
     const mp = (prods || []).filter((p: any) => p.owner_id === u.id);
-    const state = active ? 'active' : pending ? 'pending_payment' : last?.status === 'suspended' ? 'suspended' : last ? 'expired' : 'none';
+    const hadPeriod = mine.some((s: any) => s.status === 'active' || s.status === 'expired');
+    const state = active ? 'active' : pending ? 'pending_payment' : last?.status === 'suspended' ? 'suspended' : hadPeriod ? 'expired' : 'none';
     return {
       id: u.id, email: u.email, name: nameOf(u), phone: u.user_metadata?.phone || null,
       farm_name: shopMap[u.id] || req?.farm_name || null, created_at: u.created_at,

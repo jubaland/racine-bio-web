@@ -54,7 +54,8 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
       const active = (subs || []).find(s => s.status === 'active' && s.ends_at >= today) || null;
       const pending = (subs || []).find(s => s.status === 'pending_payment') || null;
       const last = (subs || [])[0] || null;
-      const state = active ? 'active' : pending ? 'pending' : last?.status === 'suspended' ? 'suspended' : last ? 'expired' : 'none';
+      const hadPeriod = (subs || []).some(s => s.status === 'active' || s.status === 'expired');
+      const state = active ? 'active' : pending ? 'pending' : last?.status === 'suspended' ? 'suspended' : hadPeriod ? 'expired' : 'none';
       const days_left = active ? Math.ceil((new Date(active.ends_at + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / 86400000) : null;
 
       setProducer({
@@ -75,6 +76,7 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
     { href: '/producer/dashboard', emoji: '📊', label: t('producer.nav_dashboard', 'Tableau de bord') },
     { href: '/producer/products',  emoji: '🥬', label: t('producer.nav_products',  'Mes produits') },
     { href: '/producer/orders',    emoji: '📦', label: t('producer.nav_orders',    'Mes commandes') },
+    { href: '/producer/subscription', emoji: '💳', label: t('producer.nav_subscription', 'Mon abonnement') },
   ];
 
   if (loading) {
@@ -112,7 +114,13 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
       ? { cls: 'bg-amber-50 border-amber-200 text-amber-800', text: `⏳ ${t('producer.sub_pending', 'Paiement en attente de confirmation par Hornafresh.')}` }
     : sub.state === 'suspended'
       ? { cls: 'bg-red-50 border-red-200 text-red-700', text: `⏸️ ${t('producer.sub_suspended', 'Abonnement suspendu — vos produits ne sont pas visibles. Contactez-nous au 77 43 26 15.')}` }
-      : { cls: 'bg-red-50 border-red-200 text-red-700', text: `🔒 ${t('producer.sub_none', 'Aucun abonnement actif — vos produits ne sont pas visibles sur le site. Pour activer votre abonnement (5 000 Fdj / mois), contactez Hornafresh au 77 43 26 15.')}` };
+      : { cls: 'bg-red-50 border-red-200 text-red-700', text: `🔒 ${t('producer.sub_none', 'Aucun abonnement actif — vos produits ne sont pas visibles sur le site. Activez votre abonnement pour les rendre visibles.')}` };
+  // Lien d'action vers « Mon abonnement » dès que l'abonnement n'est pas simplement actif (sauf sur la page elle-même)
+  const bannerLink = pathname !== '/producer/subscription' && sub.state !== 'active'
+    ? { href: '/producer/subscription', label: sub.state === 'pending' ? t('producer.sub_link_view', 'Voir ma demande') : sub.state === 'expired' ? t('producer.sub_link_renew', 'Renouveler') : t('producer.sub_link_activate', 'Activer mon abonnement') }
+    : pathname !== '/producer/subscription' && sub.state === 'active' && sub.days_left != null && sub.days_left <= 7
+      ? { href: '/producer/subscription', label: t('producer.sub_link_renew', 'Renouveler') }
+      : null;
 
   return (
     <div className="min-h-screen bg-[#faf7e8]">
@@ -136,7 +144,14 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 md:px-6 pt-4">
-        <div className={`rounded-2xl border px-4 py-3 text-sm ${banner.cls}`}>{banner.text}</div>
+        <div className={`rounded-2xl border px-4 py-3 text-sm flex flex-wrap items-center gap-x-4 gap-y-2 ${banner.cls}`}>
+          <span className="flex-1 min-w-0">{banner.text}</span>
+          {bannerLink && (
+            <Link href={bannerLink.href} className="flex-none text-xs font-semibold bg-[#a8c800] text-white rounded-full px-3 py-1.5 hover:bg-[#7d9800] transition">
+              💳 {bannerLink.label} →
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-6 flex flex-col md:flex-row gap-4 md:gap-6">

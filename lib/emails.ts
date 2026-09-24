@@ -363,6 +363,22 @@ export async function sendMerchantEmail(email: string, subject: string, title: s
   await resend.emails.send({ from: FROM, to: email, subject, html });
 }
 
+// ── 4b. Paiement d'abonnement déclaré par un marchand → admin ────────────────
+export async function sendMerchantPaymentAlert(p: { shop: string; email: string | null; plan: string; amount: number; method: string; reference: string | null }) {
+  const amt = Number(p.amount).toLocaleString('fr-FR');
+  const html = baseLayout(`
+    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">💳 Paiement d'abonnement déclaré</h2>
+    <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">Un marchand déclare avoir réglé son abonnement.</p>
+    <div style="background:#f8faf0;border-radius:12px;padding:16px;margin:16px 0;">
+      <p style="margin:0;color:#374151;font-size:14px;"><strong>Marchand :</strong> ${p.shop}${p.email ? ` (${p.email})` : ''}</p>
+      <p style="margin:6px 0 0;color:#374151;font-size:14px;"><strong>Plan :</strong> ${p.plan} — <strong>${amt} Fdj</strong></p>
+      <p style="margin:6px 0 0;color:#374151;font-size:14px;"><strong>Mode :</strong> ${p.method === 'cash' ? 'Espèces' : 'Waafi'}${p.reference ? ` · <strong>Réf. :</strong> ${p.reference}` : ''}</p>
+    </div>
+    <p style="color:#6b7280;font-size:13px;">Vérifiez le paiement reçu, puis confirmez-le dans Admin → Marchands → À traiter.</p>
+  `);
+  await resend.emails.send({ from: FROM, to: ADMIN_EMAIL, subject: `💳 Abonnement marchand à confirmer — ${p.shop} (${amt} Fdj)`, html });
+}
+
 // ── 5. Abonnement mis en pause (solde insuffisant) → client ──────────────────
 export async function sendSubscriptionPaused(email: string, needed: number, balance: number) {
   const html = baseLayout(`
