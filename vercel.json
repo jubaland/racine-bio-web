@@ -1,5 +1,6 @@
 {
   "crons": [
-    { "path": "/api/cron/deliveries", "schedule": "0 6 * * *" }
+    { "path": "/api/cron/deliveries", "schedule": "0 6 * * *" },
+    { "path": "/api/cron/merchants",  "schedule": "30 5 * * *" }
   ]
 }
