@@ -10,6 +10,7 @@ const emptyForm = (farmName: string, region: string) => ({
   name: '', price: '', old_price: '', unit: 'kg', farm: farmName,
   category: '', product_type: 'bio', origin_country: 'DJ',
   image_url: '', description: '', is_local: true, region,
+  stock_qty: '',
 });
 
 function ProductsContent({ producer }: { producer: any }) {
@@ -65,9 +66,24 @@ function ProductsContent({ producer }: { producer: any }) {
       description: p.description || '',
       is_local: p.is_local,
       region: p.region || producer.region || '',
+      stock_qty: String(p.stock_qty ?? ''),
     });
     setError('');
     setShowModal(true);
+  };
+
+  // Photo : envoi direct dans le bucket (autorisé aux comptes connectés)
+  const [uploading, setUploading] = useState(false);
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true); setError('');
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = `m-${producer.user_id.slice(0, 8)}-${Date.now()}.${ext}`;
+    const { error: uploadErr } = await supabase.storage.from('product-images').upload(path, file, { upsert: true });
+    if (uploadErr) { setError(uploadErr.message); setUploading(false); return; }
+    set('image_url', supabase.storage.from('product-images').getPublicUrl(path).data.publicUrl);
+    setUploading(false);
   };
 
   const handleSave = async () => {
@@ -90,6 +106,7 @@ function ProductsContent({ producer }: { producer: any }) {
       description: form.description.trim(),
       is_local: form.is_local,
       region: form.region.trim(),
+      stock_qty: Math.max(0, parseInt(form.stock_qty || '0', 10) || 0),
     };
     // owner_id = compte propriétaire (exigé par la RLS pour créer/éditer ses produits)
     const { data: { user } } = await supabase.auth.getUser();
@@ -289,6 +306,17 @@ function ProductsContent({ producer }: { producer: any }) {
                   placeholder="kg, L, boîte..."
                 />
               </FormField>
+              <FormField label={t('admin.field_stock_qty', 'Stock disponible *')}>
+                <input
+                  type="number"
+                  min={0}
+                  value={form.stock_qty}
+                  onChange={e => set('stock_qty', e.target.value)}
+                  className={inputClass}
+                  placeholder={t('producer.stock_ph', 'Ex : 50')}
+                />
+                <p className="text-[11px] text-gray-400 mt-1">{t('producer.stock_hint', 'À 0, le produit est affiché « Rupture de stock » et ne peut pas être commandé. Le stock se modifie sans nouvelle validation.')}</p>
+              </FormField>
               <FormField label={t('admin.col_category', 'Catégorie')}>
                 <select
                   value={form.category}
@@ -328,13 +356,20 @@ function ProductsContent({ producer }: { producer: any }) {
                 />
               </FormField>
             </div>
-            <FormField label={t('admin.field_image_url', "URL de l'image")}>
-              <input
-                value={form.image_url}
-                onChange={e => set('image_url', e.target.value)}
-                className={inputClass}
-                placeholder="https://..."
-              />
+            <FormField label={t('admin.field_image', 'Photo du produit')}>
+              <div className="flex items-center gap-3">
+                {form.image_url ? (
+                  <img src={form.image_url} alt="" className="w-16 h-16 rounded-xl object-cover border border-[#d2e095] flex-none" />
+                ) : (
+                  <div className="w-16 h-16 rounded-xl bg-[#ecf4d5] flex items-center justify-center text-2xl flex-none">📷</div>
+                )}
+                <label className={`flex-1 flex items-center gap-2 cursor-pointer border-2 border-dashed border-[#d2e095] rounded-xl px-3 py-3 text-sm text-[#526500] hover:bg-[#ecf4d5] transition ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <span>📁</span>
+                  <span>{uploading ? t('admin.uploading', 'Envoi en cours...') : t('producer.upload_image', 'Choisir une photo (téléphone ou ordinateur)')}</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
+                </label>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-1">{t('producer.image_hint', 'Une belle photo vend 3 fois mieux. Format carré conseillé.')}</p>
             </FormField>
             <FormField label={t('admin.field_description', 'Description')}>
               <textarea
