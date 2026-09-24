@@ -75,7 +75,17 @@ export default function AdminRequests() {
 
   const updateStatus = async (id: string, status: string) => {
     setUpdating(true);
-    await supabase.from('producer_requests').update({ status }).eq('id', id);
+    if (status === 'approved' || status === 'rejected') {
+      // Passe par l'API : pose le rôle marchand sur le compte + notifie (cohérent avec le module Marchands)
+      const tk = (await supabase.auth.getSession()).data.session?.access_token;
+      const res = await fetch('/api/admin/merchants', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tk}` },
+        body: JSON.stringify({ action: status === 'approved' ? 'approve_request' : 'reject_request', request_id: id }),
+      });
+      if (!res.ok) { const j = await res.json().catch(() => ({})); alert('⚠️ ' + (j.error || 'Erreur')); setUpdating(false); return; }
+    } else {
+      await supabase.from('producer_requests').update({ status }).eq('id', id);
+    }
     setUpdating(false);
     if (selectedRequest?.id === id) setSelectedRequest(prev => prev ? { ...prev, status } : null);
     fetchAll();

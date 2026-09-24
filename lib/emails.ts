@@ -350,6 +350,19 @@ export async function sendOrderCancelledToPreparers(order: any, emails: string[]
   await resend.emails.send({ from: FROM, to: emails, subject: `❌ Commande annulée — #${shortId}`, html });
 }
 
+// ── 4c. Email générique → marchand (abonnement, adhésion) ────────────────────
+export async function sendMerchantEmail(email: string, subject: string, title: string, text: string) {
+  const html = baseLayout(`
+    <h2 style="margin:0 0 12px;color:#1f2937;font-size:20px;">${title}</h2>
+    <p style="margin:0 0 20px;color:#374151;font-size:14px;line-height:1.6;">${text}</p>
+    <p style="text-align:center;margin:0 0 20px;">
+      <a href="https://www.hornafresh.com/producer/dashboard" style="display:inline-block;background:#a8c800;color:#ffffff;text-decoration:none;padding:12px 26px;border-radius:9999px;font-weight:bold;font-size:14px;">Ouvrir mon espace marchand</a>
+    </p>
+    <p style="margin:0;color:#6b7280;font-size:13px;">Une question ? <strong>77 43 26 15</strong> — L'équipe Hornafresh</p>
+  `);
+  await resend.emails.send({ from: FROM, to: email, subject, html });
+}
+
 // ── 5. Abonnement mis en pause (solde insuffisant) → client ──────────────────
 export async function sendSubscriptionPaused(email: string, needed: number, balance: number) {
   const html = baseLayout(`
