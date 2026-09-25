@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useLanguage } from '../../context/LanguageContext';
 import ImagesField from '../ImagesField';
-import BundleField, { EMPTY_BUNDLE, bundleFigures, type BundleForm } from './BundleField';
+import AdminBundles from './AdminBundles';
 import { useCan } from '../../context/AdminPermsContext';
 import Modal, { ConfirmDelete, FormField, inputClass, selectClass } from './Modal';
 
@@ -38,14 +38,10 @@ interface Product {
   featured_badge: string | null;
   created_at: string;
   owner_id?: string | null;
-  is_bundle?: boolean;             // panier composé (composition dans bundle_items)
+  is_bundle?: boolean;             // panier composé : géré dans l'onglet « Paniers » (AdminBundles)
   bundle_kind?: 'theme' | 'rescue' | null;
   bundle_ends_at?: string | null;
 }
-
-// datetime-local ⇄ ISO (heure locale de l'admin)
-const toLocalInput = (iso: string | null | undefined) => { if (!iso) return ''; const d = new Date(iso); const p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
-const fromLocalInput = (v: string) => v ? new Date(v).toISOString() : null;
 
 const EMPTY_FORM = {
   name: '', price: '', old_price: '', cost_price: '', unit: 'kg', farm: '', category: '',
@@ -65,8 +61,14 @@ export default function AdminProducts() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
-  const [bundle, setBundle] = useState<BundleForm>(EMPTY_BUNDLE);
   const [saving, setSaving] = useState(false);
+  const [tab, setTab] = useState<'products' | 'bundles'>('products');
+  // « Ajouter à un panier » depuis une ligne produit
+  const [addTo, setAddTo] = useState<Product | null>(null);
+  const [addToBundle, setAddToBundle] = useState('');
+  const [addToQty, setAddToQty] = useState('1');
+  const [addToSaving, setAddToSaving] = useState(false);
+  const [newBundleWith, setNewBundleWith] = useState<number | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
@@ -90,15 +92,10 @@ export default function AdminProducts() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const openAdd = () => { setEditingId(null); setForm(EMPTY_FORM); setBundle(EMPTY_BUNDLE); setError(''); setShowModal(true); };
+  const openAdd = () => { setEditingId(null); setForm(EMPTY_FORM); setError(''); setShowModal(true); };
 
-  const openEdit = async (p: Product) => {
+  const openEdit = (p: Product) => {
     setEditingId(p.id);
-    // Composition du panier (chargée à l'ouverture, une requête)
-    if (p.is_bundle) {
-      const { data: bi } = await supabase.from('bundle_items').select('product_id, quantity').eq('bundle_id', p.id).order('sort_order');
-      setBundle({ is_bundle: true, bundle_kind: p.bundle_kind || 'theme', bundle_ends_at: toLocalInput(p.bundle_ends_at), items: (bi || []).map((r: any) => ({ product_id: r.product_id, quantity: Number(r.quantity) })) });
-    } else setBundle(EMPTY_BUNDLE);
     setForm({
       name: p.name ?? '', price: String(p.price), old_price: String(p.old_price ?? ''),
       cost_price: String(p.cost_price ?? ''),
@@ -124,10 +121,6 @@ export default function AdminProducts() {
       setError(t('admin.error_products', 'Nom, prix et unité sont requis.'));
       return;
     }
-    // Panier composé : au moins un composant ; anti-gaspi : date de fin obligatoire
-    const bundleItems = bundle.is_bundle ? bundle.items.filter(i => i.quantity > 0) : [];
-    if (bundle.is_bundle && !bundleItems.length) { setError(t('admin.bundle_err_components', 'Un panier doit contenir au moins un composant.')); return; }
-    if (bundle.is_bundle && bundle.bundle_kind === 'rescue' && !bundle.bundle_ends_at) { setError(t('admin.bundle_err_ends', 'Un panier anti-gaspi doit avoir une date de fin.')); return; }
     setSaving(true);
     setError('');
     try {
@@ -135,9 +128,6 @@ export default function AdminProducts() {
       const badgesArr = s(form.badges)
         ? s(form.badges).split(',').map((b: string) => b.trim()).filter(Boolean)
         : null;
-      // Coût du panier = somme des coûts des composants (marge Finances) ; unité forcée « panier »
-      const byId = Object.fromEntries(products.map(p => [p.id, p])) as Record<number, any>;
-      const fig = bundle.is_bundle ? bundleFigures(bundleItems, byId) : null;
       const payload = {
         name: s(form.name), price: parseFloat(form.price),
         old_price: form.old_price ? parseFloat(form.old_price) : null,
@@ -156,25 +146,11 @@ export default function AdminProducts() {
         is_featured: form.is_featured,
         featured_badge: s(form.featured_badge) || null,
         stock_qty: form.stock_qty !== '' ? parseFloat(form.stock_qty) : 0,
-        is_bundle: bundle.is_bundle,
-        bundle_kind: bundle.is_bundle ? bundle.bundle_kind : null,
-        bundle_ends_at: bundle.is_bundle ? fromLocalInput(bundle.bundle_ends_at) : null,
-        ...(fig ? { cost_price: fig.cost, unit: 'panier' } : {}),
       };
-      const { data: saved, error: err } = editingId
-        ? await supabase.from('products').update(payload).eq('id', editingId).select('id').single()
-        : await supabase.from('products').insert(payload).select('id').single();
+      const { error: err } = editingId
+        ? await supabase.from('products').update(payload).eq('id', editingId)
+        : await supabase.from('products').insert(payload);
       if (err) { setError(err.message); setSaving(false); return; }
-      // Composition : remplacée intégralement (simple et idempotent)
-      const bundleId = saved?.id ?? editingId;
-      if (bundleId) {
-        const { error: delErr } = await supabase.from('bundle_items').delete().eq('bundle_id', bundleId);
-        if (delErr) { setError(delErr.message); setSaving(false); return; }
-        if (bundle.is_bundle && bundleItems.length) {
-          const { error: biErr } = await supabase.from('bundle_items').insert(bundleItems.map((it, i) => ({ bundle_id: bundleId, product_id: it.product_id, quantity: it.quantity, sort_order: i })));
-          if (biErr) { setError(biErr.message); setSaving(false); return; }
-        }
-      }
       setSaving(false);
       setShowModal(false);
       fetchAll();
@@ -215,7 +191,27 @@ export default function AdminProducts() {
 
   const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
 
+  // Ajouter un produit (Hornafresh, publié) à un panier existant
+  const bundles = products.filter(p => p.is_bundle);
+  const canJoinBundle = (p: Product) => !p.owner_id && !p.is_bundle && p.status === 'published' && bundles.length > 0;
+  const handleAddTo = async () => {
+    if (!addTo || !addToBundle) return;
+    const q = parseFloat(addToQty);
+    if (!(q > 0)) { setError(t('admin.bundle_qty_invalid', 'Quantité invalide.')); return; }
+    setAddToSaving(true); setError('');
+    const { data: existing } = await supabase.from('bundle_items').select('sort_order').eq('bundle_id', Number(addToBundle));
+    const { error: err } = await supabase.from('bundle_items').upsert(
+      { bundle_id: Number(addToBundle), product_id: addTo.id, quantity: q, sort_order: (existing || []).length },
+      { onConflict: 'bundle_id,product_id' });
+    setAddToSaving(false);
+    if (err) { setError(err.message); return; }
+    setAddTo(null); setAddToBundle(''); setAddToQty('1');
+    fetchAll();
+  };
+
+  // Les paniers sont gérés dans l'onglet « Paniers » : ils n'apparaissent pas dans la liste des produits
   const filtered = products.filter(p => {
+    if (p.is_bundle) return false;
     const q = search.toLowerCase();
     const matchSearch = !q || p.name.toLowerCase().includes(q) || p.farm.toLowerCase().includes(q);
     const matchCat = !filterCategory || p.category === filterCategory;
@@ -224,15 +220,27 @@ export default function AdminProducts() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold text-gray-800">🥬 {t('admin.nav_products', 'Produits')}</h1>
-        {can('products', 'create') && (
-          <button onClick={openAdd} className="bg-[#a8c800] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#7d9800] transition">
-            {t('admin.add', '+ Ajouter')}
-          </button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap gap-1 bg-white border border-[#d2e095] rounded-2xl sm:rounded-full p-1">
+            {([['products', `🥬 ${t('admin.tab_products', 'Produits')}`], ['bundles', `🧺 ${t('admin.tab_bundles', 'Paniers')}${bundles.length ? ` (${bundles.length})` : ''}`]] as const).map(([id, label]) => (
+              <button key={id} onClick={() => setTab(id)} className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${tab === id ? 'bg-[#526500] text-white' : 'text-[#526500] hover:bg-[#ecf4d5]'}`}>{label}</button>
+            ))}
+          </div>
+          {tab === 'products' && can('products', 'create') && (
+            <button onClick={openAdd} className="bg-[#a8c800] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#7d9800] transition">
+              {t('admin.add', '+ Ajouter')}
+            </button>
+          )}
+        </div>
       </div>
 
+      {tab === 'bundles' && (
+        <AdminBundles products={products as any} refresh={fetchAll} can={can} initialProduct={newBundleWith} onInitialConsumed={() => setNewBundleWith(null)} />
+      )}
+
+      {tab === 'products' && <>
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <input
           type="text"
@@ -304,7 +312,10 @@ export default function AdminProducts() {
                         <span className="px-2 py-1 bg-green-50 text-green-700 rounded-full text-xs">✓ {p.stock_qty} {p.unit}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      {can('products', 'edit') && !p.owner_id && !p.is_bundle && p.status === 'published' && (
+                        <button onClick={() => { setError(''); setAddTo(p); setAddToBundle(''); setAddToQty('1'); }} className="text-[#526500] hover:text-[#3f4f00] text-xs font-medium mr-3" title={t('admin.add_to_bundle', 'Ajouter à un panier')}>🧺 {t('admin.add_to_bundle_short', 'Panier')}</button>
+                      )}
                       {can('products', 'edit') && <button onClick={() => openEdit(p)} className="text-[#7d9800] hover:text-[#526500] text-xs font-medium mr-3">{t('admin.edit', 'Modifier')}</button>}
                       {can('products', 'delete') && <button onClick={() => { setError(''); setDeleteId(p.id); }} className="text-orange-400 hover:text-[#f97316] text-xs font-medium">{t('admin.delete', 'Supprimer')}</button>}
                     </td>
@@ -317,6 +328,38 @@ export default function AdminProducts() {
             {filtered.length} {t('admin.nav_products', 'produits').toLowerCase()}
           </div>
         </div>
+      )}
+      </>}
+
+      {/* Ajouter un produit à un panier (existant ou nouveau) */}
+      {addTo && (
+        <Modal title={`🧺 ${t('admin.add_to_bundle', 'Ajouter à un panier')} — ${addTo.name}`} onClose={() => setAddTo(null)}>
+          <div className="space-y-4">
+            {canJoinBundle(addTo) ? (
+              <>
+                <FormField label={t('admin.add_to_bundle_choose', 'Panier existant')}>
+                  <select value={addToBundle} onChange={e => setAddToBundle(e.target.value)} className={selectClass}>
+                    <option value="">{t('admin.add_to_bundle_pick', '— Choisir un panier —')}</option>
+                    {bundles.map(b => <option key={b.id} value={b.id}>{b.bundle_kind === 'rescue' ? '♻️' : '🧺'} {b.name} · {Number(b.price).toLocaleString()} Fdj{b.status !== 'published' ? ` (${b.status})` : ''}</option>)}
+                  </select>
+                </FormField>
+                <FormField label={`${t('admin.bundle_qty_in', 'Quantité par panier')} (${addTo.unit})`}>
+                  <input type="number" min="0.1" step="0.1" value={addToQty} onChange={e => setAddToQty(e.target.value)} className={inputClass} />
+                </FormField>
+                {error && <div className="bg-orange-50 text-[#f97316] text-sm px-4 py-3 rounded-xl">{error}</div>}
+                <button onClick={handleAddTo} disabled={!addToBundle || addToSaving} className="w-full py-3 bg-[#a8c800] text-white rounded-xl text-sm font-semibold hover:bg-[#7d9800] transition disabled:opacity-50">
+                  {addToSaving ? t('admin.saving', 'Enregistrement...') : t('admin.add_to_bundle_confirm', 'Ajouter à ce panier')}
+                </button>
+                <p className="text-center text-xs text-gray-400">{t('admin.or', 'ou')}</p>
+              </>
+            ) : (
+              <p className="text-sm text-gray-500">{t('admin.add_to_bundle_none', 'Aucun panier pour le moment : créez-en un avec ce produit.')}</p>
+            )}
+            <button onClick={() => { const id = addTo.id; setAddTo(null); setNewBundleWith(id); setTab('bundles'); }} className="w-full py-3 border border-[#d2e095] text-[#526500] rounded-xl text-sm font-semibold hover:bg-[#ecf4d5] transition">
+              🧺 {t('admin.add_to_bundle_new', 'Nouveau panier avec ce produit')}
+            </button>
+          </div>
+        </Modal>
       )}
 
       {showModal && (
@@ -454,9 +497,6 @@ export default function AdminProducts() {
                 <span className="text-sm text-gray-700">{t('admin.field_in_stock', 'En stock')}</span>
               </label>
             </div>
-
-            {/* Panier composé (thématique / anti-gaspi) — produits Hornafresh uniquement */}
-            <BundleField value={bundle} onChange={setBundle} products={products as any} price={form.price} stockQty={form.stock_qty} />
 
             {/* Mise en avant homepage */}
             <div className="border border-[#d2e095] rounded-2xl p-4 space-y-3 bg-[#fafff0]">
