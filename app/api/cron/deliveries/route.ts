@@ -2,35 +2,14 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { sendPrepSlipToPreparers, sendOrderConfirmation, sendSubscriptionPaused, sendSubscriptionExpired } from '../../../../lib/emails';
 
-// Génération automatique des livraisons d'abonnement.
+import { FREQ_LABEL, isDue } from '../../../../lib/subscription-schedule';
+import { computeTemplateOrder, remindTomorrow } from '../../../../lib/subscription-restock';
+
+// Génération automatique des livraisons d'abonnement + rappel de la veille (réassort intelligent).
 // Appelé chaque jour par Vercel Cron (voir vercel.json).
-
-const FREQ_LABEL: Record<string, string> = {
-  weekly:      'hebdomadaire',
-  fortnightly: 'toutes les deux semaines',
-  monthly:     'mensuelle',
-};
-
-// Nombre de jours entiers entre deux dates au format YYYY-MM-DD
-function daysBetween(fromStr: string, toStr: string): number {
-  const a = new Date(fromStr + 'T00:00:00Z').getTime();
-  const b = new Date(toStr + 'T00:00:00Z').getTime();
-  return Math.round((b - a) / 86400000);
-}
-
-// Une livraison est-elle due aujourd'hui selon la fréquence ?
-// (on est déjà le bon jour de la semaine ; today != last_delivery est garanti par l'appelant)
-function isDue(frequency: string, lastDelivery: string | null, todayStr: string): boolean {
-  if (!lastDelivery) return true;
-  if (frequency === 'weekly') return true; // une fois par semaine sur ce jour
-  if (frequency === 'fortnightly') return daysBetween(lastDelivery, todayStr) >= 14;
-  if (frequency === 'monthly') {
-    const last = new Date(lastDelivery + 'T00:00:00Z');
-    const today = new Date(todayStr + 'T00:00:00Z');
-    return last.getUTCFullYear() !== today.getUTCFullYear() || last.getUTCMonth() !== today.getUTCMonth();
-  }
-  return false;
-}
+//   ?only=reminders  → n'exécute que le rappel J-1 (tests)
+//   ?user=<uuid>     → restreint le rappel J-1 à un client (tests)
+//   ?dry=1           → rappel J-1 calculé sans rien envoyer
 
 export async function GET(request: Request) {
   const auth = request.headers.get('authorization');
@@ -41,6 +20,17 @@ export async function GET(request: Request) {
   const now = new Date();
   const dow = now.getUTCDay();            // 0=dim … 6=sam
   const todayStr = now.toISOString().slice(0, 10);
+  const params = new URL(request.url).searchParams;
+  const onlyReminders = params.get('only') === 'reminders';
+  const onlyUser = params.get('user') || undefined;
+  const dry = params.get('dry') === '1';
+
+  // 4. Rappel de la veille (réassort intelligent) — seul ou après les livraisons du jour
+  const runReminders = async () => {
+    try { return await remindTomorrow(todayStr, { onlyUser, dry }); }
+    catch (e: any) { return { error: e.message }; }
+  };
+  if (onlyReminders) return NextResponse.json({ date: todayStr, reminders: await runReminders() });
 
   const { data: subs } = await supabaseAdmin
     .from('subscriptions')
@@ -86,12 +76,13 @@ export async function GET(request: Request) {
       results.push({ user: s.user_id, frequency: s.frequency, error: e.message });
     }
   }
-  return NextResponse.json({ date: todayStr, dow, due: due.length, results });
+  const reminders = await runReminders();
+  return NextResponse.json({ date: todayStr, dow, due: due.length, results, reminders });
 }
 
 async function expireOne(userId: string, frequency: string) {
   await supabaseAdmin.from('subscriptions')
-    .update({ paused: true, updated_at: new Date().toISOString() })
+    .update({ paused: true, paused_reason: 'expired', updated_at: new Date().toISOString() })
     .eq('user_id', userId).eq('frequency', frequency);
   const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId);
   const email = userData?.user?.email || null;
@@ -105,27 +96,11 @@ async function expireOne(userId: string, frequency: string) {
 
 async function processOne(userId: string, frequency: string, todayStr: string, fee: number = 0) {
   const label = FREQ_LABEL[frequency] || frequency;
-  const { data: items } = await supabaseAdmin
-    .from('subscription_items').select('product_id, quantity').eq('user_id', userId).eq('frequency', frequency);
-  if (!items || !items.length) return { skipped: 'no_items' };
-
-  const ids = items.map((i: any) => i.product_id);
-  const { data: prods } = await supabaseAdmin
-    .from('products').select('id, name, price, unit, image_url, farm, stock_qty, status, is_bundle').in('id', ids);
-  const pmap: Record<number, any> = Object.fromEntries((prods || []).map((p: any) => [p.id, p]));
-
-  // Lignes livrables (produit publié, quantité plafonnée au stock). Les paniers composés
-  // (composition variable, anti-gaspi éphémère) ne font pas partie des commandes modèles.
-  const lines: { p: any; qty: number }[] = [];
-  for (const it of items) {
-    const p = pmap[it.product_id];
-    if (!p || p.status !== 'published' || p.is_bundle) continue;
-    const q = Math.min(Number(it.quantity), Number(p.stock_qty) || 0);
-    if (q > 0) lines.push({ p, qty: q });
-  }
+  // Lignes livrables (produit publié, quantité plafonnée au stock, paniers composés exclus) —
+  // règle partagée avec le rappel de la veille et la reprise après recharge (lib/subscription-restock)
+  const { lines, itemsTotal } = await computeTemplateOrder(userId, frequency);
   if (!lines.length) return { skipped: 'out_of_stock' };
 
-  const itemsTotal = lines.reduce((s, l) => s + Number(l.p.price) * l.qty, 0);
   const total = itemsTotal + (Number(fee) || 0);   // articles + frais de transport personnalisés
 
   // Solde
@@ -138,7 +113,8 @@ async function processOne(userId: string, frequency: string, todayStr: string, f
   const email = userData?.user?.email || null;
 
   if (balance < total) {
-    await supabaseAdmin.from('subscriptions').update({ paused: true, updated_at: new Date().toISOString() })
+    // Pause « solde insuffisant » : levée automatiquement à la prochaine recharge (resumeAfterTopUp)
+    await supabaseAdmin.from('subscriptions').update({ paused: true, paused_reason: 'low_balance', updated_at: new Date().toISOString() })
       .eq('user_id', userId).eq('frequency', frequency);
     try { if (email) await sendSubscriptionPaused(email, total, balance); } catch {}
     try {

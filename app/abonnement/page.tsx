@@ -6,6 +6,7 @@ import { supabase, fetchProducts } from '../../lib/supabase';
 import { useLanguage } from '../../context/LanguageContext';
 import Header from '../../components/Header';
 import CartDrawer from '../../components/CartDrawer';
+import { nextDeliveryDate } from '../../lib/subscription-schedule';
 
 type Freq = 'weekly' | 'fortnightly' | 'monthly';
 const FREQS: Freq[] = ['weekly', 'fortnightly', 'monthly'];
@@ -31,6 +32,8 @@ export default function SubscriptionPage() {
   // Frais de transport personnalisés (définis par l'admin) — lecture seule côté client
   const [feeByFreq, setFeeByFreq] = useState<Record<Freq, number>>({ weekly: 0, fortnightly: 0, monthly: 0 });
   const [lastByFreq, setLastByFreq] = useState<Record<Freq, string | null>>({ weekly: null, fortnightly: null, monthly: null });
+  // Pause posée par le système : 'low_balance' (levée automatiquement à la prochaine recharge) ou 'expired'
+  const [pausedByFreq, setPausedByFreq] = useState<Record<Freq, string | null>>({ weekly: null, fortnightly: null, monthly: null });
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -82,6 +85,7 @@ export default function SubscriptionPage() {
       const val: Record<Freq, string | null> = { weekly: null, fortnightly: null, monthly: null };
       const fees: Record<Freq, number> = { weekly: 0, fortnightly: 0, monthly: 0 };
       const last: Record<Freq, string | null> = { weekly: null, fortnightly: null, monthly: null };
+      const pz: Record<Freq, string | null> = { weekly: null, fortnightly: null, monthly: null };
       (subs || []).forEach((s: any) => {
         const f = (s.frequency || 'weekly') as Freq;
         if (!FREQS.includes(f)) return;
@@ -90,8 +94,9 @@ export default function SubscriptionPage() {
         val[f] = s.valid_until ?? null;
         fees[f] = Number(s.delivery_fee) || 0;
         last[f] = s.last_delivery ?? null;
+        pz[f] = s.active && s.paused ? (s.paused_reason || 'user') : null;
       });
-      setDayByFreq(day); setActiveByFreq(act); setValidByFreq(val); setFeeByFreq(fees); setLastByFreq(last);
+      setDayByFreq(day); setActiveByFreq(act); setValidByFreq(val); setFeeByFreq(fees); setLastByFreq(last); setPausedByFreq(pz);
 
       const q: Record<Freq, Record<number, number>> = { weekly: {}, fortnightly: {}, monthly: {} };
       (items || []).forEach((it: any) => {
@@ -125,6 +130,12 @@ export default function SubscriptionPage() {
 
   const totalForFreq = (f: Freq) =>
     products.reduce((s, p) => s + Number(p.price) * (qtyByFreq[f][p.id] || 0), 0);
+
+  // Prochaine livraison de la fréquence courante (même calendrier que le cron) et manque éventuel
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const nextDelivery = active ? nextDeliveryDate({ frequency: freq, delivery_day: deliveryDay, last_delivery: lastByFreq[freq], valid_until: validByFreq[freq] }, todayIso) : null;
+  const missing = Math.max(0, total - balance);
+  const pausedReason = pausedByFreq[freq];
 
   // Autonomie exacte : simulation calendaire jour par jour (comme le cron).
   // Toutes les commandes modèles actives partagent la cagnotte ; quand plusieurs
@@ -210,6 +221,7 @@ export default function SubscriptionPage() {
     }
 
     setValidByFreq(prev => ({ ...prev, [freq]: validStr }));
+    setPausedByFreq(prev => ({ ...prev, [freq]: null })); // enregistrer lève toute pause
     setSaving(false);
     setSaved(true);
     if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -330,9 +342,33 @@ export default function SubscriptionPage() {
             </div>
 
             {error && <div className="bg-orange-50 text-[#f97316] text-sm px-4 py-3 rounded-xl mb-4">⚠️ {error}</div>}
-            {active && total > balance && total > 0 && (
-              <div className="bg-amber-50 text-amber-700 text-sm px-4 py-3 rounded-xl mb-4">
-                ⚠️ {t('sub.low_balance', 'Votre solde est insuffisant pour la première livraison. Pensez à recharger votre cagnotte.')}
+
+            {/* Pause posée par le système */}
+            {pausedReason === 'low_balance' && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3 rounded-xl mb-4">
+                <p className="font-semibold">⏸️ {t('sub.paused_low_balance', 'En pause : solde insuffisant lors de la dernière livraison.')}</p>
+                <p className="mt-1">{t('sub.paused_low_balance_hint', 'Elle reprendra automatiquement dès que votre cagnotte couvrira')} <strong>{total.toLocaleString()} Fdj</strong>{missing > 0 ? ` (${t('sub.missing', 'il manque')} ${missing.toLocaleString()} Fdj)` : ''}. {t('sub.paused_or_save', 'Vous pouvez aussi cocher « Activer » et enregistrer.')}</p>
+                {missing > 0 && <Link href="/profile" className="inline-block mt-2 text-xs font-semibold bg-[#a8c800] text-white px-3 py-1.5 rounded-full hover:bg-[#7d9800]">➕ {t('sub.topup', 'Recharger')}</Link>}
+              </div>
+            )}
+            {pausedReason === 'expired' && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3 rounded-xl mb-4">
+                ⏳ {t('sub.paused_expired', 'Arrivée à échéance : cochez « Activer la livraison automatique » et enregistrez pour repartir pour un an.')}
+              </div>
+            )}
+
+            {/* Prochaine livraison + manque éventuel (réassort intelligent) */}
+            {active && total > 0 && (
+              <div className={`text-sm px-4 py-3 rounded-xl mb-4 border ${missing > 0 ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-[#ecf4d5] border-[#d2e095] text-[#526500]'}`}>
+                <p>📅 {t('sub.next_delivery', 'Prochaine livraison')} : <strong>{nextDelivery ? fmtDate(nextDelivery) : '—'}</strong> · {total.toLocaleString()} Fdj {t('sub.debited_from_wallet', 'débités de votre cagnotte')}</p>
+                {missing > 0 ? (
+                  <p className="mt-1 flex flex-wrap items-center gap-2">
+                    <span>⚠️ {t('sub.missing_before', 'Il manque')} <strong>{missing.toLocaleString()} Fdj</strong> {t('sub.missing_after', 'sur votre cagnotte : rechargez avant cette date, sinon la livraison sera mise en pause.')}</span>
+                    <Link href="/profile" className="text-xs font-semibold bg-[#a8c800] text-white px-3 py-1.5 rounded-full hover:bg-[#7d9800]">➕ {t('sub.topup', 'Recharger')}</Link>
+                  </p>
+                ) : (
+                  <p className="mt-1 text-xs opacity-80">✅ {t('sub.balance_ok', 'Solde suffisant. Nous vous préviendrons la veille de chaque livraison.')}</p>
+                )}
               </div>
             )}
 

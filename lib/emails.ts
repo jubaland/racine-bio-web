@@ -436,6 +436,43 @@ export async function sendSubscriptionPaused(email: string, needed: number, bala
   await resend.emails.send({ from: FROM, to: email, subject: '⏸️ Cagnotte à recharger — Hornafresh', html });
 }
 
+// ── 5a bis. Rappel de la veille : solde insuffisant ou panier indisponible ─────
+export async function sendSubscriptionReminder(email: string, p: { label: string; dateStr: string; total: number; balance: number; missing: number; stockNote: string; empty: boolean }) {
+  const f = (n: number) => `${Number(n).toLocaleString('fr-FR')} Fdj`;
+  const html = baseLayout(p.empty ? `
+    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">⚠️ Livraison de demain : aucun article disponible</h2>
+    <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">Votre commande modèle <strong>${p.label}</strong> est prévue le ${p.dateStr}, mais aucun de ses articles n'est disponible pour le moment.</p>
+    ${p.stockNote ? `<p style="color:#92400e;font-size:14px;">${p.stockNote}</p>` : ''}
+    <p style="color:#374151;font-size:14px;line-height:1.6;">Ajustez votre panier dans « Ma commande modèle » pour recevoir votre livraison.</p>
+  ` : `
+    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">⏳ Livraison de demain : il manque ${f(p.missing)}</h2>
+    <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">Votre commande modèle <strong>${p.label}</strong> part le ${p.dateStr}.</p>
+    <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:12px;padding:16px;margin:16px 0;">
+      <p style="margin:0 0 4px;color:#92400e;font-size:14px;">Montant de la livraison : <strong>${f(p.total)}</strong></p>
+      <p style="margin:0 0 4px;color:#92400e;font-size:14px;">Solde de votre cagnotte : <strong>${f(p.balance)}</strong></p>
+      <p style="margin:0;color:#92400e;font-size:15px;">À recharger aujourd'hui : <strong>${f(p.missing)}</strong></p>
+    </div>
+    ${p.stockNote ? `<p style="color:#6b7280;font-size:13px;">${p.stockNote}</p>` : ''}
+    <p style="color:#374151;font-size:14px;line-height:1.6;">Rechargez votre cagnotte depuis votre espace (Waafi ou espèces) : dès validation, la livraison partira normalement. Sans recharge, la commande modèle sera mise en pause et reprendra automatiquement au prochain rechargement.</p>
+    <p style="color:#6b7280;font-size:13px;margin-top:24px;">Une question ? Contactez-nous au <strong>77432615</strong>.</p>
+  `);
+  await resend.emails.send({ from: FROM, to: email, subject: p.empty ? '⚠️ Livraison de demain : panier indisponible — Hornafresh' : `⏳ Il manque ${f(p.missing)} pour votre livraison de demain — Hornafresh`, html });
+}
+
+// ── 5a ter. Reprise automatique après recharge ───────────────────────────────
+export async function sendSubscriptionResumed(email: string, freqLabel: string, nextDateStr: string | null, total: number) {
+  const html = baseLayout(`
+    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">▶️ Votre commande modèle reprend</h2>
+    <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">Votre cagnotte a été rechargée : la commande modèle <strong>${freqLabel}</strong> est de nouveau active.</p>
+    <div style="background:#ecf4d5;border:1px solid #d2e095;border-radius:12px;padding:16px;margin:16px 0;">
+      ${nextDateStr ? `<p style="margin:0 0 4px;color:#526500;font-size:14px;">Prochaine livraison : <strong>${nextDateStr}</strong></p>` : ''}
+      <p style="margin:0;color:#526500;font-size:14px;">Montant : <strong>${Number(total).toLocaleString('fr-FR')} Fdj</strong> (débité de votre cagnotte le jour de la livraison)</p>
+    </div>
+    <p style="color:#6b7280;font-size:13px;margin-top:24px;">Vous pouvez modifier votre panier à tout moment dans « Ma commande modèle ».</p>
+  `);
+  await resend.emails.send({ from: FROM, to: email, subject: '▶️ Votre commande modèle reprend — Hornafresh', html });
+}
+
 // ── 5b. Abonnement arrivé à expiration ───────────────────────────────────────
 export async function sendSubscriptionExpired(email: string, freqLabel: string) {
   const html = baseLayout(`

@@ -50,7 +50,11 @@ export async function POST(request: Request) {
       const { notifyUser: sendPushToUser } = await import('../../../../lib/notify'); // cloche + push
       await sendPushToUser(req.user_id, { title: '✅ Cagnotte rechargée', body: `+${Number(req.amount).toLocaleString('fr-FR')} Fdj`, url: '/profile' });
     } catch (e) { console.error('[deposit approve] push error:', e); }
-    return NextResponse.json({ ok: true, balance: bal });
+    // Réassort intelligent : relancer les commandes modèles en pause pour solde insuffisant
+    let resumed: any[] = [];
+    try { const { resumeAfterTopUp } = await import('../../../../lib/subscription-restock'); resumed = await resumeAfterTopUp(req.user_id); }
+    catch (e) { console.error('[deposit approve] resume error:', e); }
+    return NextResponse.json({ ok: true, balance: bal, resumed });
   }
 
   if (action === 'reject') {

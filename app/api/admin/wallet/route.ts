@@ -38,5 +38,11 @@ export async function POST(request: Request) {
     p_note: note || null,
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json({ balance: data });
+  // Crédit : relancer les commandes modèles en pause pour solde insuffisant (réassort intelligent)
+  let resumed: any[] = [];
+  if (amt > 0) {
+    try { const { resumeAfterTopUp } = await import('../../../../lib/subscription-restock'); resumed = await resumeAfterTopUp(user_id); }
+    catch (e) { console.error('[wallet] resume error:', e); }
+  }
+  return NextResponse.json({ balance: data, resumed });
 }
