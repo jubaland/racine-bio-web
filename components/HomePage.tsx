@@ -330,7 +330,6 @@ export default function HomePage({ products, categories, promos, producers, sett
                       <button disabled={out} onClick={(e) => { e.stopPropagation(); e.preventDefault(); addItem(p); setCartOpen(true); }}
                         className="w-8 h-8 bg-[#a8c800] rounded-full flex items-center justify-center text-white text-lg font-bold hover:bg-[#7d9800] transition disabled:opacity-30 disabled:cursor-not-allowed">+</button>
                     </div>
-                    <CardLike productId={p.id} initialCount={p.likes_count ?? 0} initiallyLiked={likedSet.has(p.id)} eligible={eligibleSet.has(p.id)} />
                   </div>
                 </Link>
               );
@@ -384,11 +383,15 @@ export default function HomePage({ products, categories, promos, producers, sett
                       </span>
                     )}
                     <h3 className="text-sm font-semibold text-gray-800 truncate">{getProductName(p)}</h3>
+                    {p.is_bundle ? (
+                      <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{(p.bundle_items || []).map((c: any) => `${c.quantity} ${c.unit || ''} ${c.name}`.replace(/\s+/g, ' ').trim()).join(' · ')}</p>
+                    ) : (
                     <div className="flex items-center justify-between mt-1">
                       <p className="text-xs text-gray-400">{t('product.origin_label', 'Origine')}</p>
                       <span className="text-base flex-none ml-1">{flag}</span>
                     </div>
-                    {p.shop_name ? (
+                    )}
+                    {p.is_bundle ? null : p.shop_name ? (
                       <p onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/boutique/${p.owner_id}`); }} title={t('shop.open', 'Voir la boutique')} className="text-xs text-[#7d9800] truncate mt-0.5 hover:underline cursor-pointer">🏪 {p.shop_name}</p>
                     ) : p.origin_country === 'DJ' && p.farm && (
                       <p className="text-xs text-gray-400 truncate mt-0.5">🌱 {p.farm}</p>
@@ -406,7 +409,7 @@ export default function HomePage({ products, categories, promos, producers, sett
                         className="w-8 h-8 bg-[#a8c800] rounded-full flex items-center justify-center text-white text-lg font-bold hover:bg-[#7d9800] transition disabled:opacity-30 disabled:cursor-not-allowed"
                       >+</button>
                     </div>
-                    <CardLike productId={p.id} initialCount={p.likes_count ?? 0} initiallyLiked={likedSet.has(p.id)} eligible={eligibleSet.has(p.id)} />
+                    {!p.is_bundle && <CardLike productId={p.id} initialCount={p.likes_count ?? 0} initiallyLiked={likedSet.has(p.id)} eligible={eligibleSet.has(p.id)} />}
                   </div>
                 </Link>
               );
@@ -640,11 +643,15 @@ export default function HomePage({ products, categories, promos, producers, sett
                   </div>
                   <div className="p-3">
                     <h3 className="text-sm font-semibold text-gray-800 truncate">{getProductName(product)}</h3>
+                    {product.is_bundle ? (
+                      <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{(product.bundle_items || []).map((c: any) => `${c.quantity} ${c.unit || ''} ${c.name}`.replace(/\s+/g, ' ').trim()).join(' · ')}</p>
+                    ) : (
                     <div className="flex items-center justify-between mt-1">
                       <p className="text-xs text-gray-400">{t('product.origin_label', 'Origine')}</p>
                       <span className="text-base flex-none ml-1">{origin.flag}</span>
                     </div>
-                    {product.shop_name ? (
+                    )}
+                    {product.is_bundle ? null : product.shop_name ? (
                       <p onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/boutique/${product.owner_id}`); }} title={t('shop.open', 'Voir la boutique')} className="text-xs text-[#7d9800] truncate mt-0.5 hover:underline cursor-pointer">🏪 {product.shop_name}</p>
                     ) : product.origin_country === 'DJ' && product.farm && (
                       <p className="text-xs text-gray-400 truncate mt-0.5">🌱 {product.farm}</p>
@@ -662,7 +669,7 @@ export default function HomePage({ products, categories, promos, producers, sett
                         className="w-8 h-8 bg-[#a8c800] rounded-full flex items-center justify-center text-white text-lg font-bold hover:bg-[#7d9800] transition disabled:opacity-30 disabled:cursor-not-allowed"
                       >+</button>
                     </div>
-                    <CardLike productId={product.id} initialCount={product.likes_count ?? 0} initiallyLiked={likedSet.has(product.id)} eligible={eligibleSet.has(product.id)} />
+                    {!product.is_bundle && <CardLike productId={product.id} initialCount={product.likes_count ?? 0} initiallyLiked={likedSet.has(product.id)} eligible={eligibleSet.has(product.id)} />}
                   </div>
                 </Link>
               );

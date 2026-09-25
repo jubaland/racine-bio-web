@@ -50,7 +50,8 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
   const isRescue = isBundle && product.bundle_kind === 'rescue';
 
   const relatedProducts = allProducts
-    .filter(p => p.id !== product.id && p.category === product.category && (p.stock_qty ?? 0) > 0)
+    // Panier : les autres paniers ; produit : même catégorie (hors paniers)
+    .filter(p => p.id !== product.id && (product.is_bundle ? p.is_bundle : !p.is_bundle && p.category === product.category) && (p.stock_qty ?? 0) > 0)
     .slice(0, 4);
 
   const handleAddToCart = () => {
@@ -102,9 +103,11 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
               <div className={`absolute top-4 left-4 text-xs font-bold px-3 py-1.5 rounded-full backdrop-blur-sm shadow-sm ${isRescue ? 'bg-[#f97316] text-white' : isBundle ? 'bg-[#526500] text-white' : isBio ? 'bg-[#edf5a0]/90 text-[#526500]' : 'bg-orange-100/90 text-orange-700'}`}>
                 {isRescue ? `♻️ ${t('bundle.tag_rescue', 'Anti-gaspi')}` : isBundle ? `🧺 ${t('bundle.tag_theme', 'Panier')}` : isBio ? `🌿 ${t('product.type_bio', 'Bio')}` : `🥕 ${t('product.type_conv', 'Conventionnel')}`}
               </div>
-              <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm shadow-sm rounded-full px-3 py-1.5 text-sm font-medium text-gray-700">
-                {origin.flag} {origin.label}
-              </div>
+              {!isBundle && (
+                <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm shadow-sm rounded-full px-3 py-1.5 text-sm font-medium text-gray-700">
+                  {origin.flag} {origin.label}
+                </div>
+              )}
               {(product.stock_qty ?? 0) > 0 && (product.stock_qty ?? 0) <= 5 && (
                 <div className="absolute bottom-4 left-4 bg-amber-900/80 text-amber-100 text-xs px-3 py-1 rounded-full backdrop-blur-sm">
                   ⚠️ {t('product.stock_low_prefix', 'Plus que')} {product.stock_qty} {product.unit?.replace(/^\//, '')}
@@ -122,12 +125,15 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
                   <p className="text-sm text-[#7d9800] font-medium">🏪 {t('product.sold_by', 'Vendu par')} <Link href={`/boutique/${product.owner_id}`} className="underline underline-offset-2 hover:text-[#526500]">{product.shop_name}</Link>
                     {product.shop_rating != null && product.shop_rating_count > 0 && <span className="ml-2 text-xs text-gray-500"><span className="text-[#f59e0b]">★</span> {product.shop_rating}/5 · {product.shop_rating_count} {t('rev.count', 'avis')}</span>}
                   </p>
-                ) : product.origin_country === 'DJ' && product.farm && (
+                ) : !isBundle && product.origin_country === 'DJ' && product.farm && (
                   <p className="text-sm text-[#7d9800] font-medium">🌱 {product.farm}{product.region ? ` · ${product.region}` : ''}</p>
                 )}
-                <div className="mt-3">
-                  <LikeButton productId={product.id} initialCount={product.likes_count ?? 0} />
-                </div>
+                {/* Panier composé : pas de « J'aime » ni d'origine / ferme (informations sans objet pour un assortiment) */}
+                {!isBundle && (
+                  <div className="mt-3">
+                    <LikeButton productId={product.id} initialCount={product.likes_count ?? 0} />
+                  </div>
+                )}
               </div>
 
               {/* Description */}
@@ -211,12 +217,12 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
 
               {/* Badges */}
               <div className="flex flex-wrap gap-2">
-                {product.is_local && (
+                {!isBundle && product.is_local && (
                   <span className="bg-[#e6f0ff] text-[#0066cc] text-xs px-3 py-1.5 rounded-full font-medium">
                     🇩🇯 {t('product.local_badge', 'Produit local')}
                   </span>
                 )}
-                {isBio && (
+                {!isBundle && isBio && (
                   <span className="bg-[#ecf4d5] text-[#526500] text-xs px-3 py-1.5 rounded-full font-medium">
                     🌿 {t('product.bio_badge', 'Bio')}
                   </span>

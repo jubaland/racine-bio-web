@@ -28,8 +28,9 @@ export default function AdminBundles({ products, refresh, can, initialProduct, o
   initialProduct?: number | null;     // « Nouveau panier avec ce produit » depuis la liste Produits
   onInitialConsumed?: () => void;
 }) {
-  const { ui } = useLanguage();
+  const { ui, currentLang } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
+  const LOCALE: Record<string, string> = { fr: 'fr-FR', en: 'en-GB', zh: 'zh-CN', am: 'am-ET', so: 'so-SO', aa: 'fr-FR' }; // date du nom par défaut dans la langue de l'admin
   const [lines, setLines] = useState<Line[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -59,7 +60,7 @@ export default function AdminBundles({ products, refresh, can, initialProduct, o
   };
   const openRescue = () => {
     const low = bundleCandidates(products).filter(p => (p.stock_qty ?? 0) > 0 && p.stock_qty <= LOW_STOCK).map(p => ({ product_id: p.id, quantity: 1 }));
-    const day = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+    const day = new Date().toLocaleDateString(LOCALE[currentLang] || 'fr-FR', { day: 'numeric', month: 'long' });
     openCreate({ bundle_kind: 'rescue', bundle_ends_at: defaultEnd(), items: low }, `${t('admin.bundle_rescue_name', 'Panier anti-gaspi du')} ${day}`);
   };
   const openEdit = (b: Bundle) => {
