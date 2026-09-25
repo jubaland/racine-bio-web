@@ -21,16 +21,22 @@ export async function executeCancellation(orderId: any): Promise<{ ok: boolean; 
   if (!order) return { ok: false, error: 'not_found' };
   if (order.status === 'cancelled') { await resolvePendingCancelRequests(orderId); return { ok: true }; }
 
-  // 1) Restaurer le stock
+  // 1) Restaurer le stock (et repérer les produits marchands pour les prévenir en 7)
   const { data: items } = await supabaseAdmin
-    .from('order_items').select('product_id, quantity').eq('order_id', orderId);
+    .from('order_items').select('product_id, quantity, price').eq('order_id', orderId);
+  const merchantLines: Record<string, string[]> = {}; // owner_id → lignes « 2 kg Mangue »
   if (items && items.length) {
     const ids = items.map((i: any) => i.product_id);
-    const { data: stockData } = await supabaseAdmin.from('products').select('id, stock_qty').in('id', ids);
+    const { data: stockData } = await supabaseAdmin.from('products').select('id, stock_qty, owner_id, name, unit').in('id', ids);
     const stockMap: Record<number, number> = Object.fromEntries((stockData || []).map((p: any) => [p.id, p.stock_qty ?? 0]));
+    const prodMap: Record<number, any> = Object.fromEntries((stockData || []).map((p: any) => [p.id, p]));
     await Promise.all(items.map((it: any) =>
       supabaseAdmin.from('products').update({ stock_qty: (stockMap[it.product_id] ?? 0) + it.quantity }).eq('id', it.product_id)
     ));
+    for (const it of items) {
+      const p = prodMap[it.product_id];
+      if (p?.owner_id) (merchantLines[p.owner_id] ||= []).push(`${it.quantity} ${p.unit || ''} ${p.name}`.replace(/\s+/g, ' ').trim());
+    }
   }
 
   // 2) Remboursement (cagnotte auto / espèces rien / Waafi à effectuer)
@@ -68,5 +74,18 @@ export async function executeCancellation(orderId: any): Promise<{ ok: boolean; 
 
   // 6) Clôturer les demandes d'annulation en attente
   await resolvePendingCancelRequests(orderId);
+
+  // 7) Marchands concernés : cloche + push + e-mail (leurs articles ne seront pas vendus, stock remis)
+  for (const [ownerId, lines] of Object.entries(merchantLines)) {
+    try {
+      const { notifyUser } = await import('./notify');
+      const { sendMerchantEmail } = await import('./emails');
+      const title = `❌ Commande #${String(orderId)} annulée`;
+      const text = `La commande #${String(orderId)} contenant ${lines.join(', ')} a été annulée. Le stock a été remis à disposition.`;
+      await notifyUser(ownerId, { title, body: text, url: '/producer/orders' });
+      const { data: u } = await supabaseAdmin.auth.admin.getUserById(ownerId);
+      if (u?.user?.email) await sendMerchantEmail(u.user.email, `Commande #${String(orderId)} annulée — Hornafresh`, title, text);
+    } catch (e) { console.error('[cancel] merchant notify failed:', e); }
+  }
   return { ok: true };
 }
