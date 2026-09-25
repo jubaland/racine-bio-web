@@ -5,10 +5,14 @@ import { supabase } from '../../../lib/supabase';
 import { useLanguage } from '../../../context/LanguageContext';
 import ProducerLayout from '../../../components/producer/ProducerLayout';
 
+// Commandes marchand — via /api/producer/orders : uniquement ses articles, prénom du client,
+// pas de coordonnées (Hornafresh prépare et livre).
+
+type Item = { product_id: number; name: string; unit: string; quantity: number; price: number; total: number };
+type Order = { id: string; status: string; created_at: string; customer: string; items: Item[]; subtotal: number };
+
 function OrdersContent({ producer }: { producer: any }) {
-  const [orders, setOrders] = useState<any[]>([]);
-  const [orderItems, setOrderItems] = useState<Record<string, any[]>>({});
-  const [myProductIds, setMyProductIds] = useState<number[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState('');
@@ -17,64 +21,17 @@ function OrdersContent({ producer }: { producer: any }) {
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
-
-    const { data: myProducts } = await supabase
-      .from('products')
-      .select('id')
-      .eq('owner_id', producer.user_id);
-
-    const productIds = (myProducts || []).map((p: any) => p.id);
-    setMyProductIds(productIds);
-
-    if (productIds.length === 0) {
-      setOrders([]);
-      setLoading(false);
-      return;
-    }
-
-    const { data: items } = await supabase
-      .from('order_items')
-      .select('order_id')
-      .in('product_id', productIds);
-
-    const orderIds = [...new Set((items || []).map((i: any) => i.order_id))];
-
-    if (orderIds.length === 0) {
-      setOrders([]);
-      setLoading(false);
-      return;
-    }
-
-    let query = supabase
-      .from('orders')
-      .select('*')
-      .in('id', orderIds)
-      .order('created_at', { ascending: false });
-
-    if (filterStatus) query = query.eq('status', filterStatus);
-
-    const { data: ordersData } = await query;
-    setOrders(ordersData || []);
+    try {
+      let { data: { session } } = await supabase.auth.getSession();
+      if (!session || (session.expires_at && session.expires_at * 1000 < Date.now() + 60000)) session = (await supabase.auth.refreshSession()).data.session;
+      const res = await fetch(`/api/producer/orders${filterStatus ? `?status=${filterStatus}` : ''}`, { headers: { Authorization: `Bearer ${session?.access_token}` } });
+      const j = await res.json();
+      setOrders(res.ok ? (j.orders || []) : []);
+    } catch { setOrders([]); }
     setLoading(false);
   }, [producer.user_id, filterStatus]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
-
-  const loadItems = async (orderId: string) => {
-    if (orderItems[orderId]) return;
-    const { data } = await supabase
-      .from('order_items')
-      .select('*, products(name, unit)')
-      .eq('order_id', orderId)
-      .in('product_id', myProductIds);
-    setOrderItems(prev => ({ ...prev, [orderId]: data || [] }));
-  };
-
-  const toggleExpand = (id: string) => {
-    if (expandedId === id) { setExpandedId(null); return; }
-    setExpandedId(id);
-    loadItems(id);
-  };
 
   const statusInfo = (s: string) => {
     const map: Record<string, { label: string; cls: string }> = {
@@ -96,7 +53,7 @@ function OrdersContent({ producer }: { producer: any }) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-gray-800">
           📦 {t('producer.nav_orders', 'Mes commandes')}
         </h1>
@@ -116,6 +73,7 @@ function OrdersContent({ producer }: { producer: any }) {
           ))}
         </div>
       </div>
+      <p className="text-xs text-gray-400 mb-4">{t('producer.orders_hint', 'Seuls vos articles sont affichés. Hornafresh prépare et livre la commande complète.')}</p>
 
       {loading ? (
         <div className="flex items-center justify-center h-48">
@@ -140,18 +98,16 @@ function OrdersContent({ producer }: { producer: any }) {
               <div key={order.id} className="bg-white rounded-2xl border border-[#d2e095] overflow-hidden">
                 <div
                   className="flex items-center gap-4 p-5 cursor-pointer hover:bg-[#faf7e8] transition"
-                  onClick={() => toggleExpand(order.id)}
+                  onClick={() => setExpandedId(isExpanded ? null : order.id)}
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="font-semibold text-gray-800 font-mono text-sm">
-                        #{String(order.id).slice(0, 8)}
-                      </p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <p className="font-semibold text-gray-800 font-mono text-sm">#{order.id}</p>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${info.cls}`}>
                         {info.label}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-500">{order.customer_name || '—'}</p>
+                    <p className="text-sm text-gray-500">{order.customer} · {order.items.length} {t('producer.items', 'article(s)')}</p>
                     <p className="text-xs text-gray-400 mt-0.5">
                       {new Date(order.created_at).toLocaleDateString('fr-FR', {
                         day: 'numeric', month: 'long', year: 'numeric',
@@ -160,7 +116,7 @@ function OrdersContent({ producer }: { producer: any }) {
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="font-bold text-[#526500]">
-                      {Number(order.total).toLocaleString()} Fdj
+                      {Number(order.subtotal).toLocaleString()} Fdj
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
                       {isExpanded ? '▲' : '▼'} {t('producer.details', 'Détails')}
@@ -170,44 +126,28 @@ function OrdersContent({ producer }: { producer: any }) {
 
                 {isExpanded && (
                   <div className="border-t border-[#d2e095] px-5 py-4 bg-[#faf7e8]">
-                    {!orderItems[order.id] ? (
-                      <p className="text-sm text-gray-400">{t('producer.loading', 'Chargement...')}</p>
-                    ) : orderItems[order.id].length === 0 ? (
-                      <p className="text-sm text-gray-400">{t('producer.no_items', 'Aucun article')}</p>
-                    ) : (
-                      <div>
-                        <p className="text-xs font-medium text-gray-500 mb-3">
-                          {t('producer.my_items_in_order', 'Mes produits dans cette commande :')}
-                        </p>
-                        <div className="space-y-2">
-                          {orderItems[order.id].map((item: any) => (
-                            <div
-                              key={item.id}
-                              className="flex items-center justify-between bg-white rounded-xl px-4 py-3"
-                            >
-                              <div>
-                                <p className="text-sm font-medium text-gray-800">
-                                  {item.products?.name || '—'}
-                                </p>
-                                <p className="text-xs text-gray-400">
-                                  {item.quantity} × {Number(item.price).toLocaleString()} Fdj
-                                  {item.products?.unit ? ` / ${item.products.unit}` : ''}
-                                </p>
-                              </div>
-                              <p className="text-sm font-bold text-[#526500]">
-                                {(item.quantity * item.price).toLocaleString()} Fdj
-                              </p>
-                            </div>
-                          ))}
+                    <p className="text-xs font-medium text-gray-500 mb-3">
+                      {t('producer.my_items_in_order', 'Mes produits dans cette commande :')}
+                    </p>
+                    <div className="space-y-2">
+                      {order.items.map(item => (
+                        <div
+                          key={item.product_id}
+                          className="flex items-center justify-between bg-white rounded-xl px-4 py-3"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">{item.name}</p>
+                            <p className="text-xs text-gray-400">
+                              {item.quantity} × {Number(item.price).toLocaleString()} Fdj
+                              {item.unit ? ` / ${item.unit}` : ''}
+                            </p>
+                          </div>
+                          <p className="text-sm font-bold text-[#526500]">
+                            {item.total.toLocaleString()} Fdj
+                          </p>
                         </div>
-                      </div>
-                    )}
-                    {order.address && (
-                      <p className="text-xs text-gray-400 mt-4">📍 {order.address}</p>
-                    )}
-                    {order.phone && (
-                      <p className="text-xs text-gray-400 mt-1">📞 {order.phone}</p>
-                    )}
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

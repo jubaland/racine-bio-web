@@ -91,6 +91,7 @@ export default function ProfilePage() {
   const [reorderMsg, setReorderMsg] = useState('');
   // Demandes de modification (client demande → admin valide)
   const [changeReqs, setChangeReqs] = useState<Record<string, any>>({});
+  const [cancelReqs, setCancelReqs] = useState<Record<string, boolean>>({}); // order_id → demande d'annulation en attente
   const [reqBusy, setReqBusy] = useState<string | null>(null);
   const [reqMsg, setReqMsg] = useState('');
   const [receiptLoading, setReceiptLoading] = useState<string | null>(null);
@@ -449,8 +450,41 @@ export default function ProfilePage() {
         .select('item_id, type, new_quantity, status')
         .eq('status', 'pending');
       if (data) setChangeReqs(Object.fromEntries(data.map((r: any) => [String(r.item_id), r])));
+      // Demandes d'annulation complète en attente (table réservée aux API : lecture via /api)
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch('/api/orders/cancel-request?mine=1', { headers: { Authorization: `Bearer ${session?.access_token}` } });
+        const j = await res.json();
+        if (res.ok) setCancelReqs(Object.fromEntries((j.requests || []).map((r: any) => [String(r.order_id), true])));
+      } catch { /* ignore */ }
     })();
   }, [orders]);
+
+  // Le client demande l'annulation complète : validée par un administrateur (stock, remboursement)
+  const requestCancel = async (order: Order) => {
+    if (!confirm(`${t('profile.cancel_confirm', 'Demander l\'annulation de la commande')} #${order.id} (${Number(order.total).toLocaleString()} Fdj) ?\n\n${t('profile.cancel_note', 'Notre équipe validera la demande ; le remboursement suivra selon votre mode de paiement.')}`)) return;
+    setReqBusy('cancel-' + order.id); setReqMsg('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/orders/cancel-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ order_id: order.id }),
+      });
+      const j = await res.json();
+      if (!res.ok) {
+        const map: Record<string, string> = {
+          order_locked: t('profile.req_err_locked', 'Cette commande ne peut plus être modifiée.'),
+          already_requested: t('profile.cancel_err_dup', 'Une demande d\'annulation est déjà en attente pour cette commande.'),
+        };
+        setReqMsg('⚠️ ' + (map[j.error] || j.error || 'Erreur'));
+      } else {
+        setCancelReqs(prev => ({ ...prev, [String(order.id)]: true }));
+        setReqMsg('✅ ' + t('profile.cancel_sent', 'Demande d\'annulation envoyée. Vous serez notifié de la décision.'));
+      }
+    } catch (e: any) { setReqMsg('⚠️ ' + e.message); }
+    setReqBusy(null);
+  };
 
   const requestChange = async (order: Order, item: OrderItem, newQty: number) => {
     const removedQty = item.quantity - newQty;
@@ -771,7 +805,7 @@ export default function ProfilePage() {
                       {product.farm && <p className="text-xs text-gray-400 mt-1 truncate">🌱 {product.farm}</p>}
                     </Link>
                     <div className="flex items-center justify-between mt-3">
-                      <p className="text-sm font-bold text-[#7d9800]">{Number(product.price).toLocaleString()} Fdj<span className="text-xs font-normal text-gray-400 ml-1">{product.unit}</span></p>
+                      <p className="text-sm font-bold text-[#7d9800]">{Number(product.price).toLocaleString()} Fdj<span className="text-xs font-normal text-gray-400 ml-1">{product.unit ? `/ ${product.unit}` : ''}</span></p>
                       <button onClick={() => { addItem(product); setCartOpen(true); }} className="w-8 h-8 bg-[#a8c800] rounded-full flex items-center justify-center text-white text-lg font-bold hover:bg-[#7d9800] transition">+</button>
                     </div>
                   </div>
@@ -1176,6 +1210,19 @@ export default function ProfilePage() {
                         {receiptLoading === order.id ? '⏳' : '🧾 ' + t('profile.receipt', 'Reçu PDF')}
                       </button>
                     </div>
+                    {/* Annulation complète : tant que la commande n'est pas partie — validée par Hornafresh */}
+                    {['pending', 'processing'].includes(order.status) && (
+                      <div className="px-4 pb-3 bg-white">
+                        {cancelReqs[String(order.id)] ? (
+                          <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">⏳ {t('profile.cancel_requested', 'Annulation demandée — en attente de validation')}</p>
+                        ) : (
+                          <button onClick={() => requestCancel(order)} disabled={reqBusy === 'cancel-' + order.id}
+                            className="w-full py-2 rounded-xl border border-red-200 text-red-500 text-xs font-semibold hover:bg-red-50 transition disabled:opacity-50">
+                            {reqBusy === 'cancel-' + order.id ? '⏳' : '✖ ' + t('profile.cancel_order', 'Demander l\'annulation')}
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}

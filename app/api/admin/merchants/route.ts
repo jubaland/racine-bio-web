@@ -30,7 +30,7 @@ export async function GET(request: Request) {
     allUsers(),
     supabaseAdmin.from('merchant_subscriptions').select('*').order('created_at', { ascending: false }),
     supabaseAdmin.from('merchant_plans').select('*').order('id'),
-    supabaseAdmin.from('products').select('id, name, price, unit, image_url, status, owner_id, review_note, created_at').not('owner_id', 'is', null),
+    supabaseAdmin.from('products').select('id, name, price, old_price, unit, image_url, status, owner_id, review_note, created_at, description, category, product_type, origin_country, region, stock_qty, is_local').not('owner_id', 'is', null),
     supabaseAdmin.from('producer_requests').select('*').order('created_at', { ascending: false }),
     supabaseAdmin.from('merchant_profiles').select('user_id, shop_name'),
   ]);
@@ -84,8 +84,9 @@ export async function POST(request: Request) {
     const starts_at = cur?.ends_at ? addDays(cur.ends_at, 1) : today();
     return { starts_at, ends_at: addDays(starts_at, durationDays - 1) };
   }
-  async function notifyMerchant(userId: string, title: string, text: string, emailSubject?: string) {
-    try { await notifyUser(userId, { title, body: text, url: '/producer/dashboard' }); } catch { /* ignore */ }
+  // url : page ouverte au clic sur la notification (abonnement par défaut ; produits / tableau de bord selon le cas)
+  async function notifyMerchant(userId: string, title: string, text: string, emailSubject?: string, url: string = '/producer/subscription') {
+    try { await notifyUser(userId, { title, body: text, url }); } catch { /* ignore */ }
     if (emailSubject) {
       try {
         const { data } = await supabaseAdmin.auth.admin.getUserById(userId);
@@ -181,7 +182,8 @@ export async function POST(request: Request) {
       }).eq('id', product_id);
       if (prod.owner_id) await notifyMerchant(prod.owner_id,
         approve ? `✅ Produit validé : ${prod.name}` : `❌ Produit refusé : ${prod.name}`,
-        approve ? 'Votre produit est publié sur Hornafresh (visible si votre abonnement est actif).' : `Motif : ${note || 'non précisé'}. Modifiez-le pour le soumettre à nouveau.`);
+        approve ? 'Votre produit est publié sur Hornafresh (visible si votre abonnement est actif).' : `Motif : ${note || 'non précisé'}. Modifiez-le pour le soumettre à nouveau.`,
+        undefined, '/producer/products');
       return NextResponse.json({ ok: true });
     }
 
@@ -215,7 +217,7 @@ export async function POST(request: Request) {
         await notifyMerchant(user.id,
           approve ? '🎉 Adhésion acceptée' : 'Adhésion non retenue',
           approve ? `Bienvenue ! Activez votre abonnement pour publier vos produits (${req.farm_name}).` : 'Votre demande n\'a pas été retenue pour le moment. Contactez-nous au 77 43 26 15.',
-          approve ? 'Bienvenue chez Hornafresh — votre espace marchand' : undefined);
+          approve ? 'Bienvenue chez Hornafresh — votre espace marchand' : undefined, '/producer/dashboard');
       }
       return NextResponse.json({ ok: true, user_found: !!user });
     }

@@ -123,7 +123,7 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
                 )}
                 <div className="flex items-end gap-1.5">
                   <span className="text-4xl font-bold text-[#526500]">{Number(product.price).toLocaleString()}</span>
-                  <span className="text-lg text-gray-500 mb-0.5">Fdj <span className="text-sm">{product.unit}</span></span>
+                  <span className="text-lg text-gray-500 mb-0.5">Fdj <span className="text-sm">{product.unit ? `/ ${product.unit}` : ''}</span></span>
                 </div>
               </div>
 

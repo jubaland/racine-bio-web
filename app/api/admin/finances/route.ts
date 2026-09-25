@@ -41,26 +41,37 @@ export async function GET(request: Request) {
     items = data || [];
   }
 
-  // 3) Coût courant des produits (fallback si pas de snapshot dans la ligne)
-  const { data: prods } = await supabaseAdmin.from('products').select('id, name, unit, cost_price');
+  // 3) Coût courant des produits (fallback si pas de snapshot dans la ligne) + produits marchands
+  //    Modèle « abonnement seul » : le prix d'un produit marchand est intégralement reversé au
+  //    marchand → pour Hornafresh, coût = prix, marge = 0. Ces ventes sont isolées (caMarchands).
+  const [{ data: prods }, { data: profiles }] = await Promise.all([
+    supabaseAdmin.from('products').select('id, name, unit, cost_price, owner_id'),
+    supabaseAdmin.from('merchant_profiles').select('user_id, shop_name'),
+  ]);
+  const shopMap: Record<string, string> = Object.fromEntries((profiles || []).map((m: any) => [m.user_id, m.shop_name]));
   const costMap: Record<number, number | null> = {};
   const nameMap: Record<number, { name: string; unit: string }> = {};
+  const merchantOf: Record<number, string | null> = {};
   for (const p of prods || []) {
     costMap[p.id] = p.cost_price != null ? Number(p.cost_price) : null;
     nameMap[p.id] = { name: p.name, unit: p.unit };
+    merchantOf[p.id] = p.owner_id ? (shopMap[p.owner_id] || 'Marchand') : null;
   }
 
   // 4) Agrégation par produit
-  type Row = { product_id: number; name: string; unit: string; qty: number; revenue: number; cost: number; hasCost: boolean; allCost: boolean };
+  type Row = { product_id: number; name: string; unit: string; qty: number; revenue: number; cost: number; hasCost: boolean; allCost: boolean; merchant: string | null };
   const byProduct: Record<number, Row> = {};
-  let caProduits = 0, costTotal = 0, caWithCost = 0, marginTotal = 0;
+  let caProduits = 0, costTotal = 0, caWithCost = 0, marginTotal = 0, caMarchands = 0;
 
   for (const it of items) {
     const qty = Number(it.quantity) || 0;
     const revenue = (Number(it.price) || 0) * qty;
     caProduits += revenue;
+    const merchant = merchantOf[it.product_id] || null;
+    if (merchant) caMarchands += revenue;
 
-    const unitCost = it.product_cost != null ? Number(it.product_cost)
+    const unitCost = merchant ? (Number(it.price) || 0)
+      : it.product_cost != null ? Number(it.product_cost)
       : (costMap[it.product_id] != null ? costMap[it.product_id]! : null);
     const knownCost = unitCost != null;
     const lineCost = knownCost ? unitCost! * qty : 0;
@@ -70,7 +81,7 @@ export async function GET(request: Request) {
       product_id: it.product_id,
       name: it.product_name || nameMap[it.product_id]?.name || `#${it.product_id}`,
       unit: it.product_unit || nameMap[it.product_id]?.unit || '',
-      qty: 0, revenue: 0, cost: 0, hasCost: false, allCost: true,
+      qty: 0, revenue: 0, cost: 0, hasCost: false, allCost: true, merchant,
     };
     r.qty += qty;
     r.revenue += revenue;
@@ -93,7 +104,9 @@ export async function GET(request: Request) {
   return NextResponse.json({
     period,
     kpis: {
-      caProduits,                                            // CA produits (hors livraison)
+      caProduits,                                            // CA produits (hors livraison), ventes marchands incluses
+      caMarchands,                                           // part reversée aux marchands (marge Hornafresh = 0)
+      caHornafresh: caProduits - caMarchands,                // CA propre Hornafresh
       nbOrders,
       panierMoyen: nbOrders ? Math.round(grossPaid / nbOrders) : 0,
       deliveryCollected,

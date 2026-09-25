@@ -458,7 +458,7 @@ export default function CheckoutPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-800 truncate">{item.name}</p>
-                      <p className="text-xs text-gray-400">{item.price.toLocaleString()} Fdj {item.unit}</p>
+                      <p className="text-xs text-gray-400">{item.price.toLocaleString()} Fdj{item.unit ? ` / ${item.unit}` : ''}</p>
 
                       {/* Sélecteur de quantité + retrait */}
                       <div className="flex items-center gap-2 mt-2">
@@ -1041,7 +1041,7 @@ export default function CheckoutPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-800 truncate">{item.name}</p>
-                          <p className="text-xs text-gray-400">x{item.quantity} · {item.price.toLocaleString()} Fdj {item.unit}</p>
+                          <p className="text-xs text-gray-400">x{item.quantity} · {item.price.toLocaleString()} Fdj{item.unit ? ` / ${item.unit}` : ''}</p>
                         </div>
                         <p className="text-sm font-bold text-[#7d9800] flex-none">{(item.price * item.quantity).toLocaleString()} Fdj</p>
                       </div>

@@ -42,15 +42,22 @@ export async function GET(request: Request) {
     }
   }
 
-  // 3) Produit (nom, unité, coût courant en repli)
+  // 3) Produit (nom, unité, coût courant en repli, marchand éventuel)
   const { data: prod } = await supabaseAdmin
-    .from('products').select('name, unit, cost_price').eq('id', productId).maybeSingle();
+    .from('products').select('name, unit, cost_price, owner_id').eq('id', productId).maybeSingle();
+  let shop: string | null = null;
+  if (prod?.owner_id) {
+    const { data: mp } = await supabaseAdmin.from('merchant_profiles').select('shop_name').eq('user_id', prod.owner_id).maybeSingle();
+    shop = mp?.shop_name || 'Marchand';
+  }
 
   const rows = lines.map((l: any) => {
     const o = orderMap[l.order_id] || {};
     const qty = Number(l.quantity) || 0;
     const price = Number(l.price) || 0;
-    const unitCost = l.product_cost != null ? Number(l.product_cost)
+    // Produit marchand : prix intégralement reversé → coût = prix, marge Hornafresh = 0
+    const unitCost = shop ? price
+      : l.product_cost != null ? Number(l.product_cost)
       : (prod?.cost_price != null ? Number(prod.cost_price) : null);
     const revenue = price * qty;
     const cost = unitCost != null ? unitCost * qty : null;
@@ -93,5 +100,5 @@ export async function GET(request: Request) {
     deliveredAvgPrice: avg(sum(delivered, r => r.revenue), sum(delivered, r => r.quantity)),
   };
 
-  return NextResponse.json({ product: { id: productId, name: prod?.name || `#${productId}`, unit: prod?.unit || '' }, rows, summary });
+  return NextResponse.json({ product: { id: productId, name: prod?.name || `#${productId}`, unit: prod?.unit || '', merchant: shop }, rows, summary });
 }

@@ -44,7 +44,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
                       <p className="text-sm font-semibold text-gray-800 truncate">{item.name}</p>
                       {item.origin_country === 'DJ' && item.farm && <p className="text-xs text-gray-400">🌱 {item.farm}</p>}
                       <p className="text-sm font-bold text-[#7d9800] mt-1">
-                        {item.price.toLocaleString()} Fdj <span className="text-xs font-normal text-gray-400">{item.unit}</span>
+                        {item.price.toLocaleString()} Fdj <span className="text-xs font-normal text-gray-400">{item.unit ? `/ ${item.unit}` : ''}</span>
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1">

@@ -6,8 +6,10 @@ import { supabase } from '../../../lib/supabase';
 import { useLanguage } from '../../../context/LanguageContext';
 import ProducerLayout from '../../../components/producer/ProducerLayout';
 
+// Tableau de bord marchand — données via /api/producer/orders (service role, périmètre = ses produits)
+
 function DashboardContent({ producer }: { producer: any }) {
-  const [stats, setStats] = useState({ products: 0, orders: 0, revenue: 0 });
+  const [stats, setStats] = useState({ products: 0, published: 0, orders: 0, revenue: 0, delivered_revenue: 0 });
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { ui } = useLanguage();
@@ -15,46 +17,13 @@ function DashboardContent({ producer }: { producer: any }) {
 
   useEffect(() => {
     const load = async () => {
-      const { count: productsCount } = await supabase
-        .from('products')
-        .select('id', { count: 'exact', head: true })
-        .eq('owner_id', producer.user_id);
-
-      const { data: myProducts } = await supabase
-        .from('products')
-        .select('id')
-        .eq('owner_id', producer.user_id);
-
-      const productIds = (myProducts || []).map((p: any) => p.id);
-      let revenue = 0;
-      let ordersCount = 0;
-      let recentList: any[] = [];
-
-      if (productIds.length > 0) {
-        const { data: items } = await supabase
-          .from('order_items')
-          .select('quantity, price, order_id')
-          .in('product_id', productIds);
-
-        const allItems = items || [];
-        revenue = allItems.reduce((sum: number, i: any) => sum + i.price * i.quantity, 0);
-
-        const orderIds = [...new Set(allItems.map((i: any) => i.order_id))];
-        ordersCount = orderIds.length;
-
-        if (orderIds.length > 0) {
-          const { data: orders } = await supabase
-            .from('orders')
-            .select('id, total, status, customer_name, created_at')
-            .in('id', orderIds)
-            .order('created_at', { ascending: false })
-            .limit(5);
-          recentList = orders || [];
-        }
-      }
-
-      setStats({ products: productsCount || 0, orders: ordersCount, revenue });
-      setRecentOrders(recentList);
+      try {
+        let { data: { session } } = await supabase.auth.getSession();
+        if (!session || (session.expires_at && session.expires_at * 1000 < Date.now() + 60000)) session = (await supabase.auth.refreshSession()).data.session;
+        const res = await fetch('/api/producer/orders?limit=5', { headers: { Authorization: `Bearer ${session?.access_token}` } });
+        const j = await res.json();
+        if (res.ok) { setStats(j.stats); setRecentOrders(j.orders || []); }
+      } catch { /* ignore */ }
       setLoading(false);
     };
     load();
@@ -96,6 +65,7 @@ function DashboardContent({ producer }: { producer: any }) {
             emoji: '🥬',
             label: t('producer.stat_products', 'Mes produits'),
             value: stats.products,
+            sub: `${stats.published} ${t('mer.published', 'publiés')}`,
             link: '/producer/products',
             color: 'text-[#526500]',
           },
@@ -103,6 +73,7 @@ function DashboardContent({ producer }: { producer: any }) {
             emoji: '📦',
             label: t('producer.stat_orders', 'Commandes reçues'),
             value: stats.orders,
+            sub: null,
             link: '/producer/orders',
             color: 'text-blue-600',
           },
@@ -110,6 +81,7 @@ function DashboardContent({ producer }: { producer: any }) {
             emoji: '💰',
             label: t('producer.stat_revenue', 'Revenus totaux'),
             value: `${stats.revenue.toLocaleString()} Fdj`,
+            sub: `${stats.delivered_revenue.toLocaleString()} Fdj ${t('producer.stat_delivered', 'livrés')}`,
             link: null,
             color: 'text-[#526500]',
           },
@@ -118,6 +90,7 @@ function DashboardContent({ producer }: { producer: any }) {
             <p className="text-2xl md:text-3xl mb-1 md:mb-2">{stat.emoji}</p>
             <p className={`text-lg md:text-2xl font-bold ${stat.color} truncate`}>{stat.value}</p>
             <p className="text-xs md:text-sm text-gray-400 mt-0.5 md:mt-1 leading-tight">{stat.label}</p>
+            {stat.sub && <p className="text-[11px] text-gray-400 mt-0.5 hidden sm:block">{stat.sub}</p>}
             {stat.link && (
               <Link href={stat.link} className="text-xs text-[#7d9800] hover:underline mt-1 md:mt-2 inline-block">
                 {t('producer.see_all', 'Voir tout')} →
@@ -177,14 +150,14 @@ function DashboardContent({ producer }: { producer: any }) {
               return (
                 <div key={order.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 md:p-4 bg-[#faf7e8] rounded-xl">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">{order.customer_name || '—'}</p>
+                    <p className="text-sm font-medium text-gray-800 truncate">#{order.id} · {order.customer}</p>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      {new Date(order.created_at).toLocaleDateString('fr-FR')}
+                      {new Date(order.created_at).toLocaleDateString('fr-FR')} · {order.items.map((i: any) => `${i.quantity} ${i.unit} ${i.name}`).join(', ')}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <p className="text-sm font-bold text-[#526500]">
-                      {Number(order.total).toLocaleString()} Fdj
+                      {Number(order.subtotal).toLocaleString()} Fdj
                     </p>
                     <span className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${info.cls}`}>
                       {info.label}

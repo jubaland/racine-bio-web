@@ -329,7 +329,7 @@ export default function HomePage({ products, categories, promos, producers, sett
                         {p.old_price && (
                           <p className="text-xs text-red-400 line-through">{Number(p.old_price).toLocaleString()} Fdj</p>
                         )}
-                        <p className="text-sm font-bold text-[#7d9800]">{Number(p.price).toLocaleString()} Fdj <span className="text-xs font-normal text-gray-400">{p.unit}</span></p>
+                        <p className="text-sm font-bold text-[#7d9800]">{Number(p.price).toLocaleString()} Fdj <span className="text-xs font-normal text-gray-400">{p.unit ? `/ ${p.unit}` : ''}</span></p>
                       </div>
                       <button
                         disabled={(p.stock_qty ?? 0) <= 0}
@@ -405,7 +405,7 @@ export default function HomePage({ products, categories, promos, producers, sett
                         {(p.old_price || p.oldPrice) && (
                           <p className="text-xs text-red-400 line-through">{Number(p.old_price || p.oldPrice).toLocaleString()} Fdj</p>
                         )}
-                        <p className="text-sm font-bold text-[#7d9800]">{Number(p.price).toLocaleString()} Fdj <span className="text-xs font-normal text-gray-400">{p.unit}</span></p>
+                        <p className="text-sm font-bold text-[#7d9800]">{Number(p.price).toLocaleString()} Fdj <span className="text-xs font-normal text-gray-400">{p.unit ? `/ ${p.unit}` : ''}</span></p>
                       </div>
                       <button
                         disabled={(p.stock_qty ?? 0) <= 0}
@@ -585,7 +585,7 @@ export default function HomePage({ products, categories, promos, producers, sett
                         {(product.old_price || product.oldPrice) && (
                           <p className="text-xs text-red-400 line-through">{Number(product.old_price || product.oldPrice).toLocaleString()} Fdj</p>
                         )}
-                        <p className="text-sm font-bold text-[#7d9800]">{Number(product.price).toLocaleString()} Fdj <span className="text-xs font-normal text-gray-400">{product.unit}</span></p>
+                        <p className="text-sm font-bold text-[#7d9800]">{Number(product.price).toLocaleString()} Fdj <span className="text-xs font-normal text-gray-400">{product.unit ? `/ ${product.unit}` : ''}</span></p>
                       </div>
                       <button
                         disabled={(product.stock_qty ?? 0) <= 0}

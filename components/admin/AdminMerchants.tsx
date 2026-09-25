@@ -13,7 +13,7 @@ type Merchant = {
   active: Sub | null; pending: Sub | null; last: Sub | null;
   products: { total: number; published: number; pending: number };
 };
-type PendingProduct = { id: number; name: string; price: number; unit: string; image_url: string | null; created_at: string; merchant: { id: string; name: string } };
+type PendingProduct = { id: number; name: string; price: number; old_price: number | null; unit: string; image_url: string | null; created_at: string; description: string | null; category: string | null; product_type: string | null; origin_country: string | null; region: string | null; stock_qty: number | null; is_local: boolean | null; merchant: { id: string; name: string } };
 type Req = { id: string; email: string; farm_name: string; full_name: string | null; region: string | null; products_description: string | null; created_at: string };
 type Data = { merchants: Merchant[]; pending_payments: Sub[]; pending_products: PendingProduct[]; plans: Plan[]; requests: Req[] };
 
@@ -110,11 +110,17 @@ export default function AdminMerchants() {
               <section>
                 <h3 className="font-bold text-[#526500] mb-2">🥬 {t('mer.products_title', 'Produits à valider')} ({data.pending_products.length})</h3>
                 {data.pending_products.length === 0 ? <p className="text-sm text-gray-400 bg-white rounded-xl border border-[#e3eebf] px-4 py-4">{t('mer.products_empty', 'Aucun produit en attente de validation.')}</p> : data.pending_products.map(p => (
-                  <div key={p.id} className="bg-white rounded-xl border border-[#d2e095] px-4 py-3 flex items-center gap-3 mb-2">
-                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-[#ecf4d5] flex-none">{p.image_url ? <img src={p.image_url} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center opacity-30">📷</div>}</div>
+                  <div key={p.id} className="bg-white rounded-xl border border-[#d2e095] px-4 py-3 flex items-start gap-3 mb-2">
+                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-[#ecf4d5] flex-none">{p.image_url ? <a href={p.image_url} target="_blank" rel="noreferrer"><img src={p.image_url} alt="" className="w-full h-full object-cover" /></a> : <div className="w-full h-full flex items-center justify-center opacity-30" title={t('mer.no_photo', 'Sans photo')}>📷</div>}</div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-800 truncate">{p.name} <span className="text-xs font-normal text-gray-500">— {fdj(p.price)} {p.unit}</span></p>
+                      <p className="text-sm font-semibold text-gray-800">{p.name} <span className="text-xs font-normal text-gray-500">— {fdj(p.price)} / {p.unit}{p.old_price ? <s className="ml-1 text-gray-400">{fdj(p.old_price)}</s> : null}</span></p>
                       <p className="text-xs text-gray-400">🏪 {p.merchant.name} · {dateFr(p.created_at)}</p>
+                      {/* Tout ce qu'il faut pour valider sans ouvrir la fiche : catégorie, type, origine, stock */}
+                      <p className="text-xs text-gray-600 mt-1">
+                        {p.category ? `📂 ${p.category}` : `📂 ${t('admin.no_category', '— Sans catégorie —')}`} · {p.product_type === 'bio' ? t('admin.type_bio', '🌿 Bio') : t('admin.type_conv', '🌾 Conventionnel')} · 🌍 {p.origin_country || '—'}{p.region ? ` (${p.region})` : ''}{p.is_local ? ` · 🇩🇯 ${t('admin.field_is_local', 'Produit local (Djibouti)')}` : ''} · 📦 {t('admin.field_stock_qty', 'Stock')} : {p.stock_qty ?? 0}
+                      </p>
+                      {p.description ? <p className="text-xs text-gray-500 mt-1 italic">« {p.description} »</p> : <p className="text-xs text-orange-500 mt-1">⚠️ {t('mer.no_description', 'Sans description')}</p>}
+                      {!p.image_url && <p className="text-xs text-orange-500">⚠️ {t('mer.no_photo', 'Sans photo')}</p>}
                     </div>
                     {canEdit && <div className="flex gap-2 flex-none">
                       <button disabled={busy === 'pr' + p.id} onClick={() => act({ action: 'approve_product', product_id: p.id }, 'pr' + p.id)} className="text-xs font-semibold bg-[#a8c800] text-white rounded-lg px-3 py-1.5 hover:bg-[#7d9800] disabled:opacity-50">✅ {t('mer.approve', 'Valider')}</button>

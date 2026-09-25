@@ -15,10 +15,11 @@ type Product = {
   margin: number | null;
   marginPct: number | null;
   costComplete: boolean;
+  merchant: string | null;
 };
 type Data = {
   kpis: {
-    caProduits: number; nbOrders: number; panierMoyen: number; deliveryCollected: number;
+    caProduits: number; caMarchands: number; caHornafresh: number; nbOrders: number; panierMoyen: number; deliveryCollected: number;
     costTotal: number; marginTotal: number; marginPct: number | null; caWithCost: number;
   };
   products: Product[];
@@ -101,7 +102,7 @@ export default function AdminFinances() {
         <>
           {/* KPIs */}
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
-            <Kpi emoji="💰" label={t('fin.ca', "Chiffre d'affaires")} value={fdj(k.caProduits)} hint={t('fin.ca_hint', 'Produits, hors livraison')} accent />
+            <Kpi emoji="💰" label={t('fin.ca', "Chiffre d'affaires")} value={fdj(k.caProduits)} hint={k.caMarchands > 0 ? `${t('fin.ca_hint', 'Produits, hors livraison')} · 🏪 ${t('fin.ca_merchants', 'dont ventes marchands (reversées)')} : ${fdj(k.caMarchands)}` : t('fin.ca_hint', 'Produits, hors livraison')} accent />
             <Kpi emoji="📈" label={t('fin.margin', 'Marge brute')}
               value={k.marginTotal ? fdj(k.marginTotal) : '—'}
               hint={k.marginPct != null ? `${k.marginPct} % ${t('fin.margin_rate', 'de marge')}` : t('fin.margin_na', 'coûts manquants')} />
@@ -146,6 +147,7 @@ export default function AdminFinances() {
                         className="border-b border-[#f5f9ea] last:border-0 cursor-pointer hover:bg-[#f7fbe9] transition">
                         <td className="px-4 py-2.5">
                           <span className="font-medium text-gray-800">{p.name}</span>
+                          {p.merchant && <span className="ml-1.5 text-[10px] text-[#7d9800]" title={t('fin.merchant_row', 'Produit marchand : prix reversé, marge Hornafresh nulle')}>🏪 {p.merchant}</span>}
                           {!p.costComplete && <span className="ml-1.5 text-[10px] text-orange-500" title={t('fin.cost_partial', 'Coût manquant')}>⚠️</span>}
                         </td>
                         <td className="text-right px-3 py-2.5 text-gray-600 whitespace-nowrap">{p.qty} {p.unit}</td>

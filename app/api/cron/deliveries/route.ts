@@ -98,7 +98,7 @@ async function expireOne(userId: string, frequency: string) {
   const label = FREQ_LABEL[frequency] || frequency;
   try { if (email) await sendSubscriptionExpired(email, label); } catch {}
   try {
-    const { sendPushToUser } = await import('../../../../lib/push');
+    const { notifyUser: sendPushToUser } = await import('../../../../lib/notify'); // cloche + push
     await sendPushToUser(userId, { title: '⏳ Abonnement à renouveler', body: `Votre commande modèle ${label} est arrivée à échéance.`, url: '/abonnement' });
   } catch {}
 }
@@ -141,7 +141,7 @@ async function processOne(userId: string, frequency: string, todayStr: string, f
       .eq('user_id', userId).eq('frequency', frequency);
     try { if (email) await sendSubscriptionPaused(email, total, balance); } catch {}
     try {
-      const { sendPushToUser } = await import('../../../../lib/push');
+      const { notifyUser: sendPushToUser } = await import('../../../../lib/notify'); // cloche + push
       await sendPushToUser(userId, { title: '⏸️ Cagnotte à recharger', body: `Votre livraison ${label} est en pause (solde insuffisant).`, url: '/abonnement' });
     } catch {}
     return { paused: 'low_balance', needed: total, balance };
@@ -193,7 +193,7 @@ async function processOne(userId: string, frequency: string, todayStr: string, f
 
   // Push livraison
   try {
-    const { sendPushToUser } = await import('../../../../lib/push');
+    const { notifyUser: sendPushToUser } = await import('../../../../lib/notify'); // cloche + push
     await sendPushToUser(userId, { title: `📦 Livraison ${label}`, body: `Commande #${String(order.id)} en préparation — ${Number(total).toLocaleString('fr-FR')} Fdj`, url: '/profile' });
   } catch {}
 

@@ -171,9 +171,11 @@ export async function POST(request: Request) {
 
     // Push — awaité avant la réponse (< 200ms, serverless-safe)
     try {
-      const { sendPushToUser, sendPushToAdmin } = await import('../../../lib/push');
+      const { sendPushToAdmin } = await import('../../../lib/push');
+      const { notifyUser } = await import('../../../lib/notify');
       const shortId = String(createdOrder.id).slice(0, 8).toUpperCase();
-      if (createdOrder.user_id) await sendPushToUser(createdOrder.user_id, { title: '✅ Commande confirmée', body: `Commande #${shortId} — ${Number(createdOrder.total).toLocaleString('fr-FR')} Fdj`, url: '/profile' });
+      // notifyUser = cloche (historique) + push, pour que la confirmation reste consultable dans le centre de notifications
+      if (createdOrder.user_id) await notifyUser(createdOrder.user_id, { title: '✅ Commande confirmée', body: `Commande #${shortId} — ${Number(createdOrder.total).toLocaleString('fr-FR')} Fdj`, url: '/profile' });
       await sendPushToAdmin({ title: '🛍️ Nouvelle commande', body: `#${shortId} — ${createdOrder.customer_name} — ${Number(createdOrder.total).toLocaleString('fr-FR')} Fdj`, url: '/admin' });
 
       // Alertes stock bas (seuil : 5 unités)
@@ -322,7 +324,7 @@ export async function PATCH(request: Request) {
     // Push — uniquement pour les utilisateurs connectés (les invités n'ont pas d'abonnement)
     if (updatedOrder?.user_id) {
       try {
-        const { sendPushToUser } = await import('../../../lib/push');
+        const { notifyUser } = await import('../../../lib/notify');
         const STATUS_PUSH: Record<string, string> = {
           processing: '🚚 Commande en préparation',
           shipping:   '📦 Commande expédiée',
@@ -330,7 +332,8 @@ export async function PATCH(request: Request) {
           cancelled:  '❌ Commande annulée',
         };
         if (STATUS_PUSH[updatedOrder.status]) {
-          await sendPushToUser(updatedOrder.user_id, {
+          // cloche + push (le suivi de statut reste visible dans le centre de notifications)
+          await notifyUser(updatedOrder.user_id, {
             title: STATUS_PUSH[updatedOrder.status],
             body: `Commande #${String(updatedOrder.id).slice(0, 8).toUpperCase()}`,
             url: '/profile',

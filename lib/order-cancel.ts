@@ -53,8 +53,8 @@ export async function executeCancellation(orderId: any): Promise<{ ok: boolean; 
     }
     if (customerEmail && updated) await sendStatusUpdate(updated, customerEmail);
     if (order.user_id) {
-      const { sendPushToUser } = await import('./push');
-      await sendPushToUser(order.user_id, {
+      const { notifyUser } = await import('./notify'); // cloche + push
+      await notifyUser(order.user_id, {
         title: '❌ Commande annulée',
         body: `Commande #${String(orderId).slice(0, 8).toUpperCase()}`,
         url: '/profile',

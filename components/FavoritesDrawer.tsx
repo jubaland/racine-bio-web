@@ -62,7 +62,7 @@ export default function FavoritesDrawer({ open, onClose }: { open: boolean; onCl
                       </Link>
                       {product.origin_country === 'DJ' && product.farm && <p className="text-xs text-gray-400">🌱 {product.farm}</p>}
                       <p className="text-sm font-bold text-[#7d9800] mt-0.5">
-                        {product.price?.toLocaleString()} Fdj <span className="text-xs font-normal text-gray-400">{product.unit}</span>
+                        {product.price?.toLocaleString()} Fdj <span className="text-xs font-normal text-gray-400">{product.unit ? `/ ${product.unit}` : ''}</span>
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1.5 flex-none">

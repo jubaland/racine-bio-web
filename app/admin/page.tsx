@@ -33,6 +33,7 @@ export default function AdminPage() {
   const [accessDenied, setAccessDenied] = useState(false);
   const [activeSection, setActiveSection] = useState<Section | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [merchantsPending, setMerchantsPending] = useState(0); // produits à valider + paiements + adhésions
 
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
@@ -87,6 +88,18 @@ export default function AdminPage() {
         .select('*', { count: 'exact', head: true })
         .eq('read', false);
       setUnreadCount(count || 0);
+
+      // Badge « Marchands » : éléments à traiter (3 comptages légers, lus avec la session admin)
+      if (hasPerm(meta, 'merchants', 'view')) {
+        try {
+          const [p, s, r] = await Promise.all([
+            supabase.from('products').select('id', { count: 'exact', head: true }).eq('status', 'pending_review'),
+            supabase.from('merchant_subscriptions').select('id', { count: 'exact', head: true }).eq('status', 'pending_payment'),
+            supabase.from('producer_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+          ]);
+          setMerchantsPending((p.count || 0) + (s.count || 0) + (r.count || 0));
+        } catch { /* ignore */ }
+      }
 
       const channel = supabase
         .channel('admin_notifs_badge')
@@ -199,7 +212,7 @@ export default function AdminPage() {
               className="bg-white rounded-2xl p-5 border-2 border-[#d2e095] shadow-sm hover:border-[#a8c800] hover:shadow-md hover:-translate-y-0.5 transition flex flex-col items-center gap-2 text-center"
             >
               <span className="w-12 h-12 rounded-full bg-[#ecf4d5] flex items-center justify-center text-2xl">🌿</span>
-              <span className="text-sm font-semibold text-[#526500]">{t('admin.go_home', 'Page d\'accueil')}</span>
+              <span className="text-sm font-semibold text-[#526500]">{t('admin.go_home', 'Voir le site')}</span>
             </Link>
             {visibleNav.map(item => (
               <button
@@ -211,6 +224,9 @@ export default function AdminPage() {
                 <span className="text-sm font-semibold text-[#526500]">{item.label}</span>
                 {item.id === 'notifications' && unreadCount > 0 && (
                   <span className="absolute top-2 right-2 bg-[#f97316] text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">{unreadCount > 99 ? '99+' : unreadCount}</span>
+                )}
+                {item.id === 'merchants' && merchantsPending > 0 && (
+                  <span className="absolute top-2 right-2 bg-[#f97316] text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1" title={t('mer.todo', 'À traiter')}>{merchantsPending > 99 ? '99+' : merchantsPending}</span>
                 )}
               </button>
             ))}

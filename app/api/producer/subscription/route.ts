@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
-import { roleOf } from '../../../../lib/permissions';
+import { requireMerchant } from '../../../../lib/producer-auth';
 import { notifyUser } from '../../../../lib/notify';
 import { WAAFI_MERCHANT_NUMBER, WAAFI_ACCOUNT_HOLDER } from '../../../../lib/payments';
 
@@ -11,16 +11,8 @@ import { WAAFI_MERCHANT_NUMBER, WAAFI_ACCOUNT_HOLDER } from '../../../../lib/pay
 const today = () => new Date().toISOString().slice(0, 10);
 
 async function merchantFromRequest(request: Request) {
-  const token = (request.headers.get('authorization') || '').replace('Bearer ', '').trim();
-  if (!token) return { error: 'Non authentifié', status: 401 } as const;
-  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !user) return { error: 'Token invalide', status: 401 } as const;
-  if (roleOf(user.user_metadata) !== 'producer') {
-    // Tolérance : adhésion approuvée sans rôle posé (ancien flux)
-    const { data: req } = await supabaseAdmin.from('producer_requests').select('id').eq('email', user.email).eq('status', 'approved').maybeSingle();
-    if (!req) return { error: 'Réservé aux marchands', status: 403 } as const;
-  }
-  return { user } as const;
+  const a = await requireMerchant(request);
+  return a.ok ? ({ user: a.user } as const) : ({ error: a.error, status: a.status } as const);
 }
 
 async function overview(userId: string) {

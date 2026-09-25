@@ -104,6 +104,8 @@ export default function AdminOrders() {
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const updateStatus = async (orderId: string, status: string) => {
+    // Annulation = stock remis + remboursement enregistré + client prévenu : on confirme avant
+    if (status === 'cancelled' && !confirm(t('admin.confirm_cancel_order', 'Annuler cette commande ? Le stock sera remis à disposition, le remboursement enregistré et le client prévenu.'))) return;
     setUpdatingId(orderId);
     const tk = (await supabase.auth.getSession()).data.session?.access_token;
     const res = await fetch('/api/orders', {
@@ -272,7 +274,7 @@ export default function AdminOrders() {
                     <p className="text-sm font-semibold text-gray-800">#{shortId} · {req.order?.customer_name || '—'}
                       {req.order?.total != null && <span className="ml-2 text-[11px] font-normal text-gray-400">{Number(req.order.total).toLocaleString()} Fdj · {PAYMENT_LABELS[req.order?.payment_method] || ''}</span>}
                     </p>
-                    <p className="text-xs text-gray-500">{t('admin.cancel_req_by', 'Demandé par')} {req.requested_by_name || '—'}</p>
+                    <p className="text-xs text-gray-500">{t('admin.cancel_req_by', 'Demandé par')} {req.requested_by_name || '—'}{req.by_customer ? ` · 🙋 ${t('admin.cancel_req_customer', 'le client')}` : ''}</p>
                   </div>
                   {isAdmin ? (
                     <div className="flex gap-2 flex-shrink-0">

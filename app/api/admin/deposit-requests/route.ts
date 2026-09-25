@@ -47,7 +47,7 @@ export async function POST(request: Request) {
       if (u?.user?.email) await sendDepositApproved(u.user.email, Number(req.amount), Number(bal));
     } catch (e) { console.error('[deposit approve] email error:', e); }
     try {
-      const { sendPushToUser } = await import('../../../../lib/push');
+      const { notifyUser: sendPushToUser } = await import('../../../../lib/notify'); // cloche + push
       await sendPushToUser(req.user_id, { title: '✅ Cagnotte rechargée', body: `+${Number(req.amount).toLocaleString('fr-FR')} Fdj`, url: '/profile' });
     } catch (e) { console.error('[deposit approve] push error:', e); }
     return NextResponse.json({ ok: true, balance: bal });
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     await supabaseAdmin.from('deposit_requests')
       .update({ status: 'rejected', note: note || null, reviewed_at: new Date().toISOString() }).eq('id', id);
     try {
-      const { sendPushToUser } = await import('../../../../lib/push');
+      const { notifyUser: sendPushToUser } = await import('../../../../lib/notify'); // cloche + push
       await sendPushToUser(req.user_id, { title: '❌ Recharge refusée', body: 'Votre demande de recharge n\'a pas été validée. Contactez-nous.', url: '/profile' });
     } catch (e) { console.error('[deposit reject] push error:', e); }
     return NextResponse.json({ ok: true });

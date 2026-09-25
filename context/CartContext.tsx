@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 
 interface CartItem {
   id: number;
@@ -34,8 +34,40 @@ const CartContext = createContext<CartContextType>({
   total: 0,
 });
 
+// Panier persistant (localStorage) : survit à un rechargement, à la fermeture de la PWA et à la
+// navigation entre pages. Conservé 7 jours au plus (les prix/stocks sont revalidés au checkout par l'API).
+const STORAGE_KEY = 'hornafresh_cart_v1';
+const MAX_AGE_MS = 7 * 86400000;
+
+function loadCart(): CartItem[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.items) || typeof parsed.savedAt !== 'number') return [];
+    if (Date.now() - parsed.savedAt > MAX_AGE_MS) { localStorage.removeItem(STORAGE_KEY); return []; }
+    return parsed.items.filter((i: any) => i && typeof i.id === 'number' && i.quantity > 0);
+  } catch { return []; }
+}
+function saveCart(items: CartItem[]) {
+  try {
+    if (items.length === 0) localStorage.removeItem(STORAGE_KEY);
+    else localStorage.setItem(STORAGE_KEY, JSON.stringify({ items, savedAt: Date.now() }));
+  } catch { /* stockage indisponible (navigation privée…) : le panier reste en mémoire */ }
+}
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const hydrated = useRef(false);
+
+  // Hydratation après montage (pas de localStorage côté serveur)
+  useEffect(() => {
+    const saved = loadCart();
+    if (saved.length) setItems(saved);
+    hydrated.current = true;
+  }, []);
+  // Sauvegarde à chaque changement (après hydratation, pour ne pas écraser le panier stocké avec [])
+  useEffect(() => { if (hydrated.current) saveCart(items); }, [items]);
 
   const addItem = (product: any) => {
     const stock = Number(product.stock_qty ?? 0);

@@ -290,7 +290,7 @@ function ProductsContent({ producer }: { producer: any }) {
                     value={form.name}
                     onChange={e => set('name', e.target.value)}
                     className={inputClass}
-                    placeholder="ex: Tomates cerises"
+                    placeholder={t('producer.name_ph', 'Ex : Tomates cerises')}
                   />
                 </FormField>
               </div>
@@ -300,7 +300,7 @@ function ProductsContent({ producer }: { producer: any }) {
                   value={form.price}
                   onChange={e => set('price', e.target.value)}
                   className={inputClass}
-                  placeholder="500"
+                  placeholder={t('producer.price_ph', 'Ex : 500')}
                 />
               </FormField>
               <FormField label={t('admin.field_old_price', 'Ancien prix (Fdj)')}>
@@ -309,7 +309,7 @@ function ProductsContent({ producer }: { producer: any }) {
                   value={form.old_price}
                   onChange={e => set('old_price', e.target.value)}
                   className={inputClass}
-                  placeholder="600"
+                  placeholder={t('producer.old_price_ph', 'Ex : 600')}
                 />
               </FormField>
               <FormField label={t('admin.field_unit', 'Unité *')}>
@@ -317,7 +317,7 @@ function ProductsContent({ producer }: { producer: any }) {
                   value={form.unit}
                   onChange={e => set('unit', e.target.value)}
                   className={inputClass}
-                  placeholder="kg, L, boîte..."
+                  placeholder={t('producer.unit_ph', 'Ex : kg, botte, boîte 500 g')}
                 />
               </FormField>
               <FormField label={t('admin.field_stock_qty', 'Stock disponible *')}>
@@ -338,7 +338,7 @@ function ProductsContent({ producer }: { producer: any }) {
                   className={selectClass}
                 >
                   <option value="">{t('admin.no_category', '— Sans catégorie —')}</option>
-                  {categories.map(c => (
+                  {categories.filter(c => c.slug !== 'all').map(c => (
                     <option key={c.id} value={c.slug}>{c.emoji} {c.label}</option>
                   ))}
                 </select>
@@ -358,7 +358,7 @@ function ProductsContent({ producer }: { producer: any }) {
                   value={form.origin_country}
                   onChange={e => set('origin_country', e.target.value)}
                   className={inputClass}
-                  placeholder="DJ"
+                  placeholder={t('producer.origin_ph', 'Ex : DJ')}
                 />
               </FormField>
               <FormField label={t('admin.col_region', 'Région')}>
@@ -366,7 +366,7 @@ function ProductsContent({ producer }: { producer: any }) {
                   value={form.region}
                   onChange={e => set('region', e.target.value)}
                   className={inputClass}
-                  placeholder="Ali Sabieh..."
+                  placeholder={t('producer.region_ph', 'Ex : Ali Sabieh')}
                 />
               </FormField>
             </div>
@@ -390,7 +390,7 @@ function ProductsContent({ producer }: { producer: any }) {
                 value={form.description}
                 onChange={e => set('description', e.target.value)}
                 className={inputClass + ' h-24 resize-none'}
-                placeholder="Description du produit..."
+                placeholder={t('producer.desc_ph', 'Ex : cueillies le matin, calibre moyen, très parfumées')}
               />
             </FormField>
             <label className="flex items-center gap-3 cursor-pointer">
