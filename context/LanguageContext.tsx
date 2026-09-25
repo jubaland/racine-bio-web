@@ -3,14 +3,19 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { fetchUITranslations, fetchProductTranslations, fetchCategoryTranslations, fetchPromoTranslations, fetchDeliveryOptionTranslations } from '../lib/supabase';
 
-const LANGUAGES = [
+// Langues proposées dans le sélecteur. L'afar (aa) est masqué tant que ses textes n'ont pas été relus
+// par un locuteur natif (en base, la colonne « aa » contient surtout du somali) : les données restent
+// intactes, il suffit de retirer `hidden` pour le réactiver.
+const ALL_LANGUAGES = [
   { code: "fr", flag: "🇫🇷", label: "Français" },
   { code: "en", flag: "🇬🇧", label: "English" },
   { code: "zh", flag: "🇨🇳", label: "中文" },
   { code: "so", flag: "🇩🇯", label: "Soomaali" },
-  { code: "aa", flag: "🇩🇯", label: "Qafar" },
+  { code: "aa", flag: "🇩🇯", label: "Qafar", hidden: true },
   { code: "am", flag: "🇪🇹", label: "አማርኛ" },
 ];
+const LANGUAGES = ALL_LANGUAGES.filter(l => !(l as any).hidden);
+const isAllowed = (code: string) => LANGUAGES.some(l => l.code === code);
 
 interface LanguageContextType {
   currentLang: string;
@@ -76,13 +81,16 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   };
 
   const setCurrentLang = (lang: string) => {
+    if (!isAllowed(lang)) lang = 'fr';
     setCurrentLangState(lang);
     localStorage.setItem('lang', lang);
     loadTranslations(lang);
   };
 
   useEffect(() => {
-    const saved = localStorage.getItem('lang') || 'fr';
+    // Un choix mémorisé sur une langue masquée (ex. « aa ») retombe sur le français
+    let saved = localStorage.getItem('lang') || 'fr';
+    if (!isAllowed(saved)) { saved = 'fr'; localStorage.setItem('lang', 'fr'); }
     setCurrentLangState(saved);
     loadTranslations(saved);
   }, []);
