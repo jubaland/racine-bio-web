@@ -655,7 +655,7 @@ export default function ProfilePage() {
         )}
 
         {/* Onglets */}
-        <div className="flex gap-1.5 overflow-x-auto pb-2 mb-5 -mx-1 px-1">
+        <div className="flex flex-wrap gap-1.5 pb-2 mb-5">
           {([
             { id: 'home', emoji: '🏠', label: t('profile.tab_home', 'Accueil') },
             { id: 'wallet', emoji: '💰', label: t('profile.tab_wallet', 'Cagnotte') },
