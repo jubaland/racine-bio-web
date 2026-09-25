@@ -180,7 +180,18 @@ function DashboardContent({ producer }: { producer: any }) {
               <div className="bg-[#faf7e8] rounded-xl py-2"><p className="text-lg font-bold text-gray-700 truncate px-1">{sales.top || '—'}</p><p className="text-[11px] text-gray-400">{t('producer.stats_top', 'Meilleure vente')}</p></div>
             </div>
             {sales.products.length === 0 ? <p className="text-sm text-gray-400">{t('producer.stats_empty', 'Aucun produit pour le moment.')}</p> : (
-              <div className="overflow-x-auto -mx-2">
+              <><div className="md:hidden space-y-2">
+                {sales.products.map((r: any) => (
+                  <div key={r.product_id} className={`bg-[#faf7e8] rounded-xl px-3 py-2.5 ${r.status !== 'published' ? 'opacity-60' : ''}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-gray-800 truncate">{r.name}</p>
+                      <p className="text-sm font-bold text-[#526500] whitespace-nowrap">{Number(r.revenue).toLocaleString()} Fdj</p>
+                    </div>
+                    <p className="text-[11px] text-gray-500 mt-0.5">{t('producer.stats_sold', 'Vendu')} {r.qty} {r.unit} · {t('producer.stats_delivered', 'Livré')} {Number(r.delivered_revenue).toLocaleString()} Fdj · 👍 {r.likes} · <span className={r.stock <= 0 ? 'text-red-500 font-semibold' : r.stock <= 5 ? 'text-amber-600' : ''}>{t('admin.field_stock_qty', 'Stock')} {r.stock} {r.unit}</span></p>
+                  </div>
+                ))}
+              </div>
+              <div className="hidden md:block overflow-x-auto -mx-2">
                 <table className="w-full text-sm min-w-[560px]">
                   <thead><tr className="text-left text-xs text-gray-400 border-b border-[#e3eebf]">
                     <th className="px-2 py-2 font-medium">{t('pay.col_product', 'Produit')}</th><th className="px-2 py-2 font-medium text-right">{t('producer.stats_sold', 'Vendu')}</th><th className="px-2 py-2 font-medium text-right">{t('producer.stats_revenue', 'Ventes')}</th><th className="px-2 py-2 font-medium text-right">{t('producer.stats_delivered', 'Livré')}</th><th className="px-2 py-2 font-medium text-right">👍</th><th className="px-2 py-2 font-medium text-right">{t('admin.field_stock_qty', 'Stock')}</th>
@@ -196,7 +207,7 @@ function DashboardContent({ producer }: { producer: any }) {
                     </tr>
                   ))}</tbody>
                 </table>
-              </div>
+              </div></>
             )}
           </>
         )}

@@ -79,7 +79,7 @@ export default function AdminFinances() {
     <div>
       <div className="flex items-center justify-between flex-wrap gap-3 mb-5">
         <h2 className="text-xl font-bold text-[#2d6410]">📊 {t('fin.title', 'Finances')}</h2>
-        <div className="flex gap-1.5 bg-white border border-[#d2e095] rounded-full p-1">
+        <div className="flex flex-wrap gap-1.5 bg-white border border-[#d2e095] rounded-2xl sm:rounded-full p-1">
           {PERIODS.map(p => (
             <button
               key={p.id}

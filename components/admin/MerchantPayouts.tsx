@@ -105,7 +105,15 @@ export default function MerchantPayouts({ canEdit }: { canEdit: boolean }) {
       <section>
         <h3 className="font-bold text-gray-800 mb-2">🗂️ {t('pay.history', 'Historique des reversements')} ({data.payouts.length})</h3>
         {data.payouts.length === 0 ? <p className="text-sm text-gray-400 bg-white rounded-xl border border-[#e3eebf] px-4 py-4">{t('pay.history_empty', 'Aucun reversement enregistré.')}</p> : (
-          <div className="bg-white rounded-xl border border-[#d2e095] overflow-x-auto">
+          <><div className="md:hidden space-y-2">
+            {data.payouts.map(p => (
+              <div key={p.id} className="bg-white rounded-xl border border-[#d2e095] px-3 py-2.5">
+                <div className="flex items-center justify-between gap-2"><p className="text-sm font-semibold text-gray-800">🏪 {p.shop}</p><p className="text-sm font-bold text-[#526500] whitespace-nowrap">{fdj(p.amount)}</p></div>
+                <p className="text-[11px] text-gray-500 mt-0.5">{dateFr(p.paid_at)} · {METHOD[p.method] || p.method}{p.reference ? ` · ${p.reference}` : ''} · {p.lines_count} {t('pay.lines', 'ligne(s)')} · {dateFr(p.period_from)} → {dateFr(p.period_to)}</p>
+              </div>
+            ))}
+          </div>
+          <div className="hidden md:block bg-white rounded-xl border border-[#d2e095] overflow-x-auto">
             <table className="w-full text-sm min-w-[620px]">
               <thead><tr className="text-left text-xs text-gray-400 border-b border-[#ecf4d5]">
                 <th className="px-3 py-2 font-medium">{t('pay.col_date', 'Date')}</th><th className="px-3 py-2 font-medium">{t('pay.col_merchant', 'Marchand')}</th><th className="px-3 py-2 font-medium">{t('pay.col_period', 'Période')}</th><th className="px-3 py-2 font-medium text-right">{t('pay.col_amount', 'Montant')}</th><th className="px-3 py-2 font-medium">{t('pay.col_method', 'Mode')}</th>
@@ -120,7 +128,7 @@ export default function MerchantPayouts({ canEdit }: { canEdit: boolean }) {
                 </tr>
               ))}</tbody>
             </table>
-          </div>
+          </div></>
         )}
       </section>
 

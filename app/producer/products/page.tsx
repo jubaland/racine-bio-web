@@ -171,7 +171,35 @@ function ProductsContent({ producer }: { producer: any }) {
       ) : (
         <div className="bg-white rounded-2xl border border-[#d2e095] overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            {/* Mobile : cartes (le tableau ne tient pas en 375 px) */}
+            <div className="md:hidden divide-y divide-[#f0f4dc]">
+              {products.map(p => (
+                <div key={p.id} className="p-4">
+                  <div className="flex items-start gap-3">
+                    {p.image_url ? <img src={p.image_url} alt={p.name} className="w-14 h-14 rounded-xl object-cover flex-none" /> : <div className="w-14 h-14 rounded-xl bg-[#ecf4d5] flex items-center justify-center text-2xl flex-none">🥬</div>}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-800 leading-tight">{p.name}</p>
+                      <p className="text-sm font-semibold text-[#526500] mt-0.5">{Number(p.price).toLocaleString()} Fdj <span className="text-xs font-normal text-gray-400">/ {p.unit}</span>{p.old_price ? <span className="ml-1 text-xs text-gray-400 line-through">{Number(p.old_price).toLocaleString()}</span> : null}</p>
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {p.category && <span className="px-2 py-0.5 bg-[#ecf4d5] text-[#526500] rounded-full text-[11px]">{p.category}</span>}
+                        <span className={`px-2 py-0.5 rounded-full text-[11px] ${p.product_type === 'bio' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}`}>{p.product_type === 'bio' ? t('admin.type_bio', '🌿 Bio') : t('admin.type_conv', '🌾 Conv.')}</span>
+                        <span className="px-2 py-0.5 rounded-full text-[11px] bg-[#faf7e8] text-gray-600">📦 {p.stock_qty ?? 0}</span>
+                        {p.status === 'published' ? <span className="px-2 py-0.5 rounded-full text-[11px] bg-green-100 text-green-700">✅ {t('producer.st_published', 'Publié')}</span>
+                          : p.status === 'pending_review' ? <span className="px-2 py-0.5 rounded-full text-[11px] bg-amber-100 text-amber-800">⏳ {t('producer.st_pending', 'À valider')}</span>
+                          : p.status === 'rejected' ? <span className="px-2 py-0.5 rounded-full text-[11px] bg-red-100 text-red-600">❌ {t('producer.st_rejected', 'Refusé')}</span>
+                          : <span className="px-2 py-0.5 rounded-full text-[11px] bg-gray-100 text-gray-600">{p.status || '—'}</span>}
+                      </div>
+                      {p.status === 'rejected' && p.review_note && <p className="text-[11px] text-red-500 mt-1">{p.review_note}</p>}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    <button onClick={() => openEdit(p)} className="flex-1 py-2 rounded-xl border border-[#d2e095] text-[#526500] text-xs font-semibold hover:bg-[#ecf4d5]">✏️ {t('admin.edit', 'Modifier')}</button>
+                    <button onClick={() => setDeleteId(p.id)} className="flex-1 py-2 rounded-xl border border-red-200 text-red-500 text-xs font-semibold hover:bg-red-50">🗑 {t('admin.delete', 'Supprimer')}</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <table className="w-full text-sm hidden md:table">
               <thead className="bg-[#faf7e8] border-b border-[#d2e095]">
                 <tr>
                   <th className="text-left px-4 py-3 text-gray-500 font-medium">

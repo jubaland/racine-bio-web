@@ -83,8 +83,8 @@ export default function AdminPromos() {
     <div>
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-gray-800">🏷️ {t('admin.nav_promos', 'Promotions')}</h1>
-        <div className="flex items-center gap-2">
-          <div className="flex gap-1 bg-white border border-[#d2e095] rounded-full p-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap gap-1 bg-white border border-[#d2e095] rounded-2xl sm:rounded-full p-1">
             {([['banners', `🎉 ${t('promo.tab_banners', 'Bannières')}`], ['products', `🏷️ ${t('promo.tab_products', 'Prix promo produits')}`]] as const).map(([id, label]) => (
               <button key={id} onClick={() => setTab(id)} className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${tab === id ? 'bg-[#526500] text-white' : 'text-[#526500] hover:bg-[#ecf4d5]'}`}>{label}</button>
             ))}

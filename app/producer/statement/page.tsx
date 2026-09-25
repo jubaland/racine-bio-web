@@ -67,7 +67,18 @@ function StatementContent() {
           {data.lines.length > 0 && <button onClick={exportCsv} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5]">⬇️ CSV</button>}
         </div>
         {data.lines.length === 0 ? <p className="text-sm text-gray-400">{t('producer.statement_empty', 'Rien en attente : toutes vos ventes livrées ont été reversées.')}</p> : (
-          <div className="overflow-x-auto -mx-2">
+          <><div className="md:hidden space-y-2">
+            {data.lines.map(l => (
+              <div key={l.item_id} className="bg-[#faf7e8] rounded-xl px-3 py-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-gray-800 truncate">{l.name}</p>
+                  <p className="text-sm font-bold text-[#526500] whitespace-nowrap">{fdj(l.total)}</p>
+                </div>
+                <p className="text-[11px] text-gray-500 mt-0.5">{dateFr(l.order_date)} · #{l.order_id} · {l.customer} · {l.quantity} {l.unit} × {fdj(l.price)}</p>
+              </div>
+            ))}
+          </div>
+          <div className="hidden md:block overflow-x-auto -mx-2">
             <table className="w-full text-sm min-w-[520px]">
               <thead><tr className="text-left text-xs text-gray-400 border-b border-[#e3eebf]">
                 <th className="px-2 py-2 font-medium">{t('pay.col_date', 'Date')}</th><th className="px-2 py-2 font-medium">{t('pay.col_order', 'Commande')}</th><th className="px-2 py-2 font-medium">{t('pay.col_product', 'Produit')}</th><th className="px-2 py-2 font-medium text-right">{t('pay.col_qty', 'Qté')}</th><th className="px-2 py-2 font-medium text-right">{t('pay.col_total', 'Total')}</th>
@@ -82,7 +93,7 @@ function StatementContent() {
                 </tr>
               ))}</tbody>
             </table>
-          </div>
+          </div></>
         )}
       </div>
 

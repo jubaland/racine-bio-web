@@ -159,11 +159,12 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-6 flex flex-col md:flex-row gap-4 md:gap-6">
         <aside className="md:w-52 md:flex-shrink-0">
           <div className="bg-white rounded-2xl border border-[#d2e095] p-3 mb-0 md:mb-4">
-            <nav className="flex md:flex-col gap-1 md:space-y-1 overflow-x-auto">
+            {/* Mobile : grille 3 colonnes (tous les onglets visibles d'un coup) ; desktop : liste verticale */}
+            <nav className="grid grid-cols-3 gap-1 md:flex md:flex-col md:space-y-1">
               {navItems.map(item => (
                 <Link key={item.href} href={item.href}
-                  className={`flex items-center gap-2 md:gap-3 px-3 py-2 md:py-2.5 rounded-xl text-sm font-medium transition whitespace-nowrap flex-shrink-0 ${pathname === item.href ? 'bg-[#a8c800] text-white shadow-sm' : 'text-gray-600 hover:bg-[#ecf4d5] hover:text-[#526500]'}`}>
-                  <span>{item.emoji}</span><span>{item.label}</span>
+                  className={`flex flex-col md:flex-row items-center gap-0.5 md:gap-3 px-1 md:px-3 py-2 md:py-2.5 rounded-xl text-[11px] md:text-sm font-medium text-center md:text-left leading-tight transition ${pathname === item.href ? 'bg-[#a8c800] text-white shadow-sm' : 'text-gray-600 hover:bg-[#ecf4d5] hover:text-[#526500]'}`}>
+                  <span className="text-lg md:text-base">{item.emoji}</span><span>{item.label}</span>
                 </Link>
               ))}
             </nav>

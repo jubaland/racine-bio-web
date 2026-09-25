@@ -81,7 +81,7 @@ export default function AdminMerchants() {
     <div>
       <div className="flex items-center justify-between flex-wrap gap-3 mb-5">
         <h2 className="text-xl font-bold text-[#2d6410]">🏪 {t('admin.nav_merchants', 'Marchands')}</h2>
-        <div className="flex gap-1.5 bg-white border border-[#d2e095] rounded-full p-1">
+        <div className="flex flex-wrap gap-1.5 bg-white border border-[#d2e095] rounded-2xl sm:rounded-full p-1">
           {([['todo', `✋ ${t('mer.tab_todo', 'À traiter')}${todoCount ? ` (${todoCount})` : ''}`], ['merchants', `🧑‍🌾 ${t('mer.tab_merchants', 'Marchands')}${data ? ` (${data.merchants.length})` : ''}`], ['payouts', `💸 ${t('mer.tab_payouts', 'Reversements')}`], ['reviews', `⭐ ${t('mer.tab_reviews', 'Avis')}`], ['plans', `📋 ${t('mer.tab_plans', 'Plans')}`]] as [typeof tab, string][]).map(([id, label]) => (
             <button key={id} onClick={() => setTab(id)} className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${tab === id ? 'bg-[#526500] text-white' : 'text-[#526500] hover:bg-[#ecf4d5]'}`}>{label}</button>
           ))}
@@ -162,7 +162,8 @@ export default function AdminMerchants() {
                   return (
                     <div key={m.id} className="bg-white rounded-2xl border-2 border-[#d2e095] px-4 py-3">
                       <div className="flex flex-wrap items-center gap-3">
-                        <div className="flex-1 min-w-0">
+                        {/* basis-full sur mobile : le bloc identité prend toute la largeur, les boutons passent dessous */}
+                        <div className="flex-1 min-w-0 basis-full sm:basis-0">
                           <p className="font-semibold text-gray-800">
                             {m.farm_name ? `🏪 ${m.farm_name} — ` : ''}{m.name}
                             {canEdit && (

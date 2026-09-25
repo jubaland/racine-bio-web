@@ -210,7 +210,19 @@ function SubscriptionContent() {
         {data.history.length === 0 ? (
           <p className="text-sm text-gray-400">{t('producer.sub_history_empty', 'Aucun abonnement pour le moment.')}</p>
         ) : (
-          <div className="overflow-x-auto -mx-2">
+          <><div className="md:hidden space-y-2">
+            {data.history.map(s => { const i = sInfo(s); return (
+              <div key={s.id} className="bg-[#faf7e8] rounded-xl px-3 py-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-gray-800">{s.plan_name || '—'} · {fdj(s.amount)}</p>
+                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${i.cls}`}>{i.label}</span>
+                </div>
+                <p className="text-[11px] text-gray-500 mt-0.5">{dateFr(s.created_at)}{s.starts_at ? ` · ${dateFr(s.starts_at)} → ${dateFr(s.ends_at)}` : ''} · {s.payment_method === 'cash' ? t('producer.sub_method_cash', 'Espèces') : s.payment_method === 'waafi' ? 'Waafi' : (s.payment_method || '—')}{s.payment_reference ? ` · ${s.payment_reference}` : ''}</p>
+                {s.status === 'rejected' && s.notes ? <p className="text-[11px] text-red-500 mt-0.5">{s.notes}</p> : null}
+              </div>
+            ); })}
+          </div>
+          <div className="hidden md:block overflow-x-auto -mx-2">
             <table className="w-full text-sm min-w-[560px]">
               <thead>
                 <tr className="text-left text-xs text-gray-400 border-b border-[#e3eebf]">
@@ -235,7 +247,7 @@ function SubscriptionContent() {
                 ); })}
               </tbody>
             </table>
-          </div>
+          </div></>
         )}
       </div>
     </div>
