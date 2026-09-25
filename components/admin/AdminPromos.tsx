@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { useLanguage } from '../../context/LanguageContext';
 import { useCan } from '../../context/AdminPermsContext';
 import Modal, { ConfirmDelete, FormField, inputClass } from './Modal';
+import AdminProductPromos from './AdminProductPromos';
 
 interface Promo { id: number; emoji: string; badge: string; title: string; sub: string; color_start: string; active: boolean; category?: string; }
 interface Category { id: string; slug: string; label: string; }
@@ -21,6 +22,7 @@ export default function AdminPromos() {
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
+  const [tab, setTab] = useState<'banners' | 'products'>('banners'); // bannières d'accueil | prix promo produits (planifiés)
 
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
@@ -79,12 +81,21 @@ export default function AdminPromos() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-gray-800">🏷️ {t('admin.nav_promos', 'Promotions')}</h1>
-        {can('promos', 'create') && <button onClick={openAdd} className="bg-[#a8c800] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#7d9800] transition">{t('admin.add', '+ Ajouter')}</button>}
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1 bg-white border border-[#d2e095] rounded-full p-1">
+            {([['banners', `🎉 ${t('promo.tab_banners', 'Bannières')}`], ['products', `🏷️ ${t('promo.tab_products', 'Prix promo produits')}`]] as const).map(([id, label]) => (
+              <button key={id} onClick={() => setTab(id)} className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${tab === id ? 'bg-[#526500] text-white' : 'text-[#526500] hover:bg-[#ecf4d5]'}`}>{label}</button>
+            ))}
+          </div>
+          {tab === 'banners' && can('promos', 'create') && <button onClick={openAdd} className="bg-[#a8c800] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#7d9800] transition">{t('admin.add', '+ Ajouter')}</button>}
+        </div>
       </div>
 
-      {loading ? (
+      {tab === 'products' ? (
+        <AdminProductPromos canEdit={can('promos', 'edit')} />
+      ) : loading ? (
         <div className="flex items-center justify-center h-48"><p className="text-gray-400">{t('admin.loading', 'Chargement...')}</p></div>
       ) : (
         <div className="grid gap-4">
