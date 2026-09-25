@@ -7,6 +7,7 @@ import { useFavorites } from '../context/FavoritesContext';
 import Header from './Header';
 import CartDrawer from './CartDrawer';
 import LikeButton from './LikeButton';
+import BundleMosaic from './BundleMosaic';
 import Link from 'next/link';
 
 const ORIGIN_FLAGS: Record<string, string> = {
@@ -83,6 +84,8 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
             <div className="relative h-72 sm:h-96 md:h-auto min-h-[320px] bg-[#ecf4d5]">
               {gallery[imgIdx] ? (
                 <img src={gallery[imgIdx]} alt={getProductName(product)} className="w-full h-full object-cover" />
+              ) : isBundle ? (
+                <BundleMosaic items={bundleItems} />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-8xl opacity-20">📷</div>
               )}

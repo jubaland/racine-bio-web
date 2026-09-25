@@ -9,6 +9,7 @@ import { useFavorites } from '../context/FavoritesContext';
 import Header from './Header';
 import CartDrawer from './CartDrawer';
 import CardLike from './CardLike';
+import BundleMosaic from './BundleMosaic';
 import { supabase } from '../lib/supabase';
 
 // Lit le rôle directement depuis le jeton stocké (synchrone, sans appel réseau)
@@ -154,7 +155,7 @@ export default function HomePage({ products, categories, promos, producers, sett
     return catMatch && typeMatch && originMatch && searchMatch && promoMatch;
   });
 
-  const localProducts = products.filter(p => p.is_local);
+  const localProducts = products.filter(p => p.is_local && !p.is_bundle); // les paniers ont leur propre bloc
   const featuredProducts = products.filter(p => p.is_featured);
   // Paniers composés : anti-gaspi d'abord (urgence), puis thématiques
   const bundleProducts = products.filter(p => p.is_bundle).sort((a, b) => (a.bundle_kind === 'rescue' ? 0 : 1) - (b.bundle_kind === 'rescue' ? 0 : 1));
@@ -299,7 +300,7 @@ export default function HomePage({ products, categories, promos, producers, sett
                     {p.image_url ? (
                       <img src={p.image_url} alt={getProductName(p)} className={`w-full h-full object-cover transition duration-300 ${out ? 'opacity-50' : 'group-hover:scale-105'}`} />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-5xl opacity-20">🧺</div>
+                      <BundleMosaic items={p.bundle_items || []} className={out ? 'opacity-50' : ''} />
                     )}
                     {out && (
                       <div className="absolute inset-0 flex items-center justify-center bg-black/20">
@@ -357,6 +358,8 @@ export default function HomePage({ products, categories, promos, producers, sett
                   <div className="relative h-32 sm:h-40 bg-[#ecf4d5]">
                     {p.image_url ? (
                       <img src={p.image_url} alt={getProductName(p)} className={`w-full h-full object-cover transition duration-300 ${(p.stock_qty ?? 0) <= 0 ? 'opacity-50' : 'group-hover:scale-105'}`} />
+                    ) : p.is_bundle ? (
+                      <BundleMosaic items={p.bundle_items || []} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-5xl opacity-20">📷</div>
                     )}
@@ -612,6 +615,8 @@ export default function HomePage({ products, categories, promos, producers, sett
                   <div className="relative h-36 sm:h-44 bg-[#ecf4d5]">
                     {product.image_url ? (
                       <img src={product.image_url} alt={getProductName(product)} className={`w-full h-full object-cover transition duration-300 ${(product.stock_qty ?? 0) <= 0 ? 'opacity-50' : 'group-hover:scale-105'}`} />
+                    ) : product.is_bundle ? (
+                      <BundleMosaic items={product.bundle_items || []} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-5xl opacity-20">📷</div>
                     )}

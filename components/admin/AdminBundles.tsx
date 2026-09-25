@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useLanguage } from '../../context/LanguageContext';
 import ImagesField from '../ImagesField';
+import BundleMosaic from '../BundleMosaic';
 import Modal, { ConfirmDelete, FormField, inputClass, selectClass } from './Modal';
 import BundleComposer, { EMPTY_COMPOSITION, bundleFigures, bundleCandidates, LOW_STOCK, type Composition, type Candidate } from './BundleComposer';
 
@@ -90,7 +91,7 @@ export default function AdminBundles({ products, refresh, can, initialProduct, o
       description: form.description.trim() || null, images: form.images, image_url: form.images[0] || null, status: form.status,
       is_bundle: true, bundle_kind: comp.bundle_kind, bundle_ends_at: fromLocalInput(comp.bundle_ends_at), cost_price: fig.cost,
       unit: 'panier', in_stock: true,
-      ...(editingId ? {} : { farm: 'Hornafresh', category: '', product_type: 'conventionnel', origin_country: 'DJ', region: 'Djibouti', is_local: true, bg_color: '#ecf4d5' }),
+      ...(editingId ? {} : { farm: 'Hornafresh', category: '', product_type: 'conventionnel', origin_country: 'DJ', region: 'Djibouti', is_local: false, bg_color: '#ecf4d5' }),
     };
     const { data: saved, error: err } = editingId
       ? await supabase.from('products').update(payload).eq('id', editingId).select('id').single()
@@ -149,8 +150,8 @@ export default function AdminBundles({ products, refresh, can, initialProduct, o
             const saving = fig.value > Number(b.price) ? Math.round((1 - Number(b.price) / fig.value) * 100) : 0;
             return (
               <div key={b.id} className={`bg-white rounded-2xl border p-4 flex flex-wrap items-start gap-4 ${b.bundle_kind === 'rescue' ? 'border-[#fdba74]' : 'border-[#d2e095]'}`}>
-                <div className="w-16 h-16 rounded-xl overflow-hidden bg-[#ecf4d5] flex-none flex items-center justify-center text-3xl">
-                  {b.image_url ? <img src={b.image_url} alt={b.name} className="w-full h-full object-cover" /> : '🧺'}
+                <div className="w-16 h-16 rounded-xl overflow-hidden bg-[#ecf4d5] flex-none">
+                  {b.image_url ? <img src={b.image_url} alt={b.name} className="w-full h-full object-cover" /> : <BundleMosaic items={items.map(it => byId[it.product_id]).filter(Boolean)} />}
                 </div>
                 <div className="flex-1 min-w-0 basis-full sm:basis-0">
                   <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -199,6 +200,7 @@ export default function AdminBundles({ products, refresh, can, initialProduct, o
 
             <FormField label={t('admin.field_images', 'Photos')}>
               <ImagesField value={form.images} onChange={imgs => set('images', imgs)} pathPrefix="hf" onError={setError} />
+              <p className="text-[11px] text-gray-400 mt-1">{t('admin.bundle_photo_hint', 'Facultatif : sans photo, le site affiche une mosaïque des photos des composants.')}</p>
             </FormField>
 
             <FormField label={t('admin.field_description', 'Description')}>

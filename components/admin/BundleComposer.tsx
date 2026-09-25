@@ -12,7 +12,7 @@ export type BundleLine = { product_id: number; quantity: number };
 export type Composition = { bundle_kind: 'theme' | 'rescue'; bundle_ends_at: string; items: BundleLine[] };
 export const EMPTY_COMPOSITION: Composition = { bundle_kind: 'theme', bundle_ends_at: '', items: [] };
 
-export type Candidate = { id: number; name: string; unit: string; price: number; cost_price: number | null; stock_qty: number; status: string; owner_id?: string | null; is_bundle?: boolean };
+export type Candidate = { id: number; name: string; unit: string; price: number; cost_price: number | null; stock_qty: number; status: string; owner_id?: string | null; is_bundle?: boolean; image_url?: string | null };
 
 export const LOW_STOCK = 5; // même seuil que les alertes de stock bas
 const fdj = (n: number) => `${Math.round(n).toLocaleString('fr-FR')} Fdj`;

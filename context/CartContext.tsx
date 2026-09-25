@@ -83,7 +83,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         name: product.name,
         price: Number(product.price),
         unit: product.unit,
-        image_url: product.image_url,
+        // Panier composé sans photo : première photo de composant (panier, récapitulatif, snapshot commande)
+        image_url: product.image_url || (Array.isArray(product.bundle_items) ? product.bundle_items.find((c: any) => c.image_url)?.image_url ?? null : null),
         farm: product.farm,
         quantity: 1,
         stock_qty: stock,
