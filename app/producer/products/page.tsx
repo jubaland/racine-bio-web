@@ -4,12 +4,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useLanguage } from '../../../context/LanguageContext';
 import ProducerLayout from '../../../components/producer/ProducerLayout';
+import ImagesField from '../../../components/ImagesField';
 import Modal, { ConfirmDelete, FormField, inputClass, selectClass } from '../../../components/admin/Modal';
 
 const emptyForm = (farmName: string, region: string) => ({
   name: '', price: '', old_price: '', unit: 'kg', farm: farmName,
   category: '', product_type: 'bio', origin_country: 'DJ',
-  image_url: '', description: '', is_local: true, region,
+  image_url: '', images: [] as string[], description: '', is_local: true, region,
   stock_qty: '',
 });
 
@@ -63,6 +64,7 @@ function ProductsContent({ producer }: { producer: any }) {
       product_type: p.product_type,
       origin_country: p.origin_country || 'DJ',
       image_url: p.image_url || '',
+      images: Array.isArray(p.images) && p.images.length ? p.images : (p.image_url ? [p.image_url] : []),
       description: p.description || '',
       is_local: p.is_local,
       region: p.region || producer.region || '',
@@ -72,19 +74,6 @@ function ProductsContent({ producer }: { producer: any }) {
     setShowModal(true);
   };
 
-  // Photo : envoi direct dans le bucket (autorisé aux comptes connectés)
-  const [uploading, setUploading] = useState(false);
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true); setError('');
-    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    const path = `m-${producer.user_id.slice(0, 8)}-${Date.now()}.${ext}`;
-    const { error: uploadErr } = await supabase.storage.from('product-images').upload(path, file, { upsert: true });
-    if (uploadErr) { setError(uploadErr.message); setUploading(false); return; }
-    set('image_url', supabase.storage.from('product-images').getPublicUrl(path).data.publicUrl);
-    setUploading(false);
-  };
 
   const handleSave = async () => {
     if (!form.name || !form.price || !form.unit) {
@@ -98,7 +87,7 @@ function ProductsContent({ producer }: { producer: any }) {
         (orig.name || '') !== form.name.trim() ||
         Number(orig.price) !== parseFloat(form.price) ||
         (orig.description || '') !== form.description.trim() ||
-        (orig.image_url || '') !== form.image_url.trim() ||
+        JSON.stringify(Array.isArray(orig.images) && orig.images.length ? orig.images : (orig.image_url ? [orig.image_url] : [])) !== JSON.stringify(form.images) ||
         (orig.category || '') !== form.category.trim() ||
         (orig.unit || '') !== form.unit.trim()
       );
@@ -116,7 +105,8 @@ function ProductsContent({ producer }: { producer: any }) {
       category: form.category.trim(),
       product_type: form.product_type,
       origin_country: form.origin_country.trim(),
-      image_url: form.image_url.trim() || null,
+      images: form.images,
+      image_url: form.images[0] || null,
       description: form.description.trim(),
       is_local: form.is_local,
       region: form.region.trim(),
@@ -370,19 +360,8 @@ function ProductsContent({ producer }: { producer: any }) {
                 />
               </FormField>
             </div>
-            <FormField label={t('admin.field_image', 'Photo du produit')}>
-              <div className="flex items-center gap-3">
-                {form.image_url ? (
-                  <img src={form.image_url} alt="" className="w-16 h-16 rounded-xl object-cover border border-[#d2e095] flex-none" />
-                ) : (
-                  <div className="w-16 h-16 rounded-xl bg-[#ecf4d5] flex items-center justify-center text-2xl flex-none">📷</div>
-                )}
-                <label className={`flex-1 flex items-center gap-2 cursor-pointer border-2 border-dashed border-[#d2e095] rounded-xl px-3 py-3 text-sm text-[#526500] hover:bg-[#ecf4d5] transition ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
-                  <span>📁</span>
-                  <span>{uploading ? t('admin.uploading', 'Envoi en cours...') : t('producer.upload_image', 'Choisir une photo (téléphone ou ordinateur)')}</span>
-                  <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
-                </label>
-              </div>
+            <FormField label={t('admin.field_images', 'Photos')}>
+              <ImagesField value={form.images} onChange={imgs => setForm(f => ({ ...f, images: imgs, image_url: imgs[0] || '' }))} pathPrefix={`m-${producer.user_id.slice(0, 8)}`} onError={setError} />
               <p className="text-[11px] text-gray-400 mt-1">{t('producer.image_hint', 'Une belle photo vend 3 fois mieux. Format carré conseillé.')}</p>
             </FormField>
             <FormField label={t('admin.field_description', 'Description')}>

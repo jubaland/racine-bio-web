@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useLanguage } from '../../context/LanguageContext';
+import ImagesField from '../ImagesField';
 import { useCan } from '../../context/AdminPermsContext';
 import Modal, { ConfirmDelete, FormField, inputClass, selectClass } from './Modal';
 
@@ -39,7 +40,7 @@ interface Product {
 
 const EMPTY_FORM = {
   name: '', price: '', old_price: '', cost_price: '', unit: 'kg', farm: '', category: '',
-  product_type: 'bio', origin_country: 'DJ', image_url: '', description: '',
+  product_type: 'bio', origin_country: 'DJ', image_url: '', images: [] as string[], description: '',
   is_local: true, region: '', emoji: '', bg_color: '#ecf4d5', tag: '', tag_label: '',
   rating: '', reviews_count: '', badges: '', in_stock: true, status: 'published',
   producer_account_id: '', is_featured: false, featured_badge: '', stock_qty: '',
@@ -56,7 +57,6 @@ export default function AdminProducts() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
@@ -89,6 +89,7 @@ export default function AdminProducts() {
       cost_price: String(p.cost_price ?? ''),
       unit: p.unit ?? '', farm: p.farm ?? '', category: p.category ?? '', product_type: p.product_type ?? 'bio',
       origin_country: p.origin_country ?? '', image_url: p.image_url ?? '',
+      images: Array.isArray((p as any).images) && (p as any).images.length ? (p as any).images : (p.image_url ? [p.image_url] : []),
       description: p.description ?? '', is_local: p.is_local, region: p.region ?? '',
       emoji: p.emoji ?? '', bg_color: p.bg_color ?? '#ecf4d5',
       tag: p.tag ?? '', tag_label: p.tag_label ?? '',
@@ -101,20 +102,6 @@ export default function AdminProducts() {
     });
     setError('');
     setShowModal(true);
-  };
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    setError('');
-    const ext = file.name.split('.').pop();
-    const path = `${Date.now()}.${ext}`;
-    const { error: uploadErr } = await supabase.storage.from('product-images').upload(path, file, { upsert: true });
-    if (uploadErr) { setError(uploadErr.message); setUploading(false); return; }
-    const { data } = supabase.storage.from('product-images').getPublicUrl(path);
-    set('image_url', data.publicUrl);
-    setUploading(false);
   };
 
   const handleSave = async () => {
@@ -135,7 +122,7 @@ export default function AdminProducts() {
         cost_price: form.cost_price !== '' ? parseFloat(form.cost_price) : null,
         unit: s(form.unit), farm: s(form.farm), category: s(form.category),
         product_type: form.product_type, origin_country: s(form.origin_country),
-        image_url: s(form.image_url) || null, description: s(form.description),
+        images: form.images, image_url: form.images[0] || null, description: s(form.description),
         is_local: form.is_local, region: s(form.region),
         emoji: s(form.emoji) || null, bg_color: form.bg_color || null,
         tag: s(form.tag) || null, tag_label: s(form.tag_label) || null,
@@ -406,25 +393,8 @@ export default function AdminProducts() {
               />
             </FormField>
 
-            <FormField label={t('admin.field_image', 'Image')}>
-              <div className="space-y-2">
-                {form.image_url && (
-                  <img src={form.image_url} alt="" className="w-full h-40 object-cover rounded-xl border border-[#d2e095]" />
-                )}
-                <label className={`flex items-center gap-3 cursor-pointer border-2 border-dashed border-[#d2e095] rounded-xl p-4 hover:bg-[#ecf4d5] transition ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
-                  <span className="text-2xl">📷</span>
-                  <span className="text-sm text-gray-600">
-                    {uploading ? t('admin.uploading', 'Envoi en cours...') : t('admin.upload_image', 'Choisir une image depuis mon ordinateur')}
-                  </span>
-                  <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
-                </label>
-                <input
-                  value={form.image_url}
-                  onChange={e => set('image_url', e.target.value)}
-                  className={inputClass}
-                  placeholder={t('admin.field_image_url', 'ou coller une URL https://...')}
-                />
-              </div>
+            <FormField label={t('admin.field_images', 'Photos')}>
+              <ImagesField value={form.images} onChange={imgs => setForm(f => ({ ...f, images: imgs, image_url: imgs[0] || '' }))} pathPrefix="hf" onError={setError} />
             </FormField>
 
             <FormField label={t('admin.field_description', 'Description')}>

@@ -19,6 +19,9 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
   const { isFavorite, addFavorite, removeFavorite } = useFavorites();
   const [cartOpen, setCartOpen] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  // Galerie : images[] si renseigné, sinon la photo principale
+  const gallery: string[] = Array.isArray(product.images) && product.images.length ? product.images : (product.image_url ? [product.image_url] : []);
+  const [imgIdx, setImgIdx] = useState(0);
 
   const t = (key: string, fallback: string) => ui[key] || fallback;
 
@@ -69,12 +72,25 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
         <div className="bg-white rounded-3xl overflow-hidden border border-[#d2e095] shadow-md mb-8">
           <div className="grid md:grid-cols-2 gap-0">
 
-            {/* Image */}
+            {/* Image + galerie (photos multiples) */}
             <div className="relative h-72 sm:h-96 md:h-auto min-h-[320px] bg-[#ecf4d5]">
-              {product.image_url ? (
-                <img src={product.image_url} alt={getProductName(product)} className="w-full h-full object-cover" />
+              {gallery[imgIdx] ? (
+                <img src={gallery[imgIdx]} alt={getProductName(product)} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-8xl opacity-20">📷</div>
+              )}
+              {gallery.length > 1 && (
+                <>
+                  <button type="button" aria-label="previous" onClick={() => setImgIdx((imgIdx - 1 + gallery.length) % gallery.length)} className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/85 shadow flex items-center justify-center text-gray-700 hover:bg-white z-10">‹</button>
+                  <button type="button" aria-label="next" onClick={() => setImgIdx((imgIdx + 1) % gallery.length)} className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/85 shadow flex items-center justify-center text-gray-700 hover:bg-white z-10">›</button>
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+                    {gallery.map((g: string, i: number) => (
+                      <button key={g + i} type="button" onClick={() => setImgIdx(i)} className={`w-10 h-10 rounded-lg overflow-hidden border-2 ${i === imgIdx ? 'border-[#a8c800]' : 'border-white/70'} shadow`}>
+                        <img src={g} alt="" className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                </>
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent" />
               <div className={`absolute top-4 left-4 text-xs font-bold px-3 py-1.5 rounded-full backdrop-blur-sm shadow-sm ${isBio ? 'bg-[#edf5a0]/90 text-[#526500]' : 'bg-orange-100/90 text-orange-700'}`}>

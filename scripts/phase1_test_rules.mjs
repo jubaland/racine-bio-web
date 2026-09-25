@@ -20,7 +20,7 @@ const asM = "perform set_config('request.jwt.claims', json_build_object('sub',ui
 const asA = "perform set_config('role','postgres', true); perform set_config('request.jwt.claims','', true);";
 const asN = "perform set_config('request.jwt.claims', json_build_object('role','anon')::text, true); perform set_config('role','anon', true);";
 const sql = `do $$
-declare uid uuid := '${uid}'; pid bigint; s1 text; s2 text; s3 text; s4 text; s5 text; v1 int; v2 int; v3 int; r text;
+declare uid uuid := '${uid}'; pid bigint; s1 text; s2 text; s3 text; s4 text; s5 text; s6 text; v1 int; v2 int; v3 int; r text;
 begin
   ${asM}
   insert into products (${cols}) values (${values}) returning id, status into pid, s1;          -- création → pending_review
@@ -29,19 +29,21 @@ begin
   update products set price = 120 where id = pid; select status into s3 from products where id = pid;           -- prix → pending_review
   update products set status='published' where id=pid; select status into s4 from products where id = pid;      -- auto-publication → bloquée
   ${asA} update products set status='published' where id=pid;
+  ${asM} update products set images = '["https://example.com/a.jpg"]'::jsonb where id = pid; select status into s6 from products where id = pid;  -- photos → pending_review
+  ${asA} update products set status='published' where id=pid;
   ${asN} select count(*) into v1 from products where id = pid;                                     -- sans abonnement → 0
   ${asA} insert into merchant_subscriptions (user_id, plan_id, status, starts_at, ends_at) values (uid, 1, 'active', current_date, current_date + 30);
   ${asN} select count(*) into v2 from products where id = pid;                                     -- actif → 1
   ${asA} update merchant_subscriptions set ends_at = current_date - 1 where user_id = uid;
   ${asN} select count(*) into v3 from products where id = pid;                                     -- échu → 0
   ${asA} select amount::text into r from merchant_subscriptions where user_id = uid;
-  raise exception 'RESULTATS|creation=%|stock_seul=%|modif_prix=%|auto_publication=%|anon_sans_abo=%|anon_abo_actif=%|anon_abo_echu=%|montant=%', s1, s2, s3, s4, v1, v2, v3, r;
+  raise exception 'RESULTATS|creation=%|stock_seul=%|modif_prix=%|auto_publication=%|modif_photos=%|anon_sans_abo=%|anon_abo_actif=%|anon_abo_echu=%|montant=%', s1, s2, s3, s4, s6, v1, v2, v3, r;
 end $$;`;
 const res = await q(sql);
 const m = res.body.match(/RESULTATS\|[^"\\]*/);
 if (!m) { console.log('ERREUR', res.body.slice(0, 500)); process.exit(1); }
 const got = Object.fromEntries(m[0].replace('RESULTATS|', '').split('|').map(p => p.split('=')));
-const expected = { creation: 'pending_review', stock_seul: 'published', modif_prix: 'pending_review', auto_publication: 'pending_review', anon_sans_abo: '0', anon_abo_actif: '1', anon_abo_echu: '0', montant: '5000' };
+const expected = { creation: 'pending_review', stock_seul: 'published', modif_prix: 'pending_review', auto_publication: 'pending_review', modif_photos: 'pending_review', anon_sans_abo: '0', anon_abo_actif: '1', anon_abo_echu: '0', montant: '5000' };
 let ko = 0;
 for (const [k, v] of Object.entries(expected)) { const ok = got[k] === v; if (!ok) ko++; console.log(`${ok ? '✅' : '❌'} ${k} = ${got[k]}${ok ? '' : ' (attendu ' + v + ')'}`); }
 const res2 = JSON.parse((await q("select (select count(*) from products where name='zz-sim')::int as p, (select count(*) from merchant_subscriptions where notes = 'zz-sim')::int as s")).body)[0];
