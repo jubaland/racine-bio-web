@@ -8,7 +8,7 @@ import ProducerLayout from '../../../components/producer/ProducerLayout';
 // Commandes marchand — via /api/producer/orders : uniquement ses articles, prénom du client,
 // pas de coordonnées (Hornafresh prépare et livre).
 
-type Item = { product_id: number; name: string; unit: string; quantity: number; price: number; total: number };
+type Item = { product_id: number; name: string; unit: string; quantity: number; price: number; total: number; paid_out?: boolean };
 type Order = { id: string; status: string; created_at: string; customer: string; items: Item[]; subtotal: number };
 
 function OrdersContent({ producer }: { producer: any }) {
@@ -16,6 +16,8 @@ function OrdersContent({ producer }: { producer: any }) {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
 
@@ -24,14 +26,34 @@ function OrdersContent({ producer }: { producer: any }) {
     try {
       let { data: { session } } = await supabase.auth.getSession();
       if (!session || (session.expires_at && session.expires_at * 1000 < Date.now() + 60000)) session = (await supabase.auth.refreshSession()).data.session;
-      const res = await fetch(`/api/producer/orders${filterStatus ? `?status=${filterStatus}` : ''}`, { headers: { Authorization: `Bearer ${session?.access_token}` } });
+      const qs = new URLSearchParams();
+      if (filterStatus) qs.set('status', filterStatus);
+      if (from) qs.set('from', from);
+      if (to) qs.set('to', to);
+      const res = await fetch(`/api/producer/orders${qs.toString() ? `?${qs}` : ''}`, { headers: { Authorization: `Bearer ${session?.access_token}` } });
       const j = await res.json();
       setOrders(res.ok ? (j.orders || []) : []);
     } catch { setOrders([]); }
     setLoading(false);
-  }, [producer.user_id, filterStatus]);
+  }, [producer.user_id, filterStatus, from, to]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
+  // Export CSV : une ligne par article des commandes affichées (filtres statut + période appliqués)
+  const STATUS_TXT: Record<string, string> = { pending: t('admin.status_pending', '⏳ En attente'), processing: t('admin.status_processing', '🚚 En cours'), delivered: t('admin.status_delivered', '✅ Livré'), cancelled: t('admin.status_cancelled', '❌ Annulé') };
+  const exportCsv = () => {
+    const head = [t('pay.col_date', 'Date'), t('pay.col_order', 'Commande'), t('producer.csv_status', 'Statut'), t('producer.csv_customer', 'Client'), t('pay.col_product', 'Produit'), t('pay.col_qty', 'Qté'), t('producer.csv_unit', 'Unité'), t('pay.col_price', 'Prix'), t('pay.col_total', 'Total'), t('producer.csv_paid_out', 'Reversé')];
+    const rows = orders.flatMap(o => o.items.map(i => [
+      new Date(o.created_at).toLocaleDateString('fr-FR'), `#${o.id}`, (STATUS_TXT[o.status] || o.status).replace(/^[^\p{L}]+/u, ''), o.customer, i.name, String(i.quantity), i.unit, String(i.price), String(i.total), i.paid_out ? t('producer.csv_yes', 'oui') : t('producer.csv_no', 'non'),
+    ]));
+    const sub = orders.reduce((s, o) => s + (o.status === 'cancelled' ? 0 : o.subtotal), 0);
+    rows.push([], [t('producer.csv_total_label', 'Total hors annulées'), '', '', '', '', '', '', '', String(sub), '']);
+    const csv = '﻿' + [head, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = `commandes-${from || 'debut'}-${to || new Date().toISOString().slice(0, 10)}${filterStatus ? '-' + filterStatus : ''}.csv`;
+    a.click();
+  };
 
   const statusInfo = (s: string) => {
     const map: Record<string, { label: string; cls: string }> = {
@@ -73,7 +95,16 @@ function OrdersContent({ producer }: { producer: any }) {
           ))}
         </div>
       </div>
-      <p className="text-xs text-gray-400 mb-4">{t('producer.orders_hint', 'Seuls vos articles sont affichés. Hornafresh prépare et livre la commande complète.')}</p>
+      <p className="text-xs text-gray-400 mb-3">{t('producer.orders_hint', 'Seuls vos articles sont affichés. Hornafresh prépare et livre la commande complète.')}</p>
+
+      {/* Période + export */}
+      <div className="flex flex-wrap items-end gap-2 mb-4 bg-white border border-[#d2e095] rounded-2xl px-4 py-3">
+        <label className="text-[11px] font-semibold text-gray-500">{t('promo.from', 'Du')}<input type="date" value={from} max={to || undefined} onChange={e => setFrom(e.target.value)} className="block border border-[#d2e095] rounded-xl px-3 py-1.5 text-sm bg-white mt-0.5" /></label>
+        <label className="text-[11px] font-semibold text-gray-500">{t('promo.to', 'Au')}<input type="date" value={to} min={from || undefined} onChange={e => setTo(e.target.value)} className="block border border-[#d2e095] rounded-xl px-3 py-1.5 text-sm bg-white mt-0.5" /></label>
+        {(from || to) && <button onClick={() => { setFrom(''); setTo(''); }} className="text-xs text-gray-400 hover:text-[#7d9800] pb-2">✕ {t('producer.period_clear', 'Toute la période')}</button>}
+        <div className="flex-1" />
+        <button onClick={exportCsv} disabled={loading || orders.length === 0} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-2 hover:bg-[#ecf4d5] disabled:opacity-40">⬇️ CSV ({orders.reduce((s, o) => s + o.items.length, 0)} {t('producer.csv_lines', 'ligne(s)')})</button>
+      </div>
 
       {loading ? (
         <div className="flex items-center justify-center h-48">
@@ -142,9 +173,10 @@ function OrdersContent({ producer }: { producer: any }) {
                               {item.unit ? ` / ${item.unit}` : ''}
                             </p>
                           </div>
-                          <p className="text-sm font-bold text-[#526500]">
-                            {item.total.toLocaleString()} Fdj
-                          </p>
+                          <div className="text-right">
+                            <p className="text-sm font-bold text-[#526500]">{item.total.toLocaleString()} Fdj</p>
+                            {order.status === 'delivered' && <p className={`text-[10px] ${item.paid_out ? 'text-green-600' : 'text-amber-600'}`}>{item.paid_out ? `✅ ${t('producer.csv_paid_out', 'Reversé')}` : `⏳ ${t('producer.to_pay_out', 'À reverser')}`}</p>}
+                          </div>
                         </div>
                       ))}
                     </div>

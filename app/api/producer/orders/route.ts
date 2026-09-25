@@ -8,7 +8,9 @@ import { requireMerchant } from '../../../../lib/producer-auth';
 // du client. Pas de téléphone ni d'adresse : Hornafresh reste le hub (préparation + livraison).
 //   GET /api/producer/orders            → { stats, orders }
 //   GET /api/producer/orders?status=x   → filtre par statut
+//   GET /api/producer/orders?from=YYYY-MM-DD&to=YYYY-MM-DD → période (date de commande)
 //   GET /api/producer/orders?limit=5    → limite (tableau de bord)
+// Chaque article porte paid_out (reversé ou non) pour l'export / le rapprochement.
 
 const firstName = (full: string | null) => (full || '').trim().split(/\s+/)[0] || 'Client';
 
@@ -17,7 +19,11 @@ export async function GET(request: Request) {
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const url = new URL(request.url);
   const status = url.searchParams.get('status') || '';
-  const limit = Math.min(200, Math.max(1, parseInt(url.searchParams.get('limit') || '200', 10) || 200));
+  // Date valide au calendrier (2026-13-45 est rejeté, pas seulement le format)
+  const isDate = (s: string | null) => { if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false; const d = new Date(s + 'T00:00:00Z'); return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s; };
+  const from = isDate(url.searchParams.get('from')) ? url.searchParams.get('from')! : '';
+  const to = isDate(url.searchParams.get('to')) ? url.searchParams.get('to')! : '';
+  const limit = Math.min(500, Math.max(1, parseInt(url.searchParams.get('limit') || '500', 10) || 500));
   const uid = auth.user.id;
 
   const { data: products } = await supabaseAdmin.from('products').select('id, name, unit, status').eq('owner_id', uid);
@@ -27,7 +33,7 @@ export async function GET(request: Request) {
   const empty = { stats: { products: mine.length, published: mine.filter((p: any) => p.status === 'published').length, orders: 0, revenue: 0, delivered_revenue: 0 }, orders: [] as any[] };
   if (!ids.length) return NextResponse.json(empty);
 
-  const { data: items } = await supabaseAdmin.from('order_items').select('order_id, product_id, quantity, price').in('product_id', ids);
+  const { data: items } = await supabaseAdmin.from('order_items').select('order_id, product_id, quantity, price, payout_id').in('product_id', ids);
   const byOrder: Record<string, any[]> = {};
   (items || []).forEach((i: any) => { (byOrder[i.order_id] ||= []).push(i); });
   const orderIds = Object.keys(byOrder);
@@ -35,16 +41,18 @@ export async function GET(request: Request) {
 
   let q = supabaseAdmin.from('orders').select('id, status, created_at, customer_name').in('id', orderIds).order('created_at', { ascending: false });
   if (status) q = q.eq('status', status);
+  if (from) q = q.gte('created_at', `${from}T00:00:00`);
+  if (to) q = q.lte('created_at', `${to}T23:59:59`);
   const { data: orders } = await q;
 
   const all = (orders || []).map((o: any) => {
-    const its = (byOrder[o.id] || []).map((i: any) => ({ product_id: i.product_id, name: pmap[i.product_id]?.name || '—', unit: pmap[i.product_id]?.unit || '', quantity: i.quantity, price: i.price, total: i.quantity * i.price }));
+    const its = (byOrder[o.id] || []).map((i: any) => ({ product_id: i.product_id, name: pmap[i.product_id]?.name || '—', unit: pmap[i.product_id]?.unit || '', quantity: i.quantity, price: i.price, total: i.quantity * i.price, paid_out: i.payout_id != null }));
     return { id: o.id, status: o.status, created_at: o.created_at, customer: firstName(o.customer_name), items: its, subtotal: its.reduce((s: number, i: any) => s + i.total, 0) };
   });
 
   // Stats sur l'ensemble (hors filtre) : commandes non annulées ; « livré » = encaissé pour de bon
   let stats = empty.stats;
-  if (!status) {
+  if (!status && !from && !to) {
     const live = all.filter(o => o.status !== 'cancelled');
     stats = { ...stats, orders: live.length, revenue: live.reduce((s, o) => s + o.subtotal, 0), delivered_revenue: live.filter(o => o.status === 'delivered').reduce((s, o) => s + o.subtotal, 0) };
   } else {
