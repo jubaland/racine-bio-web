@@ -63,8 +63,12 @@ export async function GET(request: Request) {
   }
   const label = (s: Sub) => shops[s.user_id] || s.user_id.slice(0, 8);
 
+  // 5. Récapitulatifs quotidiens (marchands en mode e-mail « daily ») — calculés aussi en mode à blanc
+  const { buildDigests, digestHasContent } = await import('../../../../lib/merchant-digest');
+  const digests = await buildDigests();
   const report = {
     date: today, dry,
+    digests: digests.map(d => ({ shop: d.shop, email: d.email ? d.email.replace(/^(..)[^@]*/, '$1***') : null, since: d.since, new_orders: d.new_orders.length, delivered: d.delivered, cancelled: d.cancelled, low_stock: d.low_stock.length, due: d.due, will_send: digestHasContent(d) && !!d.email })),
     expired: plan.expire.map(s => ({ id: s.id, shop: label(s), ends_at: s.ends_at, silent: hasFollowUp(s) })),
     reminded_7: plan.remind7.map(s => ({ id: s.id, shop: label(s), ends_at: s.ends_at })),
     reminded_1: plan.remind1.map(s => ({ id: s.id, shop: label(s), ends_at: s.ends_at })),
@@ -109,6 +113,17 @@ export async function GET(request: Request) {
   for (const s of plan.stale) {
     const { error: e } = await supabaseAdmin.from('merchant_subscriptions').update({ stale_alerted_at: nowIso }).eq('id', s.id).is('stale_alerted_at', null);
     if (e) report.errors.push(`stale ${s.id}: ${e.message}`);
+  }
+
+  // 5. Envoi des récapitulatifs (une fois : digest_sent_at avance même sans contenu, pour borner la période)
+  for (const d of digests) {
+    try {
+      if (digestHasContent(d) && d.email) {
+        const { sendMerchantDigest } = await import('../../../../lib/emails');
+        await sendMerchantDigest(d.email, d);
+      }
+      await supabaseAdmin.from('merchant_profiles').update({ digest_sent_at: nowIso }).eq('user_id', d.user_id);
+    } catch (e: any) { report.errors.push(`digest ${d.shop}: ${e.message}`); }
   }
 
   // 4. Résumé admin

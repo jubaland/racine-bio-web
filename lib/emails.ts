@@ -363,6 +363,38 @@ export async function sendMerchantEmail(email: string, subject: string, title: s
   await resend.emails.send({ from: FROM, to: email, subject, html });
 }
 
+// ── 4c. Récapitulatif quotidien → marchand (mode e-mail « daily ») ──────────
+export async function sendMerchantDigest(email: string, d: {
+  shop: string; new_orders: { id: number; status: string; customer: string; lines: string[]; amount: number }[];
+  delivered: number; cancelled: number; amount_new: number; low_stock: { name: string; stock: number; unit: string }[]; due: number; sub_days_left: number | null;
+}) {
+  const fdj = (n: number) => `${Number(n).toLocaleString('fr-FR')} Fdj`;
+  const STATUS: Record<string, string> = { pending: '⏳ En attente', processing: '🚚 En préparation', shipping: '📦 Expédiée', delivered: '✅ Livrée', cancelled: '❌ Annulée' };
+  const ordersHtml = d.new_orders.length ? `
+    <h3 style="margin:18px 0 8px;font-size:15px;color:#1f2937;">🛍️ Commandes reçues (${d.new_orders.length}) — ${fdj(d.amount_new)} hors annulées</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      ${d.new_orders.map(o => `<tr style="border-bottom:1px solid #eef2e0;"><td style="padding:6px 4px;white-space:nowrap;"><strong>#${o.id}</strong> · ${o.customer}</td><td style="padding:6px 4px;color:#374151;">${o.lines.join(', ')}</td><td style="padding:6px 4px;text-align:right;white-space:nowrap;">${fdj(o.amount)}</td><td style="padding:6px 4px;white-space:nowrap;">${STATUS[o.status] || o.status}</td></tr>`).join('')}
+    </table>` : '<p style="margin:16px 0 0;color:#6b7280;font-size:14px;">Aucune nouvelle commande sur la période.</p>';
+  const lowHtml = d.low_stock.length ? `
+    <h3 style="margin:18px 0 8px;font-size:15px;color:#b45309;">⚠️ Stock bas</h3>
+    <ul style="margin:0;padding-left:18px;color:#374151;font-size:13px;">${d.low_stock.map(p => `<li>${p.name} : <strong>${p.stock === 0 ? 'rupture' : `${p.stock} ${p.unit}`}</strong></li>`).join('')}</ul>` : '';
+  const html = baseLayout(`
+    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">📬 Votre récapitulatif Hornafresh — ${d.shop}</h2>
+    <p style="margin:0 0 12px;color:#6b7280;font-size:13px;">Depuis votre dernier récapitulatif.</p>
+    ${ordersHtml}
+    ${lowHtml}
+    <div style="background:#f8faf0;border-radius:12px;padding:14px;margin:18px 0;font-size:13px;color:#374151;">
+      <p style="margin:0;">💸 À vous reverser : <strong>${fdj(d.due)}</strong></p>
+      ${d.sub_days_left != null ? `<p style="margin:6px 0 0;">💳 Abonnement : <strong>${d.sub_days_left} jour(s)</strong> restant(s)</p>` : '<p style="margin:6px 0 0;color:#b91c1c;">💳 Aucun abonnement actif — vos produits ne sont pas visibles.</p>'}
+    </div>
+    <p style="text-align:center;margin:0 0 20px;">
+      <a href="https://www.hornafresh.com/producer/orders" style="display:inline-block;background:#a8c800;color:#ffffff;text-decoration:none;padding:12px 26px;border-radius:9999px;font-weight:bold;font-size:14px;">Ouvrir mes commandes</a>
+    </p>
+    <p style="margin:0;color:#9ca3af;font-size:12px;">Vous recevez un récapitulatif quotidien. Pour un e-mail à chaque commande, changez le réglage dans votre tableau de bord marchand.</p>
+  `);
+  await resend.emails.send({ from: FROM, to: email, subject: `📬 Récapitulatif Hornafresh — ${d.new_orders.length} commande(s)${d.low_stock.length ? ` · ${d.low_stock.length} stock(s) bas` : ''}`, html });
+}
+
 // ── 4b. Paiement d'abonnement déclaré par un marchand → admin ────────────────
 export async function sendMerchantPaymentAlert(p: { shop: string; email: string | null; plan: string; amount: number; method: string; reference: string | null }) {
   const amt = Number(p.amount).toLocaleString('fr-FR');

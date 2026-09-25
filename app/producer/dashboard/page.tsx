@@ -13,6 +13,29 @@ function DashboardContent({ producer }: { producer: any }) {
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<'30d' | 'month' | 'year' | 'all'>('30d');
+  const [emailMode, setEmailMode] = useState<'instant' | 'daily' | null>(null);
+  const [savingMode, setSavingMode] = useState(false);
+  const tokenOf = async () => {
+    let { data: { session } } = await supabase.auth.getSession();
+    if (!session || (session.expires_at && session.expires_at * 1000 < Date.now() + 60000)) session = (await supabase.auth.refreshSession()).data.session;
+    return session?.access_token;
+  };
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/producer/settings', { headers: { Authorization: `Bearer ${await tokenOf()}` } });
+        const j = await res.json(); if (res.ok) setEmailMode(j.email_mode);
+      } catch { /* ignore */ }
+    })();
+  }, [producer.user_id]);
+  const saveMode = async (mode: 'instant' | 'daily') => {
+    setSavingMode(true);
+    try {
+      const res = await fetch('/api/producer/settings', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await tokenOf()}` }, body: JSON.stringify({ email_mode: mode }) });
+      if (res.ok) setEmailMode(mode);
+    } catch { /* ignore */ }
+    setSavingMode(false);
+  };
   const [sales, setSales] = useState<{ totals: any; products: any[]; top: string | null } | null>(null);
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
@@ -177,6 +200,21 @@ function DashboardContent({ producer }: { producer: any }) {
             )}
           </>
         )}
+      </div>
+
+      {/* Préférence e-mail */}
+      <div className="bg-white rounded-2xl border border-[#d2e095] p-5 md:p-6 mb-6">
+        <h2 className="text-lg font-semibold text-gray-800 mb-1">📧 {t('producer.email_pref_title', 'E-mails de commande')}</h2>
+        <p className="text-xs text-gray-400 mb-3">{t('producer.email_pref_hint', 'Les notifications dans l\'application et sur votre téléphone restent immédiates. Choisissez seulement la fréquence des e-mails.')}</p>
+        <div className="grid sm:grid-cols-2 gap-2">
+          {([['instant', t('producer.email_instant', 'Un e-mail à chaque commande'), t('producer.email_instant_desc', 'Vous savez immédiatement quoi fournir.')], ['daily', t('producer.email_daily', 'Un récapitulatif par jour'), t('producer.email_daily_desc', 'Chaque matin : commandes reçues, stock bas, montant à reverser, abonnement.')]] as const).map(([mode, label, desc]) => (
+            <button key={mode} type="button" disabled={savingMode || emailMode === null} onClick={() => saveMode(mode)}
+              className={`text-left rounded-xl border-2 px-4 py-3 transition disabled:opacity-60 ${emailMode === mode ? 'border-[#a8c800] bg-[#f6f9e6]' : 'border-[#e3eebf] hover:border-[#a8c800]'}`}>
+              <p className="text-sm font-semibold text-gray-800">{emailMode === mode ? '● ' : '○ '}{label}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Recent orders */}

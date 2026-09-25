@@ -201,10 +201,14 @@ export async function POST(request: Request) {
         }
         if (Object.keys(byOwner).length) {
           const { sendMerchantEmail } = await import('../../../lib/emails');
+          // Mode e-mail du marchand : 'instant' = un e-mail par commande ; 'daily' = récapitulatif du cron (cloche + push restent immédiats)
+          const { data: modes } = await supabaseAdmin.from('merchant_profiles').select('user_id, email_mode').in('user_id', Object.keys(byOwner));
+          const modeOf: Record<string, string> = Object.fromEntries((modes || []).map((m: any) => [m.user_id, m.email_mode || 'instant']));
           for (const [ownerId, lines] of Object.entries(byOwner)) {
             const title = `🛍️ Nouvelle commande #${createdOrder.id}`;
             const text = `À fournir à Hornafresh : ${lines.join(', ')}. Suivez la commande dans « Mes commandes ».`;
             await notifyUser(ownerId, { title, body: text, url: '/producer/orders' });
+            if (modeOf[ownerId] === 'daily') continue;
             const { data: mu } = await supabaseAdmin.auth.admin.getUserById(ownerId);
             if (mu?.user?.email) await sendMerchantEmail(mu.user.email, `Nouvelle commande #${createdOrder.id} — Hornafresh`, title, text).catch(() => {});
           }
