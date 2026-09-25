@@ -202,6 +202,9 @@ function DashboardContent({ producer }: { producer: any }) {
         )}
       </div>
 
+      {/* Avis clients */}
+      <MerchantRatingCard ownerId={producer.user_id} />
+
       {/* Préférence e-mail */}
       <div className="bg-white rounded-2xl border border-[#d2e095] p-5 md:p-6 mb-6">
         <h2 className="text-lg font-semibold text-gray-800 mb-1">📧 {t('producer.email_pref_title', 'E-mails de commande')}</h2>
@@ -262,6 +265,26 @@ function DashboardContent({ producer }: { producer: any }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// Note moyenne et derniers avis clients du marchand (lecture seule ; réponse aux avis non prévue)
+function MerchantRatingCard({ ownerId }: { ownerId: string }) {
+  const { ui } = useLanguage();
+  const t = (k: string, f: string) => ui[k] || f;
+  const [d, setD] = useState<{ avg: number | null; count: number; reviews: { name: string; rating: number; comment: string | null; date: string }[] } | null>(null);
+  useEffect(() => { fetch(`/api/merchant-reviews?owner=${ownerId}`).then(r => r.json()).then(j => setD(j)).catch(() => {}); }, [ownerId]);
+  if (!d) return null;
+  return (
+    <div className="bg-white rounded-2xl border border-[#d2e095] p-5 md:p-6 mb-6">
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+        <h2 className="text-lg font-semibold text-gray-800">⭐ {t('rev.title', 'Avis clients')}</h2>
+        {d.count > 0 ? <p className="text-sm text-gray-600"><span className="text-[#f59e0b]">{'★'.repeat(Math.round(d.avg || 0))}</span><span className="text-gray-300">{'★'.repeat(5 - Math.round(d.avg || 0))}</span> <strong>{d.avg}</strong>/5 · {d.count} {t('rev.count', 'avis')}</p> : <p className="text-sm text-gray-400">{t('rev.none_merchant', 'Pas encore d\'avis : ils apparaissent après vos premières livraisons.')}</p>}
+      </div>
+      {d.reviews.slice(0, 3).map((r, i) => (
+        <p key={i} className="text-sm text-gray-600 border-t border-[#f0f4dc] py-2"><span className="text-[#f59e0b]">{'★'.repeat(r.rating)}</span> <strong>{r.name}</strong>{r.comment ? ` — ${r.comment}` : ''} <span className="text-xs text-gray-400">· {new Date(r.date).toLocaleDateString('fr-FR')}</span></p>
+      ))}
     </div>
   );
 }

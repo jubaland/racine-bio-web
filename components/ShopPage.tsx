@@ -8,11 +8,12 @@ import { useFavorites } from '../context/FavoritesContext';
 import Header from './Header';
 import CartDrawer from './CartDrawer';
 import CardLike from './CardLike';
+import MerchantReviews, { Stars } from './MerchantReviews';
 
 // Vitrine publique d'un marchand : /boutique/[owner_id]
 const ORIGIN_FLAGS: Record<string, string> = { DJ: '🇩🇯', ET: '🇪🇹', SO: '🇸🇴', YE: '🇾🇪', FR: '🇫🇷', EG: '🇪🇬', SA: '🇸🇦' };
 
-export default function ShopPage({ shop, products }: { shop: { id: string; name: string; region: string | null }; products: any[] }) {
+export default function ShopPage({ shop, products }: { shop: { id: string; name: string; region: string | null; rating?: number | null; rating_count?: number }; products: any[] }) {
   const { ui, productTranslations, currentLang } = useLanguage();
   const { addItem } = useCart();
   const { isFavorite, addFavorite, removeFavorite } = useFavorites();
@@ -33,6 +34,9 @@ export default function ShopPage({ shop, products }: { shop: { id: string; name:
             <span className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center text-3xl">🏪</span>
             <div>
               <h1 className="text-2xl md:text-3xl font-bold">{shop.name}</h1>
+              {shop.rating != null && (shop.rating_count || 0) > 0 && (
+                <a href="#avis" className="inline-flex items-center gap-1 text-sm text-white/90 hover:text-white"><Stars value={shop.rating} size="text-sm" /> <strong>{shop.rating}</strong>/5 · {shop.rating_count} {t('rev.count', 'avis')}</a>
+              )}
               <p className="text-sm text-white/75 mt-0.5">
                 {t('shop.merchant_on', 'Marchand partenaire sur Hornafresh')}{shop.region ? ` · 📍 ${shop.region}` : ''} · {products.length} {t('shop.products', 'produit(s)')}{inStock < products.length ? ` (${inStock} ${t('shop.in_stock', 'en stock')})` : ''}
               </p>
@@ -82,6 +86,9 @@ export default function ShopPage({ shop, products }: { shop: { id: string; name:
           </div>
         )}
       </section>
+
+      <div id="avis" />
+      <MerchantReviews ownerId={shop.id} shopName={shop.name} />
     </div>
   );
 }

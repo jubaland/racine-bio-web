@@ -5,6 +5,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { useCan } from '../../context/AdminPermsContext';
 import MerchantPayouts from './MerchantPayouts';
+import MerchantReviewsAdmin from './MerchantReviewsAdmin';
 
 type Plan = { id: number; name: string; price_fdj: number; duration_days: number; is_active: boolean };
 type Sub = { id: number; user_id: string; plan_id: number | null; amount: number; starts_at: string | null; ends_at: string | null; status: string; payment_method: string | null; payment_reference: string | null; created_at: string; merchant?: { id: string; name: string; email: string | null } };
@@ -30,7 +31,7 @@ export default function AdminMerchants() {
   const [data, setData] = useState<Data | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
-  const [tab, setTab] = useState<'todo' | 'merchants' | 'payouts' | 'plans'>('todo');
+  const [tab, setTab] = useState<'todo' | 'merchants' | 'payouts' | 'reviews' | 'plans'>('todo');
   const [grantFor, setGrantFor] = useState<Merchant | null>(null);
   const [grantPlan, setGrantPlan] = useState<number | null>(null);
   const [grantMethod, setGrantMethod] = useState('cash');
@@ -81,7 +82,7 @@ export default function AdminMerchants() {
       <div className="flex items-center justify-between flex-wrap gap-3 mb-5">
         <h2 className="text-xl font-bold text-[#2d6410]">🏪 {t('admin.nav_merchants', 'Marchands')}</h2>
         <div className="flex gap-1.5 bg-white border border-[#d2e095] rounded-full p-1">
-          {([['todo', `✋ ${t('mer.tab_todo', 'À traiter')}${todoCount ? ` (${todoCount})` : ''}`], ['merchants', `🧑‍🌾 ${t('mer.tab_merchants', 'Marchands')}${data ? ` (${data.merchants.length})` : ''}`], ['payouts', `💸 ${t('mer.tab_payouts', 'Reversements')}`], ['plans', `📋 ${t('mer.tab_plans', 'Plans')}`]] as [typeof tab, string][]).map(([id, label]) => (
+          {([['todo', `✋ ${t('mer.tab_todo', 'À traiter')}${todoCount ? ` (${todoCount})` : ''}`], ['merchants', `🧑‍🌾 ${t('mer.tab_merchants', 'Marchands')}${data ? ` (${data.merchants.length})` : ''}`], ['payouts', `💸 ${t('mer.tab_payouts', 'Reversements')}`], ['reviews', `⭐ ${t('mer.tab_reviews', 'Avis')}`], ['plans', `📋 ${t('mer.tab_plans', 'Plans')}`]] as [typeof tab, string][]).map(([id, label]) => (
             <button key={id} onClick={() => setTab(id)} className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${tab === id ? 'bg-[#526500] text-white' : 'text-[#526500] hover:bg-[#ecf4d5]'}`}>{label}</button>
           ))}
         </div>
@@ -200,6 +201,7 @@ export default function AdminMerchants() {
 
           {/* ── Reversements ── */}
           {tab === 'payouts' && <MerchantPayouts canEdit={canEdit} />}
+          {tab === 'reviews' && <MerchantReviewsAdmin canEdit={canEdit} />}
 
           {/* ── Plans ── */}
           {tab === 'plans' && (

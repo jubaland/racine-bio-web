@@ -18,9 +18,15 @@ export async function fetchProducts() {
   const ownerIds = [...new Set(products.map((p: any) => p.owner_id).filter(Boolean))];
   if (ownerIds.length > 0) {
     const { data: profiles } = await supabase
-      .from('merchant_profiles').select('user_id, shop_name').in('user_id', ownerIds);
-    const names = Object.fromEntries((profiles || []).map((m: any) => [m.user_id, m.shop_name]));
-    products.forEach((p: any) => { if (p.owner_id) p.shop_name = names[p.owner_id] || p.farm || null; });
+      .from('merchant_profiles').select('user_id, shop_name, rating_avg, rating_count').in('user_id', ownerIds);
+    const byOwner: Record<string, any> = Object.fromEntries((profiles || []).map((m: any) => [m.user_id, m]));
+    products.forEach((p: any) => {
+      if (!p.owner_id) return;
+      const m = byOwner[p.owner_id];
+      p.shop_name = m?.shop_name || p.farm || null;
+      p.shop_rating = m?.rating_avg != null ? Number(m.rating_avg) : null;   // note moyenne du marchand (avis clients)
+      p.shop_rating_count = m?.rating_count || 0;
+    });
   }
   // Promotions planifiées actives → prix promo + ancien prix barré (calcul à la lecture)
   const { applyPromotions } = await import('./promotions');
