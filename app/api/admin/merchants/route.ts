@@ -201,23 +201,32 @@ export async function POST(request: Request) {
 
     // Adhésions : approuver = statut + rôle marchand sur le compte
     if (action === 'approve_request' || action === 'reject_request') {
-      const { request_id } = body;
+      const { request_id, note } = body;
       const { data: req } = await supabaseAdmin.from('producer_requests').select('*').eq('id', request_id).maybeSingle();
       if (!req) return NextResponse.json({ error: 'Demande introuvable' }, { status: 404 });
+      if (req.status !== 'pending') return NextResponse.json({ error: 'already_resolved' }, { status: 409 });
       const approve = action === 'approve_request';
-      await supabaseAdmin.from('producer_requests').update({ status: approve ? 'approved' : 'rejected' }).eq('id', request_id);
-      const user = (await allUsers()).find(u => u.email?.toLowerCase() === req.email?.toLowerCase());
+      await supabaseAdmin.from('producer_requests').update({
+        status: approve ? 'approved' : 'rejected', admin_note: note ? String(note).slice(0, 300) : null, resolved_at: new Date().toISOString(),
+      }).eq('id', request_id);
+      // Compte rattaché : par user_id (nouveau flux) sinon par e-mail (anciennes demandes)
+      const user = req.user_id
+        ? (await supabaseAdmin.auth.admin.getUserById(req.user_id)).data?.user || null
+        : (await allUsers()).find(u => u.email?.toLowerCase() === req.email?.toLowerCase()) || null;
       if (user) {
         if (approve) {
-          await supabaseAdmin.auth.admin.updateUserById(user.id, { user_metadata: { ...(user.user_metadata || {}), role: 'producer' } });
-          // Enseigne initiale = nom de ferme déclaré (modifiable ensuite dans le module Marchands)
+          await supabaseAdmin.auth.admin.updateUserById(user.id, { user_metadata: { ...(user.user_metadata || {}), role: 'producer', ...(req.phone && !user.user_metadata?.phone ? { phone: req.phone } : {}) } });
+          // Enseigne initiale = enseigne déclarée (modifiable ensuite dans le module Marchands)
           const { data: existing } = await supabaseAdmin.from('merchant_profiles').select('user_id').eq('user_id', user.id).maybeSingle();
           if (!existing) await setShopName(user.id, (req.farm_name || '').trim() || `Boutique ${nameOf(user)}`);
+          await notifyMerchant(user.id, '🎉 Adhésion acceptée',
+            `Bienvenue chez Hornafresh, ${req.farm_name} ! Prochaines étapes : 1) activez votre abonnement (Mon abonnement), 2) ajoutez vos produits (validés par Hornafresh), 3) recevez vos commandes et vos reversements.`,
+            'Bienvenue chez Hornafresh — votre espace marchand', '/producer/subscription');
+        } else {
+          await notifyMerchant(user.id, 'Adhésion non retenue',
+            `Votre demande pour « ${req.farm_name} » n'a pas été retenue pour le moment.${note ? ` Motif : ${note}.` : ''} Vous pouvez déposer une nouvelle demande ou nous appeler au 77 43 26 15.`,
+            'Hornafresh — votre demande d\'adhésion', '/become-producer');
         }
-        await notifyMerchant(user.id,
-          approve ? '🎉 Adhésion acceptée' : 'Adhésion non retenue',
-          approve ? `Bienvenue ! Activez votre abonnement pour publier vos produits (${req.farm_name}).` : 'Votre demande n\'a pas été retenue pour le moment. Contactez-nous au 77 43 26 15.',
-          approve ? 'Bienvenue chez Hornafresh — votre espace marchand' : undefined, '/producer/dashboard');
       }
       return NextResponse.json({ ok: true, user_found: !!user });
     }

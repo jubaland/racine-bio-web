@@ -13,6 +13,9 @@ interface ProducerRequest {
   farm_name: string;
   region: string;
   products_description: string;
+  phone: string | null;
+  admin_note: string | null;
+  resolved_at: string | null;
   status: string;
   created_at: string;
 }
@@ -74,13 +77,19 @@ export default function AdminRequests() {
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const updateStatus = async (id: string, status: string) => {
+    let note: string | null = null;
+    if (status === 'rejected') {
+      note = prompt(t('admin.request_reject_note', 'Motif du refus (communiqué au demandeur, optionnel) :'));
+      if (note === null) return; // annulé
+    }
+    if (status === 'approved' && !confirm(t('admin.request_approve_confirm', 'Accepter cette adhésion ? Le compte devient marchand, l\'enseigne est créée et le demandeur est invité à activer son abonnement.'))) return;
     setUpdating(true);
     if (status === 'approved' || status === 'rejected') {
-      // Passe par l'API : pose le rôle marchand sur le compte + notifie (cohérent avec le module Marchands)
+      // Passe par l'API : pose le rôle marchand sur le compte + enseigne + notifie (cohérent avec le module Marchands)
       const tk = (await supabase.auth.getSession()).data.session?.access_token;
       const res = await fetch('/api/admin/merchants', {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tk}` },
-        body: JSON.stringify({ action: status === 'approved' ? 'approve_request' : 'reject_request', request_id: id }),
+        body: JSON.stringify({ action: status === 'approved' ? 'approve_request' : 'reject_request', request_id: id, note: note || undefined }),
       });
       if (!res.ok) { const j = await res.json().catch(() => ({})); alert('⚠️ ' + (j.error || 'Erreur')); setUpdating(false); return; }
     } else {
@@ -179,8 +188,9 @@ export default function AdminRequests() {
                     <p className="font-semibold text-gray-800">{req.full_name}</p>
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${info.cls}`}>{info.label}</span>
                   </div>
-                  <p className="text-sm text-gray-500">{req.email}</p>
-                  <p className="text-sm text-[#526500] font-medium mt-1">🌱 {req.farm_name}</p>
+                  <p className="text-sm text-gray-500">{req.email}{req.phone ? ` · 📞 ${req.phone}` : ''}</p>
+                  <p className="text-sm text-[#526500] font-medium mt-1">🏪 {req.farm_name}</p>
+                  {req.status === 'rejected' && req.admin_note && <p className="text-xs text-[#b45309] mt-1">🚫 {req.admin_note}</p>}
                   {req.region && <p className="text-xs text-gray-400 mt-0.5">📍 {req.region}</p>}
                   {req.products_description && <p className="text-xs text-gray-500 mt-2 line-clamp-2">{req.products_description}</p>}
                   <p className="text-xs text-gray-300 mt-2">{new Date(req.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
@@ -227,7 +237,11 @@ export default function AdminRequests() {
                 <p className="text-sm font-medium text-gray-800">{selectedRequest.email}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-400 mb-1">{t('admin.field_farm_name', 'Nom de la ferme')}</p>
+                <p className="text-xs text-gray-400 mb-1">{t('bp.field_phone', 'Téléphone')}</p>
+                <p className="text-sm font-medium text-gray-800">{selectedRequest.phone || '—'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-400 mb-1">{t('mer.shop_name', 'Enseigne')}</p>
                 <p className="text-sm font-medium text-gray-800">{selectedRequest.farm_name}</p>
               </div>
               <div>

@@ -627,28 +627,28 @@ export default function HomePage({ products, categories, promos, producers, sett
           <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
             <div>
               <span className="inline-block bg-white/20 text-white text-xs font-semibold px-3 py-1 rounded-full mb-4">
-                👨‍🌾 {t('producerSpaceTag', 'Espace Producteur')}
+                🏪 {t('producerSpaceTag', 'Marchands partenaires')}
               </span>
               <h2 className="text-2xl md:text-3xl font-bold mb-4 leading-tight">
-                {t('producerSpaceTitle', 'Vous êtes producteur ?')}<br />
-                <span className="text-[#c8e050]">{t('producerSpaceTitle2', 'Rejoignez notre réseau')}</span>
+                {t('producerSpaceTitle', 'Vous produisez ou vendez du frais ?')}<br />
+                <span className="text-[#c8e050]">{t('producerSpaceTitle2', 'Vendez sur Hornafresh')}</span>
               </h2>
               <p className="text-white/75 text-base mb-6 leading-relaxed">
-                {t('producerSpaceDesc', 'Hornafresh vous accompagne au-delà de la vente : semences, conseil agronomique, matériel mutualisé et une communauté de producteurs engagés.')}
+                {t('producerSpaceDesc', 'Vous fournissez vos produits, nous les vendons, préparons et livrons. 100 % du prix de vos articles vous est reversé, pour un abonnement fixe sans commission.')}
               </p>
               <Link
                 href="/become-producer"
                 className="inline-block bg-[#c8e050] text-[#1c3a05] px-7 py-3.5 rounded-full font-bold hover:bg-[#d4f060] transition"
               >
-                {t('producerSpaceCta', 'Découvrir les avantages')} →
+                {t('producerSpaceCta', 'Devenir marchand')} →
               </Link>
             </div>
             <div className="grid grid-cols-2 gap-3">
               {[
-                { emoji: '🌱', title: t('ps.seeds', 'Semences bio'), desc: t('ps.seeds_desc', 'Accès à des semences certifiées à tarif préférentiel') },
-                { emoji: '🎓', title: t('ps.advice', 'Conseil agronomique'), desc: t('ps.advice_desc', 'Experts disponibles pour vous accompagner') },
-                { emoji: '🚜', title: t('ps.equipment', 'Matériel partagé'), desc: t('ps.equipment_desc', 'Location et prêt entre producteurs partenaires') },
-                { emoji: '💬', title: t('ps.community', 'Communauté'), desc: t('ps.community_desc', 'Échanges, entraide et retours d\'expérience') },
+                { emoji: '🏪', title: t('ps.seeds', 'Votre vitrine'), desc: t('ps.seeds_desc', 'Une boutique à votre enseigne sur le marché Hornafresh') },
+                { emoji: '🚚', title: t('ps.advice', 'Préparation et livraison'), desc: t('ps.advice_desc', 'Nous préparons, livrons et gérons le service client') },
+                { emoji: '💸', title: t('ps.equipment', 'Reversement à 100 %'), desc: t('ps.equipment_desc', 'Le prix de vos articles livrés vous revient intégralement') },
+                { emoji: '📊', title: t('ps.community', 'Espace marchand'), desc: t('ps.community_desc', 'Produits, commandes, ventes et reversements en un coup d\'œil') },
               ].map(b => (
                 <div key={b.title} className="bg-white/10 backdrop-blur rounded-2xl p-4 hover:bg-white/15 transition">
                   <span className="text-2xl">{b.emoji}</span>

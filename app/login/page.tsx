@@ -32,6 +32,7 @@ export default function LoginPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setRedirect(params.get('redirect') || '/');
+    if (params.get('mode') === 'register') setMode('register'); // lien « Créer un compte » (ex. onboarding marchand)
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
