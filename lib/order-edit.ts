@@ -33,11 +33,9 @@ export async function applyItemChange(order_id: any, item_id: any, new_quantity:
   const removedQty = currentQty - targetQty;
   const refundAmount = Number(item.price) * removedQty;
 
-  // Stock (delta rendu)
-  const { data: prod } = await supabaseAdmin.from('products').select('stock_qty').eq('id', item.product_id).maybeSingle();
-  await supabaseAdmin.from('products')
-    .update({ stock_qty: (Number(prod?.stock_qty) || 0) + removedQty })
-    .eq('id', item.product_id);
+  // Stock (delta rendu ; un panier composé rend aussi ses composants)
+  const { applyStockDeltas } = await import('./bundles');
+  await applyStockDeltas(supabaseAdmin, [{ product_id: item.product_id, delta: removedQty }]);
 
   // Ligne : suppression ou réduction
   if (isRemoval) {
@@ -79,7 +77,7 @@ export async function applyItemChange(order_id: any, item_id: any, new_quantity:
   try {
     const { data: fresh } = await supabaseAdmin
       .from('orders')
-      .select('id, total, payment_method, delivery_option_name, customer_name, phone, address, special_instructions, created_at, order_items ( product_id, quantity, product_name, product_unit, product_farm )')
+      .select('id, total, payment_method, delivery_option_name, customer_name, phone, address, special_instructions, created_at, order_items ( product_id, quantity, product_name, product_unit, product_farm, bundle_contents )')
       .eq('id', order_id)
       .single();
     const { data: preps } = await supabaseAdmin.from('preparers').select('email').eq('is_active', true);

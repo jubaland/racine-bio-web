@@ -1159,6 +1159,9 @@ export default function ProfilePage() {
                                   <p className="text-xs text-gray-400">
                                     {Number(item.price).toLocaleString()} Fdj / {unit} × {item.quantity}
                                   </p>
+                                  {Array.isArray((item as any).bundle_contents) && (item as any).bundle_contents.length > 0 && (
+                                    <p className="text-[11px] text-gray-400 truncate">🧺 {(item as any).bundle_contents.map((c: any) => `${c.quantity} ${c.unit || ''} ${c.name}`.replace(/\s+/g, ' ').trim()).join(' · ')}</p>
+                                  )}
                                 </div>
                                 <p className="text-sm font-bold text-[#526500] flex-shrink-0">
                                   {Number(subtotal).toLocaleString()} Fdj

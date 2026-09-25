@@ -31,7 +31,7 @@ export async function GET(request: Request) {
       id, total, status, payment_method, phone, address, customer_name, created_at,
       order_items (
         id, product_id, quantity, price,
-        product_name, product_image_url, product_unit, product_farm
+        product_name, product_image_url, product_unit, product_farm, bundle_contents
       )
     `)
     .eq('user_id', user.id)

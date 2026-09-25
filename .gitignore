@@ -45,3 +45,4 @@ next-env.d.ts
 # Dossier de relecture des traductions (regenerable : node scripts/translations_review_export.mjs + python scripts/translations_review_xlsx.py)
 translations-review/*.json
 translations-review/*.xlsx
+scripts/.phase11_test_state.json

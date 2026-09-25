@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useLanguage } from '../../context/LanguageContext';
 import ImagesField from '../ImagesField';
+import BundleField, { EMPTY_BUNDLE, bundleFigures, type BundleForm } from './BundleField';
 import { useCan } from '../../context/AdminPermsContext';
 import Modal, { ConfirmDelete, FormField, inputClass, selectClass } from './Modal';
 
@@ -36,7 +37,15 @@ interface Product {
   is_featured: boolean;
   featured_badge: string | null;
   created_at: string;
+  owner_id?: string | null;
+  is_bundle?: boolean;             // panier composé (composition dans bundle_items)
+  bundle_kind?: 'theme' | 'rescue' | null;
+  bundle_ends_at?: string | null;
 }
+
+// datetime-local ⇄ ISO (heure locale de l'admin)
+const toLocalInput = (iso: string | null | undefined) => { if (!iso) return ''; const d = new Date(iso); const p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
+const fromLocalInput = (v: string) => v ? new Date(v).toISOString() : null;
 
 const EMPTY_FORM = {
   name: '', price: '', old_price: '', cost_price: '', unit: 'kg', farm: '', category: '',
@@ -56,6 +65,7 @@ export default function AdminProducts() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [bundle, setBundle] = useState<BundleForm>(EMPTY_BUNDLE);
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -80,10 +90,15 @@ export default function AdminProducts() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const openAdd = () => { setEditingId(null); setForm(EMPTY_FORM); setError(''); setShowModal(true); };
+  const openAdd = () => { setEditingId(null); setForm(EMPTY_FORM); setBundle(EMPTY_BUNDLE); setError(''); setShowModal(true); };
 
-  const openEdit = (p: Product) => {
+  const openEdit = async (p: Product) => {
     setEditingId(p.id);
+    // Composition du panier (chargée à l'ouverture, une requête)
+    if (p.is_bundle) {
+      const { data: bi } = await supabase.from('bundle_items').select('product_id, quantity').eq('bundle_id', p.id).order('sort_order');
+      setBundle({ is_bundle: true, bundle_kind: p.bundle_kind || 'theme', bundle_ends_at: toLocalInput(p.bundle_ends_at), items: (bi || []).map((r: any) => ({ product_id: r.product_id, quantity: Number(r.quantity) })) });
+    } else setBundle(EMPTY_BUNDLE);
     setForm({
       name: p.name ?? '', price: String(p.price), old_price: String(p.old_price ?? ''),
       cost_price: String(p.cost_price ?? ''),
@@ -109,6 +124,10 @@ export default function AdminProducts() {
       setError(t('admin.error_products', 'Nom, prix et unité sont requis.'));
       return;
     }
+    // Panier composé : au moins un composant ; anti-gaspi : date de fin obligatoire
+    const bundleItems = bundle.is_bundle ? bundle.items.filter(i => i.quantity > 0) : [];
+    if (bundle.is_bundle && !bundleItems.length) { setError(t('admin.bundle_err_components', 'Un panier doit contenir au moins un composant.')); return; }
+    if (bundle.is_bundle && bundle.bundle_kind === 'rescue' && !bundle.bundle_ends_at) { setError(t('admin.bundle_err_ends', 'Un panier anti-gaspi doit avoir une date de fin.')); return; }
     setSaving(true);
     setError('');
     try {
@@ -116,6 +135,9 @@ export default function AdminProducts() {
       const badgesArr = s(form.badges)
         ? s(form.badges).split(',').map((b: string) => b.trim()).filter(Boolean)
         : null;
+      // Coût du panier = somme des coûts des composants (marge Finances) ; unité forcée « panier »
+      const byId = Object.fromEntries(products.map(p => [p.id, p])) as Record<number, any>;
+      const fig = bundle.is_bundle ? bundleFigures(bundleItems, byId) : null;
       const payload = {
         name: s(form.name), price: parseFloat(form.price),
         old_price: form.old_price ? parseFloat(form.old_price) : null,
@@ -134,11 +156,25 @@ export default function AdminProducts() {
         is_featured: form.is_featured,
         featured_badge: s(form.featured_badge) || null,
         stock_qty: form.stock_qty !== '' ? parseFloat(form.stock_qty) : 0,
+        is_bundle: bundle.is_bundle,
+        bundle_kind: bundle.is_bundle ? bundle.bundle_kind : null,
+        bundle_ends_at: bundle.is_bundle ? fromLocalInput(bundle.bundle_ends_at) : null,
+        ...(fig ? { cost_price: fig.cost, unit: 'panier' } : {}),
       };
-      const { error: err } = editingId
-        ? await supabase.from('products').update(payload).eq('id', editingId)
-        : await supabase.from('products').insert(payload);
+      const { data: saved, error: err } = editingId
+        ? await supabase.from('products').update(payload).eq('id', editingId).select('id').single()
+        : await supabase.from('products').insert(payload).select('id').single();
       if (err) { setError(err.message); setSaving(false); return; }
+      // Composition : remplacée intégralement (simple et idempotent)
+      const bundleId = saved?.id ?? editingId;
+      if (bundleId) {
+        const { error: delErr } = await supabase.from('bundle_items').delete().eq('bundle_id', bundleId);
+        if (delErr) { setError(delErr.message); setSaving(false); return; }
+        if (bundle.is_bundle && bundleItems.length) {
+          const { error: biErr } = await supabase.from('bundle_items').insert(bundleItems.map((it, i) => ({ bundle_id: bundleId, product_id: it.product_id, quantity: it.quantity, sort_order: i })));
+          if (biErr) { setError(biErr.message); setSaving(false); return; }
+        }
+      }
       setSaving(false);
       setShowModal(false);
       fetchAll();
@@ -163,6 +199,8 @@ export default function AdminProducts() {
       setError(
         delErr.message.includes('order_items')
           ? t('admin.delete_err_order', 'Ce produit figure dans des commandes : impossible de le supprimer. Passez plutôt son statut à « Archivé ».')
+          : delErr.message.includes('bundle_items')
+          ? t('admin.delete_err_bundle', 'Ce produit fait partie d\'un panier composé : retirez-le d\'abord du panier.')
           : t('admin.delete_err', 'Suppression impossible : ') + delErr.message
       );
       return;
@@ -239,7 +277,7 @@ export default function AdminProducts() {
                           <div className="w-10 h-10 rounded-lg bg-[#ecf4d5] flex items-center justify-center text-xl">🥬</div>
                         )}
                         <div>
-                          <p className="font-medium text-gray-800">{p.name} {p.is_featured && <span className="text-amber-400 text-xs">⭐</span>}</p>
+                          <p className="font-medium text-gray-800">{p.name} {p.is_featured && <span className="text-amber-400 text-xs">⭐</span>} {p.is_bundle && <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-md ${p.bundle_kind === 'rescue' ? 'bg-orange-100 text-[#c2410c]' : 'bg-[#ecf4d5] text-[#526500]'}`}>{p.bundle_kind === 'rescue' ? '♻️' : '🧺'}</span>}</p>
                           <p className="text-xs text-gray-400">{p.origin_country} · {p.unit}</p>
                         </div>
                       </div>
@@ -416,6 +454,9 @@ export default function AdminProducts() {
                 <span className="text-sm text-gray-700">{t('admin.field_in_stock', 'En stock')}</span>
               </label>
             </div>
+
+            {/* Panier composé (thématique / anti-gaspi) — produits Hornafresh uniquement */}
+            <BundleField value={bundle} onChange={setBundle} products={products as any} price={form.price} stockQty={form.stock_qty} />
 
             {/* Mise en avant homepage */}
             <div className="border border-[#d2e095] rounded-2xl p-4 space-y-3 bg-[#fafff0]">

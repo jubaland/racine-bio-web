@@ -80,6 +80,10 @@ export async function buildPrepSlipPdf(order: any, items: any[]): Promise<Buffer
     const label = `[  ]  ${it.quantity} ${unit}  -  ${name}`;
     wrap(label, font, 11, maxW).forEach((l, i) => line(i === 0 ? l : '        ' + l));
     if (it.product_farm) line(`        Ferme : ${it.product_farm}`, { size: 9, color: GRAY });
+    // Panier composé : composition × nombre de paniers, à cocher article par article
+    if (Array.isArray(it.bundle_contents)) for (const c of it.bundle_contents) {
+      wrap(`        [ ]  ${Number(c.quantity) * Number(it.quantity)} ${c.unit || ''}  -  ${c.name}`, font, 10, maxW).forEach(l => line(l, { size: 10, color: GRAY }));
+    }
   }
   gap();
 

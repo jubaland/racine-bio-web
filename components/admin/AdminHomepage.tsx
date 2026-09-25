@@ -15,6 +15,7 @@ export default function AdminHomepage() {
   const BLOCKS: { key: string; emoji: string; label: string; desc: string; def: boolean }[] = [
     { key: 'home.promos',       emoji: '🏷️', label: t('admin.home_promos', 'Promotions'),            desc: t('admin.home_promos_d', 'Bandeau des promotions actives.'), def: true },
     { key: 'home.featured',     emoji: '⭐', label: t('admin.home_featured', 'Sélection du moment'),  desc: t('admin.home_featured_d', 'Produits mis en avant par l\'équipe.'), def: true },
+    { key: 'home.bundles',      emoji: '🧺', label: t('admin.home_bundles', 'Paniers'),               desc: t('admin.home_bundles_d', 'Paniers thématiques et anti-gaspi (produits « panier composé »).'), def: true },
     { key: 'home.local',        emoji: '🇩🇯', label: t('admin.home_local', 'Produits de Djibouti'),   desc: t('admin.home_local_d', 'Carrousel des produits locaux.'), def: true },
     { key: 'home.producers',    emoji: '👨‍🌾', label: t('admin.home_producers', 'Nos producteurs'),    desc: t('admin.home_producers_d', 'Liste / avis des producteurs.'), def: false },
     { key: 'home.producer_cta', emoji: '🌱', label: t('admin.home_producer_cta', 'Espace producteur'), desc: t('admin.home_producer_cta_d', 'Bannière « Vous êtes producteur ? ».'), def: true },

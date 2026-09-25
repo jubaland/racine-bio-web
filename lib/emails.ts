@@ -54,9 +54,11 @@ function itemsTable(items: any[]) {
     const unit  = item.product_unit  || '';
     const pu    = `${Number(item.price).toLocaleString('fr-FR')} Fdj${unit}`;
     const subtotal = (item.price * item.quantity).toLocaleString('fr-FR');
+    const contents = Array.isArray(item.bundle_contents) && item.bundle_contents.length
+      ? `<br><span style="color:#9ca3af;font-size:12px;">🧺 ${item.bundle_contents.map((c: any) => `${c.quantity} ${c.unit || ''} ${c.name}`.replace(/\s+/g, ' ').trim()).join(' · ')}</span>` : '';
     return `
       <tr>
-        <td style="padding:10px 0;border-bottom:1px solid #f0f7e0;color:#374151;font-size:14px;">${name}</td>
+        <td style="padding:10px 0;border-bottom:1px solid #f0f7e0;color:#374151;font-size:14px;">${name}${contents}</td>
         <td style="padding:10px 6px;border-bottom:1px solid #f0f7e0;color:#6b7280;font-size:13px;text-align:right;white-space:nowrap;">${pu}</td>
         <td style="padding:10px 6px;border-bottom:1px solid #f0f7e0;color:#374151;font-size:13px;text-align:center;">${item.quantity}</td>
         <td style="padding:10px 0;border-bottom:1px solid #f0f7e0;color:#526500;font-size:14px;font-weight:bold;text-align:right;white-space:nowrap;">${subtotal} Fdj</td>
@@ -274,9 +276,14 @@ export async function sendPrepSlipToPreparers(order: any, items: any[], emails: 
     const name = it.product_name || `Produit #${it.product_id}`;
     const unit = it.product_unit || '';
     const farm = it.product_farm ? ` · 🌱 ${it.product_farm}` : '';
+    // Panier composé : la composition (× nombre de paniers) sous la ligne, à cocher article par article
+    const contents = Array.isArray(it.bundle_contents) && it.bundle_contents.length
+      ? `<ul style="margin:6px 0 0 25px;padding:0;list-style:none;">${it.bundle_contents.map((c: any) =>
+          `<li style="font-size:13px;color:#4b5563;padding:2px 0;"><span style="display:inline-block;width:11px;height:11px;border:1px solid #9ca3af;border-radius:2px;vertical-align:middle;margin-right:8px;"></span>🧺 <strong style="color:#526500;">${Number(c.quantity) * Number(it.quantity)} ${c.unit || ''}</strong> ${c.name}</li>`).join('')}</ul>`
+      : '';
     return `<tr><td style="padding:10px 0;border-bottom:1px solid #f0f7e0;font-size:15px;color:#374151;">
       <span style="display:inline-block;width:15px;height:15px;border:2px solid #9ca3af;border-radius:3px;vertical-align:middle;margin-right:10px;"></span>
-      <strong style="color:#526500;">${it.quantity} ${unit}</strong> — ${name}<span style="color:#9ca3af;font-size:13px;">${farm}</span>
+      <strong style="color:#526500;">${it.quantity} ${unit}</strong> — ${name}<span style="color:#9ca3af;font-size:13px;">${farm}</span>${contents}
     </td></tr>`;
   }).join('');
 

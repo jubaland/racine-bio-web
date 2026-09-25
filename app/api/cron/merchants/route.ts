@@ -9,6 +9,8 @@ import { sendPushToAdmin } from '../../../../lib/push';
 //  2. Rappels J-7 et J-1 → notification/e-mail au marchand (une seule fois chacun : colonnes reminder_*_sent_at)
 //  3. Paiements déclarés non traités depuis ≥ 3 jours → alerte admin (une seule fois : stale_alerted_at)
 //  4. Résumé admin (cloche + push) uniquement s'il s'est passé quelque chose
+//  6. Paniers anti-gaspi expirés (products.bundle_ends_at dépassé) → archivés (ils sont déjà
+//     invisibles et non commandables dès l'échéance : ceci n'est que de la tenue du catalogue)
 // Idempotent : relancer le cron le même jour ne renvoie rien en double.
 // `?dry=1` : calcule et renvoie le plan sans rien écrire ni envoyer.
 //
@@ -73,8 +75,12 @@ export async function GET(request: Request) {
     reminded_7: plan.remind7.map(s => ({ id: s.id, shop: label(s), ends_at: s.ends_at })),
     reminded_1: plan.remind1.map(s => ({ id: s.id, shop: label(s), ends_at: s.ends_at })),
     stale_payments: plan.stale.map(s => ({ id: s.id, shop: label(s), amount: s.amount, since: s.created_at.slice(0, 10) })),
+    expired_bundles: [] as { id: number; name: string }[],
     errors: [] as string[],
   };
+  const { data: expiredBundles } = await supabaseAdmin.from('products').select('id, name')
+    .eq('is_bundle', true).eq('status', 'published').not('bundle_ends_at', 'is', null).lt('bundle_ends_at', nowIso);
+  report.expired_bundles = (expiredBundles || []).map((b: any) => ({ id: b.id, name: b.name }));
   if (dry) return NextResponse.json(report);
 
   const merchantNotify = async (s: Sub, title: string, text: string, subject: string) => {
@@ -126,8 +132,15 @@ export async function GET(request: Request) {
     } catch (e: any) { report.errors.push(`digest ${d.shop}: ${e.message}`); }
   }
 
+  // 6. Paniers anti-gaspi expirés → archivés
+  for (const b of report.expired_bundles) {
+    const { error: e } = await supabaseAdmin.from('products').update({ status: 'archived' }).eq('id', b.id).eq('status', 'published');
+    if (e) report.errors.push(`bundle ${b.id}: ${e.message}`);
+  }
+
   // 4. Résumé admin
   const lines: string[] = [];
+  if (report.expired_bundles.length) lines.push(`${report.expired_bundles.length} panier(s) anti-gaspi archivé(s) : ${report.expired_bundles.map(b => b.name).join(', ')}`);
   const loud = report.expired.filter(x => !x.silent);
   if (loud.length) lines.push(`${loud.length} abonnement(s) expiré(s) : ${loud.map(x => x.shop).join(', ')}`);
   if (report.reminded_7.length) lines.push(`J-7 : ${report.reminded_7.map(x => x.shop).join(', ')}`);

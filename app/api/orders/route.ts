@@ -14,10 +14,15 @@ export async function POST(request: Request) {
     const productIds = items.map((i: any) => i.product_id);
     const { data: stockData, error: stockErr } = await supabaseAdmin
       .from('products')
-      .select('id, name, stock_qty, unit, cost_price, status, owner_id')
+      .select('id, name, stock_qty, unit, cost_price, status, owner_id, is_bundle, bundle_ends_at')
       .in('id', productIds);
 
     if (stockErr) return NextResponse.json({ error: stockErr.message }, { status: 400 });
+
+    // Paniers composés : disponibilité = stock du panier ET stock des composants, validité anti-gaspi ;
+    // coût = somme des coûts des composants ; composition photographiée pour les préparateurs.
+    const { loadBundleContents, bundleAvailability, bundleCost, bundleSnapshot, applyStockDeltas } = await import('../../../lib/bundles');
+    const bundleContents = await loadBundleContents(supabaseAdmin, (stockData || []).filter((p: any) => p.is_bundle).map((p: any) => p.id));
 
     // Produit marchand : commandable seulement si le marchand a un abonnement actif
     const ownerIds = [...new Set((stockData || []).map((p: any) => p.owner_id).filter(Boolean))];
@@ -33,6 +38,10 @@ export async function POST(request: Request) {
     const stockMap: Record<number, { name: string; stock_qty: number; unit: string; cost_price: number | null }> =
       Object.fromEntries((stockData || []).map((p: any) => {
         const orderable = p.status === 'published' && (!p.owner_id || activeOwners.has(p.owner_id));
+        if (p.is_bundle) {
+          const c = bundleContents[p.id] || [];
+          return [p.id, { ...p, stock_qty: orderable ? bundleAvailability(p, c) : 0, cost_price: bundleCost(c), bundle_contents: bundleSnapshot(c) }];
+        }
         return [p.id, { ...p, stock_qty: orderable ? p.stock_qty : 0 }];
       }));
 
@@ -113,20 +122,14 @@ export async function POST(request: Request) {
           product_unit:      item.product_unit      ?? null,
           product_farm:      item.product_farm      ?? null,
           product_cost:      stockMap[item.product_id]?.cost_price ?? null,
+          bundle_contents:   (stockMap[item.product_id] as any)?.bundle_contents ?? null,
         }))
       );
 
     if (snapshotError) return NextResponse.json({ error: snapshotError.message }, { status: 400 });
 
-    // Décrémenter le stock pour chaque article
-    await Promise.all(items.map((item: any) => {
-      const currentStock = stockMap[item.product_id]?.stock_qty ?? 0;
-      const newStock = Math.max(0, currentStock - item.quantity);
-      return supabaseAdmin
-        .from('products')
-        .update({ stock_qty: newStock })
-        .eq('id', item.product_id);
-    }));
+    // Décrémenter le stock pour chaque article (un panier décrémente aussi ses composants)
+    const stockChanges = await applyStockDeltas(supabaseAdmin, items.map((item: any) => ({ product_id: item.product_id, delta: -Number(item.quantity) })));
 
     // Consommer un crédit parrainage si demandé
     if (use_referral_credit && createdOrder.user_id) {
@@ -215,15 +218,12 @@ export async function POST(request: Request) {
         }
       } catch (e) { console.error('[orders] merchant notify:', e); }
 
-      // Alertes stock bas (seuil : 5 unités) — Hornafresh pour ses produits, le marchand pour les siens
+      // Alertes stock bas (seuil : 5 unités) — Hornafresh pour ses produits, le marchand pour les siens.
+      // Basées sur les variations réellement appliquées (composants d'un panier inclus).
       const LOW = 5;
       type StockItem = { name: string; newStock: number; wasAbove: boolean; owner: string | null };
-      const lowAll: StockItem[] = items
-        .map((item: any) => {
-          const current = stockMap[item.product_id]?.stock_qty ?? 0;
-          const newStock = Math.max(0, current - item.quantity);
-          return { name: stockMap[item.product_id]?.name ?? `Produit #${item.product_id}`, newStock, wasAbove: current > LOW, owner: (stockMap[item.product_id] as any)?.owner_id || null };
-        })
+      const lowAll: StockItem[] = stockChanges
+        .map(c => ({ name: c.name, newStock: c.after, wasAbove: c.before > LOW, owner: c.owner_id }))
         .filter((p: StockItem) => p.newStock <= LOW && p.wasAbove);
       for (const p of lowAll.filter(x => x.owner)) {
         try {
@@ -300,7 +300,7 @@ export async function GET(request: Request) {
       id, user_id, total, delivery_fee, delivery_option_name, status, payment_method, phone, email, address, customer_name, special_instructions, created_at,
       order_items (
         id, product_id, quantity, price,
-        product_name, product_image_url, product_unit, product_farm
+        product_name, product_image_url, product_unit, product_farm, bundle_contents
       )
     `)
     .order('created_at', { ascending: false });

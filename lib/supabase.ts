@@ -31,7 +31,9 @@ export async function fetchProducts() {
   // Promotions planifiées actives → prix promo + ancien prix barré (calcul à la lecture)
   const { applyPromotions } = await import('./promotions');
   await applyPromotions(supabase, products);
-  return products;
+  // Paniers composés : composition, valeur catalogue, stock effectif (composants) ; anti-gaspi expirés retirés
+  const { decorateBundles } = await import('./bundles');
+  return decorateBundles(supabase, products);
 }
 
 export async function fetchCategories() {

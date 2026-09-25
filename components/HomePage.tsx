@@ -156,6 +156,14 @@ export default function HomePage({ products, categories, promos, producers, sett
 
   const localProducts = products.filter(p => p.is_local);
   const featuredProducts = products.filter(p => p.is_featured);
+  // Paniers composés : anti-gaspi d'abord (urgence), puis thématiques
+  const bundleProducts = products.filter(p => p.is_bundle).sort((a, b) => (a.bundle_kind === 'rescue' ? 0 : 1) - (b.bundle_kind === 'rescue' ? 0 : 1));
+  const fmtUntil = (iso: string) => new Date(iso).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  // Étiquette d'un panier sur une carte (remplace l'étiquette Bio)
+  const BundleTag = ({ p }: { p: any }) => p.bundle_kind === 'rescue'
+    ? <div className="absolute top-2 left-2 text-xs font-bold px-2 py-1 rounded-md bg-[#f97316] text-white shadow-sm">♻️ {t('bundle.tag_rescue', 'Anti-gaspi')}</div>
+    : <div className="absolute top-2 left-2 text-xs font-bold px-2 py-1 rounded-md bg-[#526500] text-white shadow-sm">🧺 {t('bundle.tag_theme', 'Panier')}</div>;
+  const bundleSaving = (p: any) => p.is_bundle && p.bundle_value > Number(p.price) ? Math.round((1 - Number(p.price) / p.bundle_value) * 100) : 0;
 
   // Gestionnaire en cours de redirection vers /admin : on n'affiche pas la boutique
   if (redirecting) {
@@ -272,6 +280,65 @@ export default function HomePage({ products, categories, promos, producers, sett
         </section>
       )}
 
+      {/* Paniers composés : thématiques & anti-gaspi */}
+      {show('home.bundles') && bundleProducts.length > 0 && (
+        <section id="paniers" className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12">
+          <div className="mb-6">
+            <h2 className="text-2xl font-semibold text-gray-800">🧺 {t('bundle.section_title', 'Paniers')}</h2>
+            <p className="text-sm text-gray-400 mt-0.5">{t('bundle.section_sub', 'Paniers thématiques composés par notre équipe et paniers anti-gaspi à prix réduit')}</p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {bundleProducts.map((p: any) => {
+              const out = (p.stock_qty ?? 0) <= 0;
+              const saving = bundleSaving(p);
+              const contents: any[] = p.bundle_items || [];
+              return (
+                <Link key={p.id} href={`/product/${p.id}`} onClick={out ? (e) => e.preventDefault() : undefined}
+                  className={`bg-white rounded-2xl overflow-hidden border transition group ${p.bundle_kind === 'rescue' ? 'border-[#fdba74]' : 'border-[#d2e095]'} ${out ? 'cursor-default opacity-75' : 'hover:shadow-lg'}`}>
+                  <div className="relative h-32 sm:h-40 bg-[#ecf4d5]">
+                    {p.image_url ? (
+                      <img src={p.image_url} alt={getProductName(p)} className={`w-full h-full object-cover transition duration-300 ${out ? 'opacity-50' : 'group-hover:scale-105'}`} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-5xl opacity-20">🧺</div>
+                    )}
+                    {out && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                        <span className="bg-white text-gray-700 text-xs font-semibold px-3 py-1 rounded-full shadow">{t('bundle.sold_out', 'Épuisé')}</span>
+                      </div>
+                    )}
+                    <BundleTag p={p} />
+                    {saving > 0 && <div className="absolute top-2 right-2 text-xs font-bold px-2 py-1 rounded-md bg-white/90 text-[#f97316] shadow-sm">-{saving}%</div>}
+                    {!out && (p.stock_qty ?? 0) <= 5 && (
+                      <div className="absolute bottom-2 left-2 bg-amber-900/80 text-amber-100 text-xs px-2.5 py-0.5 rounded-full backdrop-blur-sm">⚠️ {t('product.stock_low_prefix', 'Plus que')} {p.stock_qty}</div>
+                    )}
+                  </div>
+                  <div className="p-3">
+                    <h3 className="text-sm font-semibold text-gray-800 truncate">{getProductName(p)}</h3>
+                    {contents.length > 0 && (
+                      <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{contents.map((c: any) => `${c.quantity} ${c.unit || ''} ${c.name}`.replace(/\s+/g, ' ').trim()).join(' · ')}</p>
+                    )}
+                    {p.bundle_kind === 'rescue' && p.bundle_ends_at && (
+                      <p className="text-xs text-[#f97316] font-medium mt-1">⏰ {t('bundle.until', 'Jusqu\'au')} {fmtUntil(p.bundle_ends_at)}</p>
+                    )}
+                    <div className="flex items-center justify-between mt-3">
+                      <div>
+                        {(p.old_price || saving > 0) && (
+                          <p className="text-xs text-red-400 line-through">{Number(p.old_price || p.bundle_value).toLocaleString()} Fdj</p>
+                        )}
+                        <p className="text-sm font-bold text-[#7d9800]">{Number(p.price).toLocaleString()} Fdj <span className="text-xs font-normal text-gray-400">{p.unit ? `/ ${p.unit}` : ''}</span></p>
+                      </div>
+                      <button disabled={out} onClick={(e) => { e.stopPropagation(); e.preventDefault(); addItem(p); setCartOpen(true); }}
+                        className="w-8 h-8 bg-[#a8c800] rounded-full flex items-center justify-center text-white text-lg font-bold hover:bg-[#7d9800] transition disabled:opacity-30 disabled:cursor-not-allowed">+</button>
+                    </div>
+                    <CardLike productId={p.id} initialCount={p.likes_count ?? 0} initiallyLiked={likedSet.has(p.id)} eligible={eligibleSet.has(p.id)} />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {/* Sélection du moment */}
       {show('home.featured') && featuredProducts.length > 0 && (
         <section id="selection" className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12">
@@ -304,7 +371,7 @@ export default function HomePage({ products, categories, promos, producers, sett
                         ⚠️ Plus que {p.stock_qty} {p.unit?.replace(/^\//, '')}
                       </div>
                     )}
-                    {isBio && (
+                    {p.is_bundle ? <BundleTag p={p} /> : isBio && (
                       <div className="absolute top-2 left-2 text-xs font-bold px-2 py-1 rounded-md bg-[#edf5a0] text-[#526500]">
                         🌿 {t('product.type_bio', 'Bio')}
                       </div>
@@ -555,7 +622,7 @@ export default function HomePage({ products, categories, promos, producers, sett
                         ⚠️ Plus que {product.stock_qty} {product.unit?.replace(/^\//, '')}
                       </div>
                     )}
-                    {isBio && (
+                    {product.is_bundle ? <BundleTag p={product} /> : isBio && (
                       <div className="absolute top-2 left-2 text-xs font-bold px-2 py-1 rounded-md bg-[#edf5a0] text-[#526500]">
                         🌿 {t('product.type_bio', 'Bio')}
                       </div>
@@ -584,8 +651,8 @@ export default function HomePage({ products, categories, promos, producers, sett
                     )}
                     <div className="flex items-center justify-between mt-3">
                       <div>
-                        {(product.old_price || product.oldPrice) && (
-                          <p className="text-xs text-red-400 line-through">{Number(product.old_price || product.oldPrice).toLocaleString()} Fdj</p>
+                        {(product.old_price || product.oldPrice || bundleSaving(product) > 0) && (
+                          <p className="text-xs text-red-400 line-through">{Number(product.old_price || product.oldPrice || product.bundle_value).toLocaleString()} Fdj</p>
                         )}
                         <p className="text-sm font-bold text-[#7d9800]">{Number(product.price).toLocaleString()} Fdj <span className="text-xs font-normal text-gray-400">{product.unit ? `/ ${product.unit}` : ''}</span></p>
                       </div>

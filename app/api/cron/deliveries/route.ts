@@ -111,14 +111,15 @@ async function processOne(userId: string, frequency: string, todayStr: string, f
 
   const ids = items.map((i: any) => i.product_id);
   const { data: prods } = await supabaseAdmin
-    .from('products').select('id, name, price, unit, image_url, farm, stock_qty, status').in('id', ids);
+    .from('products').select('id, name, price, unit, image_url, farm, stock_qty, status, is_bundle').in('id', ids);
   const pmap: Record<number, any> = Object.fromEntries((prods || []).map((p: any) => [p.id, p]));
 
-  // Lignes livrables (produit publié, quantité plafonnée au stock)
+  // Lignes livrables (produit publié, quantité plafonnée au stock). Les paniers composés
+  // (composition variable, anti-gaspi éphémère) ne font pas partie des commandes modèles.
   const lines: { p: any; qty: number }[] = [];
   for (const it of items) {
     const p = pmap[it.product_id];
-    if (!p || p.status !== 'published') continue;
+    if (!p || p.status !== 'published' || p.is_bundle) continue;
     const q = Math.min(Number(it.quantity), Number(p.stock_qty) || 0);
     if (q > 0) lines.push({ p, qty: q });
   }
@@ -169,8 +170,8 @@ async function processOne(userId: string, frequency: string, todayStr: string, f
     product_name: l.p.name, product_image_url: l.p.image_url, product_unit: l.p.unit, product_farm: l.p.farm,
   })));
 
-  await Promise.all(lines.map(l =>
-    supabaseAdmin.from('products').update({ stock_qty: Math.max(0, Number(l.p.stock_qty) - l.qty) }).eq('id', l.p.id)));
+  const { applyStockDeltas } = await import('../../../../lib/bundles'); // ajustement de stock commun à toute l'app
+  await applyStockDeltas(supabaseAdmin, lines.map(l => ({ product_id: l.p.id, delta: -l.qty })));
 
   await supabaseAdmin.rpc('wallet_adjust', {
     p_user: userId, p_amount: -total, p_type: 'debit', p_order: order.id, p_note: `Livraison ${label} (abonnement)`,

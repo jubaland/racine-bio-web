@@ -69,7 +69,7 @@ export default function SubscriptionPage() {
       setUser(session.user);
 
       const prods = await fetchProducts();
-      setProducts(prods);
+      setProducts(prods.filter((p: any) => !p.is_bundle)); // paniers composés : composition variable, pas en commande modèle
 
       const [{ data: subs }, { data: items }, { data: w }] = await Promise.all([
         supabase.from('subscriptions').select('*').eq('user_id', session.user.id),

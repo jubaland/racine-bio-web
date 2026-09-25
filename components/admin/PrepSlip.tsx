@@ -68,6 +68,16 @@ export default function PrepSlip({ order, onClose }: { order: any; onClose: () =
                         <span className="text-[#526500]">{it.quantity} {unit}</span> — {name}
                       </p>
                       {farm && <p className="text-xs text-gray-400">🌱 {farm}</p>}
+                      {Array.isArray(it.bundle_contents) && it.bundle_contents.length > 0 && (
+                        <ul className="mt-1 space-y-0.5">
+                          {it.bundle_contents.map((c: any) => (
+                            <li key={c.product_id} className="text-xs text-gray-600 flex items-center gap-2">
+                              <span className="w-3.5 h-3.5 border border-gray-300 rounded-sm flex-none" />
+                              🧺 <span className="font-semibold text-[#526500]">{Number(c.quantity) * Number(it.quantity)} {c.unit || ''}</span> {c.name}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
                   </div>
                 );

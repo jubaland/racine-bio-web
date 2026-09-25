@@ -42,6 +42,12 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
 
   const origin = getOrigin(product.origin_country);
   const isBio = product.product_type === 'bio';
+  // Panier composé : composition, valeur catalogue et économie réalisée
+  const isBundle = !!product.is_bundle;
+  const bundleItems: any[] = isBundle && Array.isArray(product.bundle_items) ? product.bundle_items : [];
+  const bundleValue = Number(product.bundle_value) || 0;
+  const bundleSaving = isBundle && bundleValue > Number(product.price) ? bundleValue - Number(product.price) : 0;
+  const isRescue = isBundle && product.bundle_kind === 'rescue';
 
   const relatedProducts = allProducts
     .filter(p => p.id !== product.id && p.category === product.category && (p.stock_qty ?? 0) > 0)
@@ -93,8 +99,8 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
                 </>
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent" />
-              <div className={`absolute top-4 left-4 text-xs font-bold px-3 py-1.5 rounded-full backdrop-blur-sm shadow-sm ${isBio ? 'bg-[#edf5a0]/90 text-[#526500]' : 'bg-orange-100/90 text-orange-700'}`}>
-                {isBio ? `🌿 ${t('product.type_bio', 'Bio')}` : `🥕 ${t('product.type_conv', 'Conventionnel')}`}
+              <div className={`absolute top-4 left-4 text-xs font-bold px-3 py-1.5 rounded-full backdrop-blur-sm shadow-sm ${isRescue ? 'bg-[#f97316] text-white' : isBundle ? 'bg-[#526500] text-white' : isBio ? 'bg-[#edf5a0]/90 text-[#526500]' : 'bg-orange-100/90 text-orange-700'}`}>
+                {isRescue ? `♻️ ${t('bundle.tag_rescue', 'Anti-gaspi')}` : isBundle ? `🧺 ${t('bundle.tag_theme', 'Panier')}` : isBio ? `🌿 ${t('product.type_bio', 'Bio')}` : `🥕 ${t('product.type_conv', 'Conventionnel')}`}
               </div>
               <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm shadow-sm rounded-full px-3 py-1.5 text-sm font-medium text-gray-700">
                 {origin.flag} {origin.label}
@@ -127,6 +133,28 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
               {/* Description */}
               {getProductDesc(product) && (
                 <p className="text-gray-500 text-sm leading-relaxed pb-4 mb-4 border-b border-[#f0f4e0]">{getProductDesc(product)}</p>
+              )}
+
+              {/* Panier composé : contenu + économie */}
+              {isBundle && (
+                <div className={`rounded-2xl p-4 mb-5 border ${isRescue ? 'bg-[#fff7ed] border-[#fdba74]' : 'bg-[#f8faf0] border-[#e8f0d0]'}`}>
+                  {isRescue && (
+                    <p className="text-sm font-semibold text-[#c2410c] mb-2">♻️ {t('bundle.rescue_hint', 'Anti-gaspi : articles à écouler, prix réduit, quantités limitées.')}{product.bundle_ends_at ? ` ⏰ ${t('bundle.until', 'Jusqu\'au')} ${new Date(product.bundle_ends_at).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}` : ''}</p>
+                  )}
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">🧺 {t('bundle.contents', 'Contenu du panier')}</p>
+                  <ul className="space-y-1.5">
+                    {bundleItems.map((c: any) => (
+                      <li key={c.product_id} className="flex items-center gap-2 text-sm text-gray-700">
+                        <div className="w-8 h-8 rounded-lg overflow-hidden bg-[#ecf4d5] flex-none">{c.image_url ? <img src={c.image_url} alt="" className="w-full h-full object-cover" /> : null}</div>
+                        <span className="font-semibold text-[#526500] whitespace-nowrap">{c.quantity} {c.unit || ''}</span>
+                        <span className="truncate">{getProductName({ id: c.product_id, name: c.name })}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {bundleSaving > 0 && (
+                    <p className="text-xs text-gray-500 mt-3 pt-3 border-t border-[#e8f0d0]">{t('bundle.value', 'Valeur des articles')} : <span className="line-through">{bundleValue.toLocaleString()} Fdj</span> · <span className="font-bold text-[#f97316]">{t('bundle.save', 'Vous économisez')} {bundleSaving.toLocaleString()} Fdj</span></p>
+                  )}
+                </div>
               )}
 
               {/* Prix */}

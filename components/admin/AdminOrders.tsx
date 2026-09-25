@@ -15,6 +15,7 @@ interface OrderItem {
   product_name?:      string | null;
   product_image_url?: string | null;
   product_unit?:      string | null;
+  bundle_contents?:   { product_id: number; name: string; unit: string | null; quantity: number }[] | null; // panier composé
   product_farm?:      string | null;
 }
 
@@ -447,6 +448,9 @@ export default function AdminOrders() {
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-gray-800 text-sm mb-0.5">{name}</p>
                             {farm && <p className="text-xs text-gray-400">🌱 {farm}</p>}
+                            {Array.isArray(item.bundle_contents) && item.bundle_contents.length > 0 && (
+                              <p className="text-xs text-gray-500 mt-0.5">🧺 {item.bundle_contents.map((c: any) => `${Number(c.quantity) * Number(item.quantity)} ${c.unit || ''} ${c.name}`.replace(/\s+/g, ' ').trim()).join(' · ')}</p>
+                            )}
                           </div>
 
                           {/* Prix × quantité = total */}

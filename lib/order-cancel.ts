@@ -27,12 +27,11 @@ export async function executeCancellation(orderId: any): Promise<{ ok: boolean; 
   const merchantLines: Record<string, string[]> = {}; // owner_id → lignes « 2 kg Mangue »
   if (items && items.length) {
     const ids = items.map((i: any) => i.product_id);
-    const { data: stockData } = await supabaseAdmin.from('products').select('id, stock_qty, owner_id, name, unit').in('id', ids);
-    const stockMap: Record<number, number> = Object.fromEntries((stockData || []).map((p: any) => [p.id, p.stock_qty ?? 0]));
+    const { data: stockData } = await supabaseAdmin.from('products').select('id, owner_id, name, unit').in('id', ids);
     const prodMap: Record<number, any> = Object.fromEntries((stockData || []).map((p: any) => [p.id, p]));
-    await Promise.all(items.map((it: any) =>
-      supabaseAdmin.from('products').update({ stock_qty: (stockMap[it.product_id] ?? 0) + it.quantity }).eq('id', it.product_id)
-    ));
+    // Remise en stock (un panier composé remet aussi ses composants)
+    const { applyStockDeltas } = await import('./bundles');
+    await applyStockDeltas(supabaseAdmin, items.map((it: any) => ({ product_id: it.product_id, delta: Number(it.quantity) })));
     for (const it of items) {
       const p = prodMap[it.product_id];
       if (p?.owner_id) (merchantLines[p.owner_id] ||= []).push(`${it.quantity} ${p.unit || ''} ${p.name}`.replace(/\s+/g, ' ').trim());
