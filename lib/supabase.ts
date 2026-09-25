@@ -22,6 +22,9 @@ export async function fetchProducts() {
     const names = Object.fromEntries((profiles || []).map((m: any) => [m.user_id, m.shop_name]));
     products.forEach((p: any) => { if (p.owner_id) p.shop_name = names[p.owner_id] || p.farm || null; });
   }
+  // Promotions planifiées actives → prix promo + ancien prix barré (calcul à la lecture)
+  const { applyPromotions } = await import('./promotions');
+  await applyPromotions(supabase, products);
   return products;
 }
 

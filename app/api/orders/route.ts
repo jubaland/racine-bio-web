@@ -36,6 +36,20 @@ export async function POST(request: Request) {
         return [p.id, { ...p, stock_qty: orderable ? p.stock_qty : 0 }];
       }));
 
+    // Prix serveur : prix catalogue ou promotion planifiée active — jamais le prix envoyé par le client
+    let priceAdjusted = false;
+    try {
+      const { activePromotions } = await import('../../../lib/promotions');
+      const { data: priced } = await supabaseAdmin.from('products').select('id, price').in('id', productIds);
+      const promos = await activePromotions(supabaseAdmin, productIds);
+      const serverPrice: Record<number, number> = {};
+      for (const p of priced || []) serverPrice[p.id] = promos[p.id] && promos[p.id].promo_price < Number(p.price) ? promos[p.id].promo_price : Number(p.price);
+      for (const item of items) {
+        if (serverPrice[item.product_id] != null && Number(item.price) !== serverPrice[item.product_id]) { item.price = serverPrice[item.product_id]; priceAdjusted = true; }
+      }
+      if (priceAdjusted) order.total = items.reduce((s: number, i: any) => s + Number(i.price) * Number(i.quantity), 0) + (Number(order.delivery_fee) || 0);
+    } catch (e) { console.error('[orders] price check:', e); }
+
     const insufficientItems = items.filter((item: any) => {
       const available = stockMap[item.product_id]?.stock_qty ?? 0;
       return item.quantity > available;
@@ -266,7 +280,7 @@ export async function POST(request: Request) {
       console.error('[email] ERROR:', err);
     }
 
-    return NextResponse.json({ order: createdOrder });
+    return NextResponse.json({ order: createdOrder, price_adjusted: priceAdjusted });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

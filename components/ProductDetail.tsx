@@ -135,6 +135,9 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
                     <span className="text-xs font-bold text-[#f97316] bg-orange-50 px-2 py-0.5 rounded-full">
                       -{Math.round((1 - Number(product.price) / Number(product.old_price || product.oldPrice)) * 100)}%
                     </span>
+                    {product.promo_ends_at && (
+                      <span className="text-xs text-[#f97316]">🔥 {t('product.promo_until', 'Promo jusqu\'au')} {new Date(product.promo_ends_at + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}</span>
+                    )}
                   </div>
                 )}
                 <div className="flex items-end gap-1.5">

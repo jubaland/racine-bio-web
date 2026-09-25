@@ -76,6 +76,7 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
     { href: '/producer/dashboard', emoji: '📊', label: t('producer.nav_dashboard', 'Tableau de bord') },
     { href: '/producer/products',  emoji: '🥬', label: t('producer.nav_products',  'Mes produits') },
     { href: '/producer/orders',    emoji: '📦', label: t('producer.nav_orders',    'Mes commandes') },
+    { href: '/producer/promotions',   emoji: '🏷️', label: t('producer.nav_promotions', 'Mes promotions') },
     { href: '/producer/statement',    emoji: '💸', label: t('producer.nav_statement', 'Mes reversements') },
     { href: '/producer/subscription', emoji: '💳', label: t('producer.nav_subscription', 'Mon abonnement') },
   ];
