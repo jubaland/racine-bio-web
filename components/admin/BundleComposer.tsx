@@ -60,7 +60,10 @@ export default function BundleComposer({ value, onChange, products, price, stock
   const fig = bundleFigures(value.items, byId);
   const priceNum = parseFloat(price) || 0;
   const saving = fig.value > priceNum && priceNum > 0 ? Math.round((1 - priceNum / fig.value) * 100) : 0;
-  const available = Math.min(parseFloat(stockQty) || 0, fig.possible);
+  const stockNum = parseFloat(stockQty) || 0;
+  const available = Math.min(stockNum, fig.possible);
+  // Nombre de paniers saisi supérieur à ce que permet le stock des composants → l'admin doit le savoir
+  const limiting = value.items.filter(it => { const p = byId[it.product_id]; return p && Math.floor((Number(p.stock_qty) || 0) / it.quantity) < stockNum; }).map(it => byId[it.product_id]?.name).filter(Boolean);
 
   return (
     <div className="space-y-4">
@@ -134,6 +137,11 @@ export default function BundleComposer({ value, onChange, products, price, stock
             <p className={`text-sm font-bold ${available <= 0 ? 'text-[#f97316]' : 'text-gray-700'}`}>{available}</p>
             <p className="text-[11px] text-gray-400">{t('admin.bundle_possible_hint', 'min(stock, composants)')}</p>
           </div>
+        </div>
+      )}
+      {value.items.length > 0 && stockNum > 0 && fig.possible < stockNum && (
+        <div className="bg-orange-50 border border-[#fdba74] text-[#c2410c] text-xs px-3 py-2 rounded-xl">
+          ⚠️ {t('admin.bundle_limit_warn', 'Le stock des composants ne permet que')} <strong>{fig.possible}</strong> {t('admin.bundle_limit_warn2', 'panier(s), pas')} {stockNum}. {t('admin.bundle_limit_warn3', 'Le site affichera cette disponibilité réduite. Composant(s) limitant(s) :')} {limiting.join(', ')}.
         </div>
       )}
     </div>

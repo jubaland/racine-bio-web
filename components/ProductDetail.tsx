@@ -148,14 +148,29 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
                     <p className="text-sm font-semibold text-[#c2410c] mb-2">♻️ {t('bundle.rescue_hint', 'Anti-gaspi : articles à écouler, prix réduit, quantités limitées.')}{product.bundle_ends_at ? ` ⏰ ${t('bundle.until', 'Jusqu\'au')} ${new Date(product.bundle_ends_at).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}` : ''}</p>
                   )}
                   <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">🧺 {t('bundle.contents', 'Contenu du panier')}</p>
-                  <ul className="space-y-1.5">
-                    {bundleItems.map((c: any) => (
-                      <li key={c.product_id} className="flex items-center gap-2 text-sm text-gray-700">
-                        <div className="w-8 h-8 rounded-lg overflow-hidden bg-[#ecf4d5] flex-none">{c.image_url ? <img src={c.image_url} alt="" className="w-full h-full object-cover" /> : null}</div>
-                        <span className="font-semibold text-[#526500] whitespace-nowrap">{c.quantity} {c.unit || ''}</span>
-                        <span className="truncate">{getProductName({ id: c.product_id, name: c.name })}</span>
-                      </li>
-                    ))}
+                  <ul className="space-y-2">
+                    {bundleItems.map((c: any) => {
+                      const o = c.origin_country ? getOrigin(c.origin_country) : null;
+                      return (
+                        <li key={c.product_id} className="flex items-center gap-2.5 text-sm text-gray-700">
+                          <Link href={`/product/${c.product_id}`} className="w-10 h-10 rounded-lg overflow-hidden bg-[#ecf4d5] flex-none">{c.image_url ? <img src={c.image_url} alt="" className="w-full h-full object-cover" /> : null}</Link>
+                          <div className="flex-1 min-w-0">
+                            <p className="truncate">
+                              <span className="font-semibold text-[#526500] whitespace-nowrap">{c.quantity} {c.unit || ''}</span>{' '}
+                              <Link href={`/product/${c.product_id}`} className="hover:underline underline-offset-2">{getProductName({ id: c.product_id, name: c.name })}</Link>
+                            </p>
+                            {/* Infos de la fiche du composant : origine, bio, local, ferme, prix unitaire */}
+                            <p className="text-xs text-gray-400 truncate flex flex-wrap gap-x-2 gap-y-0.5">
+                              {o && <span>{o.flag} {o.label}</span>}
+                              {c.product_type === 'bio' && <span className="text-[#526500] font-medium">🌿 {t('product.bio_badge', 'Bio')}</span>}
+                              {c.is_local && c.origin_country === 'DJ' && <span className="text-[#0066cc]">🇩🇯 {t('product.local_badge', 'Produit local')}</span>}
+                              {c.farm && !c.is_local && <span>🌱 {c.farm}</span>}
+                              {c.price > 0 && <span>{Number(c.price).toLocaleString()} Fdj / {c.unit || 'u'}</span>}
+                            </p>
+                          </div>
+                        </li>
+                      );
+                    })}
                   </ul>
                   {bundleSaving > 0 && (
                     <p className="text-xs text-gray-500 mt-3 pt-3 border-t border-[#e8f0d0]">{t('bundle.value', 'Valeur des articles')} : <span className="line-through">{bundleValue.toLocaleString()} Fdj</span> · <span className="font-bold text-[#f97316]">{t('bundle.save', 'Vous économisez')} {bundleSaving.toLocaleString()} Fdj</span></p>

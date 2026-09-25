@@ -13,6 +13,7 @@ export type BundleComponent = {
   product_id: number; quantity: number; sort_order: number;
   name: string; unit: string; stock_qty: number; price: number; cost_price: number | null;
   status: string; image_url: string | null; is_bundle: boolean; owner_id: string | null;
+  origin_country: string | null; product_type: string | null; farm: string | null; is_local: boolean; // infos fiche produit (affichées dans le contenu du panier)
 };
 export type BundleContentsMap = Record<number, BundleComponent[]>;
 export type BundleSnapshot = { product_id: number; name: string; unit: string; quantity: number };
@@ -25,7 +26,7 @@ export async function loadBundleContents(db: SupabaseClient, bundleIds: number[]
   const { data: rows } = await db.from('bundle_items').select('bundle_id, product_id, quantity, sort_order').in('bundle_id', ids).order('sort_order');
   const compIds = [...new Set((rows || []).map((r: any) => r.product_id))];
   const { data: comps } = compIds.length
-    ? await db.from('products').select('id, name, unit, stock_qty, price, cost_price, status, image_url, is_bundle, owner_id').in('id', compIds)
+    ? await db.from('products').select('id, name, unit, stock_qty, price, cost_price, status, image_url, is_bundle, owner_id, origin_country, product_type, farm, is_local').in('id', compIds)
     : { data: [] as any[] };
   const byId: Record<number, any> = Object.fromEntries((comps || []).map((c: any) => [c.id, c]));
   for (const id of ids) out[id] = [];
@@ -37,6 +38,7 @@ export async function loadBundleContents(db: SupabaseClient, bundleIds: number[]
       name: c?.name ?? `Produit #${r.product_id}`, unit: c?.unit ?? '', stock_qty: c && c.status === 'published' ? Number(c.stock_qty) || 0 : 0,
       price: Number(c?.price) || 0, cost_price: c?.cost_price != null ? Number(c.cost_price) : null,
       status: c?.status ?? 'missing', image_url: c?.image_url ?? null, is_bundle: !!c?.is_bundle, owner_id: c?.owner_id ?? null,
+      origin_country: c?.origin_country ?? null, product_type: c?.product_type ?? null, farm: c?.farm ?? null, is_local: !!c?.is_local,
     });
   }
   return out;
@@ -118,7 +120,7 @@ export async function decorateBundles<T extends { id: number; is_bundle?: boolea
     if (!p.is_bundle) return true;
     if (p.bundle_ends_at && new Date(p.bundle_ends_at).getTime() <= now) return false;
     const c = contents[p.id] || [];
-    (p as any).bundle_items = c.map(x => ({ product_id: x.product_id, name: x.name, unit: x.unit, quantity: x.quantity, image_url: x.image_url, price: x.price }));
+    (p as any).bundle_items = c.map(x => ({ product_id: x.product_id, name: x.name, unit: x.unit, quantity: x.quantity, image_url: x.image_url, price: x.price, origin_country: x.origin_country, product_type: x.product_type, farm: x.farm, is_local: x.is_local }));
     (p as any).bundle_value = bundleValue(c);
     (p as any).stock_qty = bundleAvailability(p, c, now);
     return true;
