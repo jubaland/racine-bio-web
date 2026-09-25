@@ -178,16 +178,45 @@ export async function POST(request: Request) {
       if (createdOrder.user_id) await notifyUser(createdOrder.user_id, { title: '✅ Commande confirmée', body: `Commande #${shortId} — ${Number(createdOrder.total).toLocaleString('fr-FR')} Fdj`, url: '/profile' });
       await sendPushToAdmin({ title: '🛍️ Nouvelle commande', body: `#${shortId} — ${createdOrder.customer_name} — ${Number(createdOrder.total).toLocaleString('fr-FR')} Fdj`, url: '/admin' });
 
-      // Alertes stock bas (seuil : 5 unités)
+      // Marchands : « nouvelle commande » avec la liste de leurs articles à fournir (cloche + push + e-mail)
+      try {
+        const byOwner: Record<string, string[]> = {};
+        for (const item of items) {
+          const p: any = stockMap[item.product_id];
+          if (p?.owner_id) (byOwner[p.owner_id] ||= []).push(`${item.quantity} ${p.unit || ''} ${p.name}`.replace(/\s+/g, ' ').trim());
+        }
+        if (Object.keys(byOwner).length) {
+          const { sendMerchantEmail } = await import('../../../lib/emails');
+          for (const [ownerId, lines] of Object.entries(byOwner)) {
+            const title = `🛍️ Nouvelle commande #${createdOrder.id}`;
+            const text = `À fournir à Hornafresh : ${lines.join(', ')}. Suivez la commande dans « Mes commandes ».`;
+            await notifyUser(ownerId, { title, body: text, url: '/producer/orders' });
+            const { data: mu } = await supabaseAdmin.auth.admin.getUserById(ownerId);
+            if (mu?.user?.email) await sendMerchantEmail(mu.user.email, `Nouvelle commande #${createdOrder.id} — Hornafresh`, title, text).catch(() => {});
+          }
+        }
+      } catch (e) { console.error('[orders] merchant notify:', e); }
+
+      // Alertes stock bas (seuil : 5 unités) — Hornafresh pour ses produits, le marchand pour les siens
       const LOW = 5;
-      type StockItem = { name: string; newStock: number; wasAbove: boolean };
-      const lowStock: StockItem[] = items
+      type StockItem = { name: string; newStock: number; wasAbove: boolean; owner: string | null };
+      const lowAll: StockItem[] = items
         .map((item: any) => {
           const current = stockMap[item.product_id]?.stock_qty ?? 0;
           const newStock = Math.max(0, current - item.quantity);
-          return { name: stockMap[item.product_id]?.name ?? `Produit #${item.product_id}`, newStock, wasAbove: current > LOW };
+          return { name: stockMap[item.product_id]?.name ?? `Produit #${item.product_id}`, newStock, wasAbove: current > LOW, owner: (stockMap[item.product_id] as any)?.owner_id || null };
         })
         .filter((p: StockItem) => p.newStock <= LOW && p.wasAbove);
+      for (const p of lowAll.filter(x => x.owner)) {
+        try {
+          await notifyUser(p.owner!, {
+            title: p.newStock === 0 ? `⛔ Rupture — ${p.name}` : `⚠️ Stock bas — ${p.name}`,
+            body: p.newStock === 0 ? 'Votre produit est en rupture : il n\'est plus commandable. Mettez le stock à jour dans « Mes produits ».' : `Plus que ${p.newStock} en stock. Pensez à réapprovisionner dans « Mes produits ».`,
+            url: '/producer/products',
+          });
+        } catch { /* ignore */ }
+      }
+      const lowStock = lowAll.filter(x => !x.owner);
 
       if (lowStock.length === 1) {
         const p = lowStock[0];

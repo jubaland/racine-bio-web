@@ -97,7 +97,7 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
               <div className="mb-4">
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight mb-1">{getProductName(product)}</h1>
                 {product.shop_name ? (
-                  <p className="text-sm text-[#7d9800] font-medium">🏪 {t('product.sold_by', 'Vendu par')} {product.shop_name}</p>
+                  <p className="text-sm text-[#7d9800] font-medium">🏪 {t('product.sold_by', 'Vendu par')} <Link href={`/boutique/${product.owner_id}`} className="underline underline-offset-2 hover:text-[#526500]">{product.shop_name}</Link></p>
                 ) : product.origin_country === 'DJ' && product.farm && (
                   <p className="text-sm text-[#7d9800] font-medium">🌱 {product.farm}{product.region ? ` · ${product.region}` : ''}</p>
                 )}

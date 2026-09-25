@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useLanguage } from '../context/LanguageContext';
 import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
@@ -48,6 +49,7 @@ export default function HomePage({ products, categories, promos, producers, sett
   const show = (key: string, def = true) => settings[key] ?? def;
   const SHOW_PRODUCERS = show('home.producers', false);
   const { ui, productTranslations, categoryTranslations, promoTranslations, currentLang } = useLanguage();
+  const router = useRouter(); // ouverture de la vitrine marchand depuis une carte (déjà dans un <Link>)
   const { addItem, count, total } = useCart();
   const { isFavorite, addFavorite, removeFavorite } = useFavorites();
   const [activeCategory, setActiveCategory] = useState('all');
@@ -320,7 +322,7 @@ export default function HomePage({ products, categories, promos, producers, sett
                       <span className="text-base flex-none ml-1">{flag}</span>
                     </div>
                     {p.shop_name ? (
-                      <p className="text-xs text-[#7d9800] truncate mt-0.5">🏪 {p.shop_name}</p>
+                      <p onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/boutique/${p.owner_id}`); }} title={t('shop.open', 'Voir la boutique')} className="text-xs text-[#7d9800] truncate mt-0.5 hover:underline cursor-pointer">🏪 {p.shop_name}</p>
                     ) : p.origin_country === 'DJ' && p.farm && (
                       <p className="text-xs text-gray-400 truncate mt-0.5">🌱 {p.farm}</p>
                     )}
@@ -396,7 +398,7 @@ export default function HomePage({ products, categories, promos, producers, sett
                       <span className="text-base flex-none ml-1">{flag}</span>
                     </div>
                     {p.shop_name ? (
-                      <p className="text-xs text-[#7d9800] truncate mt-0.5">🏪 {p.shop_name}</p>
+                      <p onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/boutique/${p.owner_id}`); }} title={t('shop.open', 'Voir la boutique')} className="text-xs text-[#7d9800] truncate mt-0.5 hover:underline cursor-pointer">🏪 {p.shop_name}</p>
                     ) : p.origin_country === 'DJ' && p.farm && (
                       <p className="text-xs text-gray-400 truncate mt-0.5">🌱 {p.farm}</p>
                     )}
@@ -469,7 +471,7 @@ export default function HomePage({ products, categories, promos, producers, sett
                     <div className="text-left flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-800 truncate">{getProductName(p)}</p>
                       {p.shop_name
-                        ? <p className="text-xs text-[#7d9800] truncate">🏪 {p.shop_name}</p>
+                        ? <p onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/boutique/${p.owner_id}`); }} title={t('shop.open', 'Voir la boutique')} className="text-xs text-[#7d9800] truncate hover:underline cursor-pointer">🏪 {p.shop_name}</p>
                         : p.origin_country === 'DJ' && p.farm && <p className="text-xs text-gray-400 truncate">🌱 {p.farm}</p>}
                     </div>
                     <span className="text-xs text-[#a8c800] font-semibold flex-none">{Number(p.price).toLocaleString()} Fdj</span>
@@ -576,7 +578,7 @@ export default function HomePage({ products, categories, promos, producers, sett
                       <span className="text-base flex-none ml-1">{origin.flag}</span>
                     </div>
                     {product.shop_name ? (
-                      <p className="text-xs text-[#7d9800] truncate mt-0.5">🏪 {product.shop_name}</p>
+                      <p onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/boutique/${product.owner_id}`); }} title={t('shop.open', 'Voir la boutique')} className="text-xs text-[#7d9800] truncate mt-0.5 hover:underline cursor-pointer">🏪 {product.shop_name}</p>
                     ) : product.origin_country === 'DJ' && product.farm && (
                       <p className="text-xs text-gray-400 truncate mt-0.5">🌱 {product.farm}</p>
                     )}

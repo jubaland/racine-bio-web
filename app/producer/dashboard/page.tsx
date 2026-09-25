@@ -12,8 +12,23 @@ function DashboardContent({ producer }: { producer: any }) {
   const [stats, setStats] = useState({ products: 0, published: 0, orders: 0, revenue: 0, delivered_revenue: 0 });
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState<'30d' | 'month' | 'year' | 'all'>('30d');
+  const [sales, setSales] = useState<{ totals: any; products: any[]; top: string | null } | null>(null);
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
+
+  // Ventes par produit sur la période (API service role, périmètre = ses produits)
+  useEffect(() => {
+    (async () => {
+      try {
+        let { data: { session } } = await supabase.auth.getSession();
+        if (!session || (session.expires_at && session.expires_at * 1000 < Date.now() + 60000)) session = (await supabase.auth.refreshSession()).data.session;
+        const res = await fetch(`/api/producer/stats?period=${period}`, { headers: { Authorization: `Bearer ${session?.access_token}` } });
+        const j = await res.json();
+        if (res.ok) setSales(j);
+      } catch { /* ignore */ }
+    })();
+  }, [period, producer.user_id]);
 
   useEffect(() => {
     const load = async () => {
@@ -122,6 +137,46 @@ function DashboardContent({ producer }: { producer: any }) {
             <p className="text-xs md:text-sm text-gray-400 mt-0.5 hidden sm:block">{t('producer.view_orders_desc', 'Suivre vos ventes')}</p>
           </div>
         </Link>
+      </div>
+
+      {/* Ventes par produit */}
+      <div className="bg-white rounded-2xl border border-[#d2e095] p-5 md:p-6 mb-6">
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+          <h2 className="text-lg font-semibold text-gray-800">📈 {t('producer.stats_title', 'Mes ventes par produit')}</h2>
+          <div className="flex gap-1 bg-[#faf7e8] border border-[#d2e095] rounded-full p-1">
+            {([['30d', t('producer.period_30d', '30 jours')], ['month', t('producer.period_month', 'Ce mois')], ['year', t('producer.period_year', 'Cette année')], ['all', t('producer.period_all', 'Tout')]] as const).map(([id, label]) => (
+              <button key={id} onClick={() => setPeriod(id)} className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition ${period === id ? 'bg-[#526500] text-white' : 'text-[#526500] hover:bg-[#ecf4d5]'}`}>{label}</button>
+            ))}
+          </div>
+        </div>
+        {!sales ? <p className="text-sm text-gray-400">⏳</p> : (
+          <>
+            <div className="grid grid-cols-3 gap-2 mb-4 text-center">
+              <div className="bg-[#faf7e8] rounded-xl py-2"><p className="text-lg font-bold text-[#526500]">{Number(sales.totals.revenue).toLocaleString()} Fdj</p><p className="text-[11px] text-gray-400">{t('producer.stats_revenue', 'Ventes')} · {sales.totals.orders} {t('producer.stats_orders', 'commande(s)')}</p></div>
+              <div className="bg-[#faf7e8] rounded-xl py-2"><p className="text-lg font-bold text-green-700">{Number(sales.totals.delivered_revenue).toLocaleString()} Fdj</p><p className="text-[11px] text-gray-400">{t('producer.stats_delivered', 'Livré')}</p></div>
+              <div className="bg-[#faf7e8] rounded-xl py-2"><p className="text-lg font-bold text-gray-700 truncate px-1">{sales.top || '—'}</p><p className="text-[11px] text-gray-400">{t('producer.stats_top', 'Meilleure vente')}</p></div>
+            </div>
+            {sales.products.length === 0 ? <p className="text-sm text-gray-400">{t('producer.stats_empty', 'Aucun produit pour le moment.')}</p> : (
+              <div className="overflow-x-auto -mx-2">
+                <table className="w-full text-sm min-w-[560px]">
+                  <thead><tr className="text-left text-xs text-gray-400 border-b border-[#e3eebf]">
+                    <th className="px-2 py-2 font-medium">{t('pay.col_product', 'Produit')}</th><th className="px-2 py-2 font-medium text-right">{t('producer.stats_sold', 'Vendu')}</th><th className="px-2 py-2 font-medium text-right">{t('producer.stats_revenue', 'Ventes')}</th><th className="px-2 py-2 font-medium text-right">{t('producer.stats_delivered', 'Livré')}</th><th className="px-2 py-2 font-medium text-right">👍</th><th className="px-2 py-2 font-medium text-right">{t('admin.field_stock_qty', 'Stock')}</th>
+                  </tr></thead>
+                  <tbody>{sales.products.map((r: any) => (
+                    <tr key={r.product_id} className={`border-b border-[#f0f4dc] last:border-0 ${r.status !== 'published' ? 'opacity-60' : ''}`}>
+                      <td className="px-2 py-2 text-gray-800">{r.name}{r.status !== 'published' && <span className="ml-1 text-[10px] text-gray-400">({r.status === 'pending_review' ? t('producer.status_pending', 'à valider') : r.status === 'rejected' ? t('producer.status_rejected', 'refusé') : r.status})</span>}</td>
+                      <td className="px-2 py-2 text-right text-gray-600 whitespace-nowrap">{r.qty} {r.unit}</td>
+                      <td className="px-2 py-2 text-right font-semibold text-[#526500] whitespace-nowrap">{Number(r.revenue).toLocaleString()} Fdj</td>
+                      <td className="px-2 py-2 text-right text-gray-600 whitespace-nowrap">{Number(r.delivered_revenue).toLocaleString()} Fdj</td>
+                      <td className="px-2 py-2 text-right text-gray-600">{r.likes}</td>
+                      <td className={`px-2 py-2 text-right whitespace-nowrap ${r.stock <= 0 ? 'text-red-500 font-semibold' : r.stock <= 5 ? 'text-amber-600' : 'text-gray-600'}`}>{r.stock} {r.unit}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* Recent orders */}
