@@ -18,7 +18,7 @@ export async function fetchProducts() {
   const ownerIds = [...new Set(products.map((p: any) => p.owner_id).filter(Boolean))];
   if (ownerIds.length > 0) {
     const { data: profiles } = await supabase
-      .from('merchant_profiles').select('user_id, shop_name, rating_avg, rating_count').in('user_id', ownerIds);
+      .from('merchant_profiles').select('user_id, shop_name, rating_avg, rating_count, whatsapp').in('user_id', ownerIds);
     const byOwner: Record<string, any> = Object.fromEntries((profiles || []).map((m: any) => [m.user_id, m]));
     products.forEach((p: any) => {
       if (!p.owner_id) return;
@@ -26,6 +26,7 @@ export async function fetchProducts() {
       p.shop_name = m?.shop_name || p.farm || null;
       p.shop_rating = m?.rating_avg != null ? Number(m.rating_avg) : null;   // note moyenne du marchand (avis clients)
       p.shop_rating_count = m?.rating_count || 0;
+      p.shop_whatsapp = m?.whatsapp || null;   // WhatsApp public du marchand (optionnel)
     });
   }
   // Promotions planifiées actives → prix promo + ancien prix barré (calcul à la lecture)

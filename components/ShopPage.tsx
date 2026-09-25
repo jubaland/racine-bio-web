@@ -9,11 +9,12 @@ import Header from './Header';
 import CartDrawer from './CartDrawer';
 import CardLike from './CardLike';
 import MerchantReviews, { Stars } from './MerchantReviews';
+import WhatsAppButton from './WhatsAppButton';
 
 // Vitrine publique d'un marchand : /boutique/[owner_id]
 const ORIGIN_FLAGS: Record<string, string> = { DJ: '🇩🇯', ET: '🇪🇹', SO: '🇸🇴', YE: '🇾🇪', FR: '🇫🇷', EG: '🇪🇬', SA: '🇸🇦' };
 
-export default function ShopPage({ shop, products }: { shop: { id: string; name: string; region: string | null; rating?: number | null; rating_count?: number }; products: any[] }) {
+export default function ShopPage({ shop, products }: { shop: { id: string; name: string; region: string | null; rating?: number | null; rating_count?: number; whatsapp?: string | null }; products: any[] }) {
   const { ui, productTranslations, currentLang } = useLanguage();
   const { addItem } = useCart();
   const { isFavorite, addFavorite, removeFavorite } = useFavorites();
@@ -43,6 +44,11 @@ export default function ShopPage({ shop, products }: { shop: { id: string; name:
             </div>
           </div>
           <p className="text-xs text-white/60 mt-4 max-w-2xl">{t('shop.hub_note', 'Vous commandez et payez sur Hornafresh ; nous préparons et livrons votre commande avec les produits de ce marchand.')}</p>
+          {shop.whatsapp && (
+            <div className="mt-4">
+              <WhatsAppButton variant="solid" phone={shop.whatsapp} text={`${t('wa.hello_shop', 'Bonjour')} ${shop.name}, `} label={t('wa.ask_merchant', 'Poser une question au marchand')} className="!py-2.5 text-sm" />
+            </div>
+          )}
         </div>
       </section>
 

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { supabase } from '../../../lib/supabase';
 import { useLanguage } from '../../../context/LanguageContext';
 import ProducerLayout from '../../../components/producer/ProducerLayout';
+import { displayPhone } from '../../../lib/whatsapp';
 
 // Tableau de bord marchand — données via /api/producer/orders (service role, périmètre = ses produits)
 
@@ -15,6 +16,10 @@ function DashboardContent({ producer }: { producer: any }) {
   const [period, setPeriod] = useState<'30d' | 'month' | 'year' | 'all'>('30d');
   const [emailMode, setEmailMode] = useState<'instant' | 'daily' | null>(null);
   const [savingMode, setSavingMode] = useState(false);
+  // WhatsApp public du marchand (vitrine + fiches produit) — optionnel
+  const [waInput, setWaInput] = useState('');
+  const [waSaved, setWaSaved] = useState<string | null>(null);
+  const [waState, setWaState] = useState<'idle' | 'saving' | 'ok' | 'error'>('idle');
   const tokenOf = async () => {
     let { data: { session } } = await supabase.auth.getSession();
     if (!session || (session.expires_at && session.expires_at * 1000 < Date.now() + 60000)) session = (await supabase.auth.refreshSession()).data.session;
@@ -24,10 +29,19 @@ function DashboardContent({ producer }: { producer: any }) {
     (async () => {
       try {
         const res = await fetch('/api/producer/settings', { headers: { Authorization: `Bearer ${await tokenOf()}` } });
-        const j = await res.json(); if (res.ok) setEmailMode(j.email_mode);
+        const j = await res.json(); if (res.ok) { setEmailMode(j.email_mode); setWaSaved(j.whatsapp || null); setWaInput(j.whatsapp ? displayPhone(j.whatsapp) : ''); }
       } catch { /* ignore */ }
     })();
   }, [producer.user_id]);
+  const saveWhatsapp = async () => {
+    setWaState('saving');
+    try {
+      const res = await fetch('/api/producer/settings', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await tokenOf()}` }, body: JSON.stringify({ whatsapp: waInput }) });
+      const j = await res.json();
+      if (!res.ok) { setWaState('error'); return; }
+      setWaSaved(j.whatsapp || null); setWaInput(j.whatsapp ? displayPhone(j.whatsapp) : ''); setWaState('ok');
+    } catch { setWaState('error'); }
+  };
   const saveMode = async (mode: 'instant' | 'daily') => {
     setSavingMode(true);
     try {
@@ -229,6 +243,18 @@ function DashboardContent({ producer }: { producer: any }) {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* WhatsApp public (vitrine + fiches produit) */}
+      <div className="bg-white rounded-2xl border border-[#d2e095] p-5 md:p-6 mb-6">
+        <h2 className="text-lg font-semibold text-gray-800 mb-1">💬 {t('producer.wa_title', 'WhatsApp de la boutique')}</h2>
+        <p className="text-xs text-gray-400 mb-3">{t('producer.wa_hint', 'Facultatif. Si vous le renseignez, un bouton « Poser une question au marchand » apparaît sur votre vitrine et vos fiches produit. Les commandes et paiements restent sur Hornafresh.')}</p>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input value={waInput} onChange={e => { setWaInput(e.target.value); setWaState('idle'); }} inputMode="tel" placeholder={t('producer.wa_ph', 'Ex : 77 12 34 56')} className="flex-1 border border-[#d2e095] rounded-xl px-4 py-2.5 text-sm bg-[#faf7e8] focus:outline-none focus:border-[#a8c800]" />
+          <button type="button" onClick={saveWhatsapp} disabled={waState === 'saving'} className="px-4 py-2.5 bg-[#a8c800] text-white rounded-xl text-sm font-semibold hover:bg-[#7d9800] disabled:opacity-50">{waState === 'saving' ? t('admin.saving', 'Enregistrement...') : t('producer.wa_save', 'Enregistrer')}</button>
+        </div>
+        {waState === 'ok' && <p className="text-xs text-[#526500] mt-2">✅ {waSaved ? t('producer.wa_ok', 'Numéro enregistré : le bouton WhatsApp est visible sur votre vitrine.') : t('producer.wa_removed', 'Numéro retiré : plus de bouton WhatsApp sur votre vitrine.')}</p>}
+        {waState === 'error' && <p className="text-xs text-[#f97316] mt-2">⚠️ {t('producer.wa_invalid', 'Numéro invalide : 8 chiffres (Djibouti) ou format international.')}</p>}
       </div>
 
       {/* Recent orders */}

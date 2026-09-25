@@ -10,6 +10,8 @@ import Header from './Header';
 import CartDrawer from './CartDrawer';
 import CardLike from './CardLike';
 import BundleMosaic from './BundleMosaic';
+import WhatsAppButton from './WhatsAppButton';
+import { HORNAFRESH_WHATSAPP } from '../lib/whatsapp';
 import { supabase } from '../lib/supabase';
 
 // Lit le rôle directement depuis le jeton stocké (synchrone, sans appel réseau)
@@ -862,7 +864,8 @@ export default function HomePage({ products, categories, promos, producers, sett
               <span className="hidden md:inline">— </span>{t('footer', 'Le marché premium, frais, bio, local et régional de Djibouti')}
             </span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <WhatsAppButton variant="link" phone={HORNAFRESH_WHATSAPP} text={t('wa.hello', 'Bonjour Hornafresh, ')} label={t('wa.contact', 'Nous écrire sur WhatsApp')} className="text-sm" />
             <Link href="/about" className="text-sm text-[#7d9800] hover:underline">
               {t('learnMore', 'Qui sommes-nous ?')}
             </Link>

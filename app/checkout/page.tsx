@@ -9,6 +9,8 @@ import Header from '../../components/Header';
 import CartDrawer from '../../components/CartDrawer';
 import Link from 'next/link';
 import { WAAFI_MERCHANT_NUMBER, WAAFI_ACCOUNT_HOLDER } from '../../lib/payments';
+import { HORNAFRESH_WHATSAPP } from '../../lib/whatsapp';
+import WhatsAppButton from '../../components/WhatsAppButton';
 
 interface SavedAddress {
   id: number;
@@ -75,6 +77,7 @@ export default function CheckoutPage() {
   const [success, setSuccess] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [confirmedTotal, setConfirmedTotal] = useState(0);
+  const [confirmedRecap, setConfirmedRecap] = useState(''); // récapitulatif texte pour « Envoyer ma commande sur WhatsApp »
   const [stockError, setStockError] = useState<{ name: string; available: number; unit: string; requested: number }[] | null>(null);
 
   // Demande spéciale
@@ -309,6 +312,14 @@ export default function CheckoutPage() {
 
       setOrderId(json.order.id);
       setConfirmedTotal(orderTotal);
+      // Récapitulatif pour WhatsApp (préparé avant le vidage du panier)
+      setConfirmedRecap([
+        `Bonjour Hornafresh, voici ma commande #${String(json.order.id)} :`,
+        ...items.map(item => `• ${item.quantity} ${item.unit || ''} ${item.name}`.replace(/\s+/g, ' ')),
+        `Total : ${orderTotal.toLocaleString('fr-FR')} Fdj${deliveryFee ? ` (dont livraison ${deliveryFee.toLocaleString('fr-FR')} Fdj)` : ''}`,
+        `Paiement : ${PAYMENT_METHODS.find(p => p.id === paymentMethod)?.label || paymentMethod}`,
+        `Livraison : ${titleCase(address)} — ${titleCase(name)}, 77${phoneDigits}`,
+      ].join('\n'));
       if (appliedCode) localStorage.removeItem('hf_ref_code');
 
       // Sauvegarder la nouvelle adresse si demandé
@@ -389,6 +400,9 @@ export default function CheckoutPage() {
                 <span className="font-medium">{PAYMENT_METHODS.find(p => p.id === paymentMethod)?.label}</span>
               </div>
             </div>
+            {/* WhatsApp « cliquer pour discuter » : le client envoie lui-même son récapitulatif (gratuit, sans API) */}
+            <WhatsAppButton phone={HORNAFRESH_WHATSAPP} text={confirmedRecap} label={t('checkout.wa_send', 'Envoyer ma commande sur WhatsApp')} className="w-full mb-3" />
+            <p className="text-xs text-gray-400 mb-6">{t('checkout.wa_hint', 'Facultatif : pour une question ou une précision sur la livraison, votre récapitulatif est prérempli.')}</p>
             <Link href="/" className="w-full block bg-[#a8c800] text-white py-4 rounded-2xl font-semibold text-lg hover:bg-[#7d9800] transition text-center">
               {t('checkout.back_home_btn', "🏠 Retour à l'accueil")}
             </Link>

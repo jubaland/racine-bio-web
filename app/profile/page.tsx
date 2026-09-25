@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { titleCase } from '../../lib/format';
 import Link from 'next/link';
 import { useLanguage } from '../../context/LanguageContext';
+import { hornafreshWa } from '../../lib/whatsapp';
 import { useFavorites } from '../../context/FavoritesContext';
 import { useCart } from '../../context/CartContext';
 import Header from '../../components/Header';
@@ -695,8 +696,15 @@ export default function ProfilePage() {
                 { emoji: '❤️', label: t('profile.tab_favorites', 'Favoris'), href: '/favorites' },
                 { emoji: '📍', label: t('profile.tab_addresses', 'Adresses'), onClick: () => setTab('addresses') },
                 { emoji: '⚙️', label: t('profile.tab_settings', 'Réglages'), onClick: () => setTab('settings') },
-              ] as { emoji: string; label: string; href?: string; onClick?: () => void }[]).map(qa => (
-                qa.href ? (
+                // WhatsApp « cliquer pour discuter » (gratuit) : le client ouvre la conversation avec Hornafresh
+                { emoji: '💬', label: t('wa.contact_short', 'WhatsApp'), href: hornafreshWa(`${t('wa.hello', 'Bonjour Hornafresh, ')}${t('wa.i_am', 'je suis')} ${user?.user_metadata?.full_name || ''}. `), external: true },
+              ] as { emoji: string; label: string; href?: string; onClick?: () => void; external?: boolean }[]).map(qa => (
+                qa.href && qa.external ? (
+                  <a key={qa.label} href={qa.href} target="_blank" rel="noopener noreferrer" className="bg-white rounded-2xl p-4 border-2 border-[#d2e095] shadow-sm hover:border-[#25D366] hover:shadow-md hover:-translate-y-0.5 transition flex flex-col items-center gap-2 text-center">
+                    <span className="w-11 h-11 rounded-full bg-[#e9fbef] flex items-center justify-center text-2xl">{qa.emoji}</span>
+                    <span className="text-xs font-semibold text-[#128C7E]">{qa.label}</span>
+                  </a>
+                ) : qa.href ? (
                   <Link key={qa.label} href={qa.href} className="bg-white rounded-2xl p-4 border-2 border-[#d2e095] shadow-sm hover:border-[#a8c800] hover:shadow-md hover:-translate-y-0.5 transition flex flex-col items-center gap-2 text-center">
                     <span className="w-11 h-11 rounded-full bg-[#ecf4d5] flex items-center justify-center text-2xl">{qa.emoji}</span>
                     <span className="text-xs font-semibold text-[#526500]">{qa.label}</span>

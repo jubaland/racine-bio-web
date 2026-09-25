@@ -8,6 +8,8 @@ import Header from './Header';
 import CartDrawer from './CartDrawer';
 import LikeButton from './LikeButton';
 import BundleMosaic from './BundleMosaic';
+import WhatsAppButton from './WhatsAppButton';
+import { HORNAFRESH_WHATSAPP } from '../lib/whatsapp';
 import Link from 'next/link';
 
 const ORIGIN_FLAGS: Record<string, string> = {
@@ -248,6 +250,13 @@ export default function ProductDetail({ product, allProducts }: { product: any; 
                 <span className="bg-[#fff3e0] text-[#c25000] text-xs px-3 py-1.5 rounded-full font-medium">
                   🚚 {t('product.delivery_badge', 'Livraison 24h')}
                 </span>
+              </div>
+
+              {/* Question sur le produit : WhatsApp du marchand s'il l'a renseigné, sinon Hornafresh (gratuit, sans API) */}
+              <div className="mt-4 text-sm">
+                <WhatsAppButton variant="link" phone={product.shop_whatsapp || HORNAFRESH_WHATSAPP}
+                  text={`${t('wa.hello_product', 'Bonjour, j\'ai une question sur')} « ${getProductName(product)} » (https://www.hornafresh.com/product/${product.id}) : `}
+                  label={product.shop_whatsapp ? t('wa.ask_merchant', 'Poser une question au marchand') : t('wa.ask_us', 'Une question ? Écrivez-nous sur WhatsApp')} />
               </div>
             </div>
           </div>
