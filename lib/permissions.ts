@@ -24,6 +24,7 @@ export const MODULES: { key: string; actions: string[] }[] = [
   { key: 'finances',      actions: ['view'] },
   { key: 'refunds',       actions: ['view', 'edit'] },
   { key: 'merchants',     actions: ['view', 'edit'] },
+  { key: 'companies',     actions: ['view', 'edit'] },
 ];
 
 export type Permissions = Record<string, string[]>;

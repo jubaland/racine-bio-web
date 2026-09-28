@@ -27,6 +27,16 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
     else router.push('/');
   };
 
+  // Membre d'un compte entreprise → lien « Mon entreprise » (lecture directe, protégée par RLS)
+  const [inCompany, setInCompany] = useState(false);
+  useEffect(() => {
+    if (!user?.id) { setInCompany(false); return; }
+    let on = true;
+    supabase.from('company_members').select('company_id').eq('user_id', user.id).maybeSingle()
+      .then(({ data }) => { if (on) setInCompany(!!data); }, () => {});
+    return () => { on = false; };
+  }, [user?.id]);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user || null);
@@ -77,6 +87,14 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
             <Link href="/producer/dashboard" className="flex items-center justify-center w-9 h-9 md:w-auto md:h-auto md:px-3 md:py-2 rounded-full bg-[#ecf4d5] text-[#526500] md:gap-1.5 hover:bg-[#d2e095] transition" title={t('nav.merchant_space', 'Mon espace marchand')}>
               <span>🏪</span>
               <span className="hidden md:block text-xs font-semibold">{t('nav.merchant_space_short', 'Ma boutique')}</span>
+            </Link>
+          )}
+
+          {/* Compte entreprise (sur mobile : masqué si l'en-tête porte déjà Boutique ou Admin — accès par le profil) */}
+          {inCompany && (
+            <Link href="/entreprise" className={`${user?.user_metadata?.role === 'producer' || canAccessAdmin(user?.user_metadata) ? 'hidden md:flex' : 'flex'} items-center justify-center w-9 h-9 md:w-auto md:h-auto md:px-3 md:py-2 rounded-full bg-[#ecf4d5] text-[#526500] md:gap-1.5 hover:bg-[#d2e095] transition`} title={t('nav.company', 'Mon compte entreprise')}>
+              <span>🏢</span>
+              <span className="hidden md:block text-xs font-semibold">{t('nav.company_short', 'Mon entreprise')}</span>
             </Link>
           )}
 

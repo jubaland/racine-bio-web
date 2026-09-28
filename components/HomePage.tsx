@@ -866,6 +866,9 @@ export default function HomePage({ products, categories, promos, producers, sett
           </div>
           <div className="flex flex-wrap items-center justify-center gap-4">
             <WhatsAppButton variant="link" phone={HORNAFRESH_WHATSAPP} text={t('wa.hello', 'Bonjour Hornafresh, ')} label={t('wa.contact', 'Nous écrire sur WhatsApp')} className="text-sm" />
+            <Link href="/entreprises" className="text-sm text-[#7d9800] hover:underline">
+              🏢 {t('co.brand', 'Entreprises')}
+            </Link>
             <Link href="/about" className="text-sm text-[#7d9800] hover:underline">
               {t('learnMore', 'Qui sommes-nous ?')}
             </Link>

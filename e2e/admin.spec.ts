@@ -21,6 +21,7 @@ const MODULES: [RegExp, RegExp][] = [
   [/Marchands/,  /Marchands/],
   [/Finances/,   /Finances/],
   [/Promotions/, /Promotions/],
+  [/Entreprises/, /Entreprises/],
 ];
 
 for (const [button, heading] of MODULES) {
@@ -59,4 +60,15 @@ test('admin › Promotions › Prix promo produits', async ({ page }) => {
   await page.getByRole('button', { name: /Prix promo produits/ }).click();
   await expect(page.getByText(/Nouvelle promotion/).first()).toBeVisible();
   await expectNoOverflow(page, 'Prix promo produits');
+});
+
+test('admin › Entreprises : onglets et réglage de la recharge minimale', async ({ page }) => {
+  await openModule(page, /Entreprises/, /Entreprises/);
+  for (const tab of ['Sociétés', 'Réglages', 'À traiter']) {
+    await page.getByRole('button', { name: new RegExp(tab) }).first().click();
+    await page.waitForTimeout(600);
+    await expectNoOverflow(page, `Entreprises › ${tab}`);
+  }
+  await page.getByRole('button', { name: /Réglages/ }).first().click();
+  await expect(page.getByRole('heading', { name: /Recharge minimale des sociétés/ })).toBeVisible();
 });

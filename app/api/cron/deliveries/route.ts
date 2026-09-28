@@ -25,12 +25,26 @@ export async function GET(request: Request) {
   const onlyUser = params.get('user') || undefined;
   const dry = params.get('dry') === '1';
 
+  const onlyCompany = params.get('company') ? Number(params.get('company')) : undefined; // ?company=<id> : restreint aux sociétés (tests)
+
   // 4. Rappel de la veille (réassort intelligent) — seul ou après les livraisons du jour
   const runReminders = async () => {
-    try { return await remindTomorrow(todayStr, { onlyUser, dry }); }
+    try { return onlyCompany ? { tomorrow: null, reminders: [] } : await remindTomorrow(todayStr, { onlyUser, dry }); }
     catch (e: any) { return { error: e.message }; }
   };
-  if (onlyReminders) return NextResponse.json({ date: todayStr, reminders: await runReminders() });
+  // 5. Sociétés : commandes récurrentes dues aujourd'hui + rappel de la veille aux gérants
+  const runCompanies = async (deliver: boolean) => {
+    if (onlyUser) return { deliveries: [], reminders: { reminders: [] } };
+    try {
+      const { processCompanyDeliveries, remindCompaniesTomorrow } = await import('../../../../lib/company-orders');
+      return {
+        deliveries: deliver && !dry ? await processCompanyDeliveries(todayStr, { onlyCompany }) : [],
+        reminders: await remindCompaniesTomorrow(todayStr, { onlyCompany, dry }),
+      };
+    } catch (e: any) { return { error: e.message }; }
+  };
+  if (onlyReminders) return NextResponse.json({ date: todayStr, reminders: await runReminders(), companies: await runCompanies(false) });
+  if (onlyCompany) return NextResponse.json({ date: todayStr, companies: await runCompanies(true) });
 
   const { data: subs } = await supabaseAdmin
     .from('subscriptions')
@@ -77,7 +91,8 @@ export async function GET(request: Request) {
     }
   }
   const reminders = await runReminders();
-  return NextResponse.json({ date: todayStr, dow, due: due.length, results, reminders });
+  const companies = await runCompanies(true);
+  return NextResponse.json({ date: todayStr, dow, due: due.length, results, reminders, companies });
 }
 
 async function expireOne(userId: string, frequency: string) {

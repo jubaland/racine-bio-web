@@ -12,7 +12,7 @@ export type ItemChangeResult =
 export async function applyItemChange(order_id: any, item_id: any, new_quantity: number | null): Promise<ItemChangeResult> {
   const { data: order, error: oErr } = await supabaseAdmin
     .from('orders')
-    .select('id, status, payment_method, user_id, total, delivery_fee, order_items ( id, product_id, quantity, price, product_name, product_unit )')
+    .select('id, status, payment_method, user_id, company_id, total, delivery_fee, order_items ( id, product_id, quantity, price, product_name, product_unit )')
     .eq('id', order_id)
     .single();
   if (oErr || !order) return { ok: false, status: 404, error: 'Commande introuvable' };

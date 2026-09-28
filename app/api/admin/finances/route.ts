@@ -21,7 +21,7 @@ export async function GET(request: Request) {
   // 1) Commandes livrées sur la période
   let q = supabaseAdmin
     .from('orders')
-    .select('id, total, delivery_fee, created_at')
+    .select('id, total, delivery_fee, created_at, company_id')
     .eq('status', 'delivered');
   if (from) q = q.gte('created_at', from.toISOString());
   const { data: orders, error: ordErr } = await q;
@@ -99,6 +99,9 @@ export async function GET(request: Request) {
 
   const deliveryCollected = (orders || []).reduce((s, o) => s + (Number(o.delivery_fee) || 0), 0);
   const grossPaid = (orders || []).reduce((s, o) => s + (Number(o.total) || 0), 0);
+  // Ventes aux comptes entreprise (commandes livrées rattachées à une société), livraison comprise
+  const companyOrders = (orders || []).filter((o: any) => o.company_id);
+  const caEntreprises = companyOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
   const missingCost = products.filter(p => !p.costComplete).length;
 
   return NextResponse.json({
@@ -107,6 +110,7 @@ export async function GET(request: Request) {
       caProduits,                                            // CA produits (hors livraison), ventes marchands incluses
       caMarchands,                                           // part reversée aux marchands (marge Hornafresh = 0)
       caHornafresh: caProduits - caMarchands,                // CA propre Hornafresh
+      caEntreprises, nbOrdersEntreprises: companyOrders.length, // dont commandes des comptes entreprise
       nbOrders,
       panierMoyen: nbOrders ? Math.round(grossPaid / nbOrders) : 0,
       deliveryCollected,

@@ -696,6 +696,8 @@ export default function ProfilePage() {
                 { emoji: '❤️', label: t('profile.tab_favorites', 'Favoris'), href: '/favorites' },
                 { emoji: '📍', label: t('profile.tab_addresses', 'Adresses'), onClick: () => setTab('addresses') },
                 { emoji: '⚙️', label: t('profile.tab_settings', 'Réglages'), onClick: () => setTab('settings') },
+                // Compte entreprise : espace de la société (membre) ou présentation + demande d'ouverture
+                { emoji: '🏢', label: t('nav.company_short', 'Mon entreprise'), href: '/entreprise' },
                 // WhatsApp « cliquer pour discuter » (gratuit) : le client ouvre la conversation avec Hornafresh
                 { emoji: '💬', label: t('wa.contact_short', 'WhatsApp'), href: hornafreshWa(`${t('wa.hello', 'Bonjour Hornafresh, ')}${t('wa.i_am', 'je suis')} ${user?.user_metadata?.full_name || ''}. `), external: true },
               ] as { emoji: string; label: string; href?: string; onClick?: () => void; external?: boolean }[]).map(qa => (

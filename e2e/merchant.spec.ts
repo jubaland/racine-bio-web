@@ -51,3 +51,11 @@ test('client : ma commande modèle', async ({ page }) => {
   await expectNoOverflow(page, '/abonnement');
   expect(errors).toEqual([]);
 });
+
+test('client sans société : « Mon entreprise » renvoie vers la présentation', async ({ page }) => {
+  await page.goto('/entreprise');
+  await page.waitForURL(/\/entreprises/, { timeout: 30_000 });
+  await settle(page);
+  await expect(page.getByText(/Nom de l'établissement/).first()).toBeVisible();
+  await expectNoOverflow(page, '/entreprises (connecté)');
+});

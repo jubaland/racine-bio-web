@@ -16,7 +16,7 @@ test('accueil : catalogue visible, sans erreur ni débordement', async ({ page }
   expect(errors).toEqual([]);
 });
 
-for (const path of ['/become-producer', '/about', '/login', '/favorites']) {
+for (const path of ['/become-producer', '/entreprises', '/about', '/login', '/favorites']) {
   test(`page publique ${path} : sans débordement`, async ({ page }) => {
     const errors = trackErrors(page);
     await page.goto(path); await settle(page);
@@ -28,6 +28,14 @@ for (const path of ['/become-producer', '/about', '/login', '/favorites']) {
 test('pages réservées : redirection vers la connexion', async ({ page }) => {
   await page.goto('/abonnement');
   await page.waitForURL(/\/login/, { timeout: 30_000 });
+  await page.goto('/entreprise');
+  await page.waitForURL(/\/login/, { timeout: 30_000 });
+});
+
+test('entreprises : présentation et invitation à se connecter', async ({ page }) => {
+  await page.goto('/entreprises'); await settle(page);
+  await expect(page.getByRole('heading', { name: /Ouvrir un compte entreprise/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Se connecter/ }).first()).toBeVisible();
 });
 
 test('fiche produit → panier → checkout (4 étapes, sans confirmer)', async ({ page }) => {

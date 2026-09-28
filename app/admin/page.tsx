@@ -17,6 +17,7 @@ import AdminBroadcast from '../../components/admin/AdminBroadcast';
 import AdminFinances from '../../components/admin/AdminFinances';
 import AdminRefunds from '../../components/admin/AdminRefunds';
 import AdminMerchants from '../../components/admin/AdminMerchants';
+import AdminCompanies from '../../components/admin/AdminCompanies';
 import AdminPreparers from '../../components/admin/AdminPreparers';
 import AdminWallets from '../../components/admin/AdminWallets';
 import AdminSubscriptions from '../../components/admin/AdminSubscriptions';
@@ -25,7 +26,7 @@ import AdminForecast from '../../components/admin/AdminForecast';
 import { canAccessAdmin, hasPerm, roleOf } from '../../lib/permissions';
 import { AdminPermsProvider } from '../../context/AdminPermsContext';
 
-type Section = 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'preparers' | 'wallets' | 'subscriptions' | 'forecast' | 'requests' | 'users' | 'delivery' | 'notifications' | 'homepage' | 'announcements' | 'finances' | 'refunds' | 'merchants';
+type Section = 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'preparers' | 'wallets' | 'subscriptions' | 'forecast' | 'requests' | 'users' | 'delivery' | 'notifications' | 'homepage' | 'announcements' | 'finances' | 'refunds' | 'merchants' | 'companies';
 
 export default function AdminPage() {
   const [user, setUser] = useState<any>(null);
@@ -34,6 +35,7 @@ export default function AdminPage() {
   const [activeSection, setActiveSection] = useState<Section | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [merchantsPending, setMerchantsPending] = useState(0); // produits à valider + paiements + adhésions
+  const [companiesPending, setCompaniesPending] = useState(0); // demandes d'ouverture + recharges à valider
 
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
@@ -58,6 +60,7 @@ export default function AdminPage() {
     { id: 'finances', emoji: '📊', label: t('admin.nav_finances', 'Finances') },
     { id: 'refunds', emoji: '💸', label: t('admin.nav_refunds', 'Remboursements') },
     { id: 'merchants', emoji: '🏪', label: t('admin.nav_merchants', 'Marchands') },
+    { id: 'companies', emoji: '🏢', label: t('admin.nav_companies', 'Entreprises') },
   ];
   // Onglets visibles selon le rôle/droits (admin = tout)
   const visibleNav = NAV_ITEMS.filter(i => hasPerm(meta, i.id, 'view'));
@@ -100,6 +103,16 @@ export default function AdminPage() {
           setMerchantsPending((p.count || 0) + (s.count || 0) + (r.count || 0));
         } catch { /* ignore */ }
       }
+      // Badge « Entreprises » : demandes d'ouverture + recharges à valider
+      if (hasPerm(meta, 'companies', 'view')) {
+        try {
+          const [c, d] = await Promise.all([
+            supabase.from('companies').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+            supabase.from('company_deposit_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+          ]);
+          setCompaniesPending((c.count || 0) + (d.count || 0));
+        } catch { /* ignore */ }
+      }
 
       const channel = supabase
         .channel('admin_notifs_badge')
@@ -140,6 +153,7 @@ export default function AdminPage() {
       case 'finances': return <AdminFinances />;
       case 'refunds': return <AdminRefunds />;
       case 'merchants': return <AdminMerchants />;
+      case 'companies': return <AdminCompanies />;
     }
   };
 
@@ -227,6 +241,9 @@ export default function AdminPage() {
                 )}
                 {item.id === 'merchants' && merchantsPending > 0 && (
                   <span className="absolute top-2 right-2 bg-[#f97316] text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1" title={t('mer.todo', 'À traiter')}>{merchantsPending > 99 ? '99+' : merchantsPending}</span>
+                )}
+                {item.id === 'companies' && companiesPending > 0 && (
+                  <span className="absolute top-2 right-2 bg-[#f97316] text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1" title={t('mer.todo', 'À traiter')}>{companiesPending > 99 ? '99+' : companiesPending}</span>
                 )}
               </button>
             ))}

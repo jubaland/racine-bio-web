@@ -41,7 +41,17 @@ export default function CheckoutPage() {
 
   const [walletBalance, setWalletBalance] = useState(0);
 
-  const PAYMENT_METHODS = [
+  // Compte entreprise : membre (gérant / acheteur) d'une société active → peut commander pour elle
+  const [companyCtx, setCompanyCtx] = useState<any>(null);
+  const [forCompany, setForCompany] = useState(false);
+  const [siteId, setSiteId] = useState<number | null>(null);
+  const [requestSent, setRequestSent] = useState(false);   // commande au-delà du seuil → demande envoyée au gérant
+  const [orderError, setOrderError] = useState('');
+  const companyBalance = Number(companyCtx?.balance) || 0;
+
+  const PAYMENT_METHODS = forCompany ? [
+    { id: 'company_wallet', label: t('co.wallet', 'Cagnotte société'), emoji: '🏢', desc: `${companyCtx?.company?.name || ''} — ${t('checkout.wallet_balance', 'Solde')} : ${companyBalance.toLocaleString()} Fdj` },
+  ] : [
     { id: 'waafi', label: t('checkout.waafi_label', 'Waafi'),   emoji: '📱', desc: t('checkout.waafi_desc', 'Paiement mobile Waafi') },
     { id: 'cash',  label: t('checkout.cash_label',  'Espèces'), emoji: '💵', desc: t('checkout.cash_desc',  'Paiement à la livraison') },
     ...(walletBalance > 0
@@ -115,7 +125,25 @@ export default function CheckoutPage() {
   const referralDiscount = referralActive && standardOption ? standardOption.price : 0;
   const deliveryFee = Math.max(0, baseFee - referralDiscount);
   const orderTotal = total + deliveryFee;
-  const walletInsufficient = paymentMethod === 'wallet' && walletBalance < orderTotal;
+  const walletInsufficient = (paymentMethod === 'wallet' && walletBalance < orderTotal) || (forCompany && companyBalance < orderTotal);
+
+  // Bascule « pour moi / pour mon entreprise » : moyen de paiement et site par défaut
+  const chooseSite = (site: any) => {
+    setSiteId(site.id);
+    setName(`${companyCtx?.company?.name || ''} — ${site.recipient_name}`);
+    setPhoneDigits(String(site.phone).replace(/\D/g, '').slice(-6));
+    setAddress(site.address);
+  };
+  const switchBuyer = (company: boolean) => {
+    setForCompany(company); setOrderError('');
+    if (company) {
+      setPaymentMethod('company_wallet');
+      const site = (companyCtx?.sites || []).find((x: any) => x.id === siteId) || (companyCtx?.sites || []).find((x: any) => x.is_default) || companyCtx?.sites?.[0];
+      if (site) chooseSite(site);
+    } else {
+      setPaymentMethod('waafi'); setSiteId(null); setSelectedAddressId(null); setName(''); setPhoneDigits(''); setAddress(''); setAddressesLoaded(false);
+    }
+  };
 
   const showAddressCards = !!(user && savedAddresses.length > 0);
   const showNewAddressForm = !showAddressCards || selectedAddressId === 'new';
@@ -131,9 +159,11 @@ export default function CheckoutPage() {
   const guestContactValid = !isGuest || (emailOptionalValid && phoneConfirmValid);
   const formFilled = nameValid && phoneValid && addressValid && guestContactValid;
   // Adresse renseignée : carte sauvegardée sélectionnée OU formulaire complet
-  const addressStepValid = (showAddressCards && selectedAddressId !== 'new')
-    ? selectedAddressId !== null
-    : formFilled;
+  const addressStepValid = forCompany
+    ? siteId !== null
+    : (showAddressCards && selectedAddressId !== 'new')
+      ? selectedAddressId !== null
+      : formFilled;
   const canContinueStep2 = addressStepValid && selectedDeliveryId !== null;
 
   // Tentative de passage à l'étape paiement : valide ou affiche les erreurs.
@@ -174,6 +204,13 @@ export default function CheckoutPage() {
         supabase.from('wallets').select('balance').eq('user_id', session.user.id).maybeSingle()
           .then(({ data }) => setWalletBalance(Number(data?.balance) || 0));
       }
+      // Compte entreprise : proposer « Commander pour mon entreprise » aux gérants et acheteurs
+      if (session?.access_token) {
+        fetch('/api/company', { headers: { Authorization: `Bearer ${session.access_token}` } })
+          .then(r => r.ok ? r.json() : null)
+          .then(j => { if (j?.membership && ['manager', 'buyer'].includes(j.membership.role) && j.company?.status === 'active' && (j.sites || []).length) setCompanyCtx(j); })
+          .catch(() => {});
+      }
       // Récupérer les crédits parrainage si connecté
       if (session?.access_token) {
         fetch('/api/referral', {
@@ -200,7 +237,7 @@ export default function CheckoutPage() {
 
   // Charger les adresses sauvegardées quand on arrive à l'étape 2
   useEffect(() => {
-    if (step !== 2 || !user || addressesLoaded) return;
+    if (step !== 2 || !user || addressesLoaded || forCompany) return;
     setAddressesLoaded(true);
     supabase
       .from('addresses')
@@ -269,13 +306,20 @@ export default function CheckoutPage() {
   const handleOrder = async () => {
     setLoading(true);
     setStockError(null);
+    setOrderError('');
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      const authHeaders: Record<string, string> = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+      const orderItems = items.map(item => ({
+        product_id: item.id, quantity: item.quantity, price: item.price, product_name: item.name,
+        product_image_url: item.image_url ?? null, product_unit: item.unit, product_farm: item.farm ?? null,
+      }));
 
       const res = await fetch('/api/orders', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },   // le jeton prouve l'identité (compte, cagnotte, société)
         body: JSON.stringify({
+          ...(forCompany ? { company: { site_id: siteId } } : {}),
           order: {
             user_id:              session?.user?.id || null,
             total:                orderTotal,
@@ -307,7 +351,25 @@ export default function CheckoutPage() {
 
       if (!res.ok) {
         if (json.error === 'stock_insufficient') { setStockError(json.items); return; }
-        throw new Error(json.error || 'Erreur serveur');
+        // Société : au-delà du seuil, la commande d'un acheteur part en validation chez le gérant
+        if (json.error === 'approval_required') {
+          const r2 = await fetch('/api/company', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders },
+            body: JSON.stringify({ action: 'order_request', site_id: siteId, items: orderItems, delivery: { fee: deliveryFee, option_name: selectedDelivery?.name ?? null, special_instructions: sentenceCase(specialInstructions) || null } }),
+          });
+          if (!r2.ok) { setOrderError(t('co.e_request', 'La demande n\'a pas pu être envoyée au gérant. Réessayez.')); return; }
+          setConfirmedTotal(orderTotal); setRequestSent(true); clearCart(); setSuccess(true);
+          return;
+        }
+        const MSG: Record<string, string> = {
+          company_wallet_insufficient: t('co.e_balance', 'Solde de la cagnotte société insuffisant.'),
+          wallet_insufficient: t('checkout.wallet_insufficient', 'Solde de cagnotte insuffisant'),
+          company_inactive: t('co.e_inactive', 'Le compte entreprise n\'est pas actif.'),
+          site_required: t('co.e_site_required', 'Choisissez un site de livraison.'),
+          identity_mismatch: t('checkout.e_session', 'Votre session a expiré : reconnectez-vous puis réessayez.'),
+        };
+        setOrderError(MSG[json.error] || t('checkout.e_generic', 'La commande n\'a pas pu être enregistrée. Réessayez dans un instant.'));
+        return;
       }
 
       setOrderId(json.order.id);
@@ -340,6 +402,7 @@ export default function CheckoutPage() {
       setSuccess(true);
     } catch (e) {
       console.error(e);
+      setOrderError(t('checkout.e_generic', 'La commande n\'a pas pu être enregistrée. Réessayez dans un instant.'));
     } finally {
       setLoading(false);
     }
@@ -372,14 +435,23 @@ export default function CheckoutPage() {
         <Header onCartOpen={() => setCartOpen(true)} />
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center max-w-md mx-auto px-6">
-            <p className="text-7xl mb-6">🎉</p>
-            <h2 className="text-2xl font-bold text-gray-800 mb-3">{t('checkout.confirmed', 'Commande confirmée !')}</h2>
-            <p className="text-gray-400 mb-2">
-              {t('checkout.order_label', 'Commande #')}{orderId ? String(orderId).slice(0, 8).toUpperCase() : ''}
-            </p>
+            <p className="text-7xl mb-6">{requestSent ? '🧾' : '🎉'}</p>
+            <h2 className="text-2xl font-bold text-gray-800 mb-3">{requestSent ? t('co.request_sent_title', 'Demande envoyée au gérant') : t('checkout.confirmed', 'Commande confirmée !')}</h2>
+            {!requestSent && (
+              <p className="text-gray-400 mb-2">
+                {t('checkout.order_label', 'Commande #')}{orderId ? String(orderId).slice(0, 8).toUpperCase() : ''}
+              </p>
+            )}
             <p className="text-gray-500 text-sm mb-6">
-              {t('checkout.thanks', 'Merci pour votre commande. Vous serez contacté pour la livraison.')}
+              {requestSent
+                ? `${t('co.request_sent', 'Cette commande dépasse le montant que vous pouvez engager seul. Le gérant de la société a été prévenu : elle sera passée dès sa validation.')} (${confirmedTotal.toLocaleString()} Fdj)`
+                : t('checkout.thanks', 'Merci pour votre commande. Vous serez contacté pour la livraison.')}
             </p>
+            {requestSent && (
+              <Link href="/entreprise" className="w-full block bg-white border border-[#d2e095] text-[#526500] py-3.5 rounded-2xl font-semibold hover:bg-[#ecf4d5] transition text-center mb-3">
+                🏢 {t('nav.company_short', 'Mon entreprise')}
+              </Link>
+            )}
 
             {paymentMethod === 'waafi' && (
               <div className="bg-[#e8f5e0] border border-[#a8c800] rounded-2xl p-4 mb-6 text-left">
@@ -401,8 +473,10 @@ export default function CheckoutPage() {
               </div>
             </div>
             {/* WhatsApp « cliquer pour discuter » : le client envoie lui-même son récapitulatif (gratuit, sans API) */}
-            <WhatsAppButton phone={HORNAFRESH_WHATSAPP} text={confirmedRecap} label={t('checkout.wa_send', 'Envoyer ma commande sur WhatsApp')} className="w-full mb-3" />
-            <p className="text-xs text-gray-400 mb-6">{t('checkout.wa_hint', 'Facultatif : pour une question ou une précision sur la livraison, votre récapitulatif est prérempli.')}</p>
+            {!requestSent && <>
+              <WhatsAppButton phone={HORNAFRESH_WHATSAPP} text={confirmedRecap} label={t('checkout.wa_send', 'Envoyer ma commande sur WhatsApp')} className="w-full mb-3" />
+              <p className="text-xs text-gray-400 mb-6">{t('checkout.wa_hint', 'Facultatif : pour une question ou une précision sur la livraison, votre récapitulatif est prérempli.')}</p>
+            </>}
             <Link href="/" className="w-full block bg-[#a8c800] text-white py-4 rounded-2xl font-semibold text-lg hover:bg-[#7d9800] transition text-center">
               {t('checkout.back_home_btn', "🏠 Retour à l'accueil")}
             </Link>
@@ -530,7 +604,33 @@ export default function CheckoutPage() {
         {/* ── Étape 2 : Livraison ─────────────────────────────────────────── */}
         {step === 2 && (
           <div>
-            <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-4">
+            {/* Compte entreprise : pour qui est la commande ? */}
+            {companyCtx && (
+              <div className="bg-white rounded-3xl p-5 border border-[#d2e095] shadow-sm mb-4">
+                <p className="text-sm font-semibold text-gray-800 mb-3">{t('co.order_for', 'Cette commande est pour')}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => switchBuyer(false)} className={`p-3 rounded-2xl border-2 text-sm font-semibold transition ${!forCompany ? 'border-[#a8c800] bg-[#ecf4d5] text-[#526500]' : 'border-[#d2e095] bg-white text-gray-600 hover:bg-[#faf7e8]'}`}>👤 {t('co.order_for_me', 'Moi')}</button>
+                  <button onClick={() => switchBuyer(true)} className={`p-3 rounded-2xl border-2 text-sm font-semibold transition truncate ${forCompany ? 'border-[#a8c800] bg-[#ecf4d5] text-[#526500]' : 'border-[#d2e095] bg-white text-gray-600 hover:bg-[#faf7e8]'}`}>🏢 {companyCtx.company.name}</button>
+                </div>
+                {forCompany && (
+                  <div className="mt-4">
+                    <p className="text-xs text-gray-400 mb-2">💰 {t('co.wallet', 'Cagnotte société')} : <strong className="text-[#526500]">{companyBalance.toLocaleString()} Fdj</strong>{companyCtx.membership.role === 'buyer' && companyCtx.company.approval_threshold != null ? ` · 🔐 ${t('co.threshold_info', 'Au-delà de')} ${Number(companyCtx.company.approval_threshold).toLocaleString()} Fdj, ${t('co.threshold_short', 'validation du gérant')}` : ''}</p>
+                    <p className="text-sm font-semibold text-gray-800 mb-2">📍 {t('co.pick_site', 'Site de livraison')}</p>
+                    <div className="space-y-2">
+                      {companyCtx.sites.map((site: any) => (
+                        <button key={site.id} onClick={() => chooseSite(site)} className={`w-full text-left p-3 rounded-2xl border-2 transition ${siteId === site.id ? 'border-[#a8c800] bg-[#ecf4d5]' : 'border-[#d2e095] bg-white hover:bg-[#faf7e8]'}`}>
+                          <p className="text-sm font-semibold text-gray-800">{site.label}{siteId === site.id && <span className="float-right text-[#a8c800]">✓</span>}</p>
+                          <p className="text-xs text-gray-500">{site.recipient_name} · 📞 {site.phone}</p>
+                          <p className="text-xs text-gray-400 truncate">📍 {site.address}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className={`bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-4 ${forCompany ? 'hidden' : ''}`}>
               <h2 className="text-lg font-semibold text-gray-800 mb-4">
                 🚚 {t('checkout.delivery_info', 'Adresse de livraison')}
               </h2>
@@ -1172,7 +1272,13 @@ export default function CheckoutPage() {
 
             {walletInsufficient && (
               <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-2">
-                <p className="text-[#f97316] font-semibold text-sm">⚠️ {t('checkout.wallet_insufficient', 'Solde de cagnotte insuffisant')} — {walletBalance.toLocaleString()} / {orderTotal.toLocaleString()} Fdj</p>
+                <p className="text-[#f97316] font-semibold text-sm">⚠️ {forCompany ? t('co.e_balance', 'Solde de la cagnotte société insuffisant.') : t('checkout.wallet_insufficient', 'Solde de cagnotte insuffisant')} — {(forCompany ? companyBalance : walletBalance).toLocaleString()} / {orderTotal.toLocaleString()} Fdj</p>
+                {forCompany && <Link href="/entreprise" className="inline-block mt-2 text-xs font-semibold text-[#526500] underline">🏢 {t('co.go_topup', 'Recharger la cagnotte société')}</Link>}
+              </div>
+            )}
+            {orderError && (
+              <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-2">
+                <p className="text-[#f97316] font-semibold text-sm">⚠️ {orderError}</p>
               </div>
             )}
 

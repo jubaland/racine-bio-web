@@ -8,7 +8,64 @@ import { roleOf } from '../../../lib/permissions';
 // POST — crée commande + articles avec vérification et décrémentation du stock
 export async function POST(request: Request) {
   try {
-    const { order, items, ref_code, use_referral_credit } = await request.json();
+    const body = await request.json();
+    const { ref_code, use_referral_credit } = body;
+    let items: any[] = Array.isArray(body.items) ? body.items : [];
+    const rawOrder = body.order || {};
+    const companyInput = body.company || null;   // { site_id, request_id? } — commande au nom d'une société
+
+    // ── Identité et champs : jamais ceux envoyés tels quels par le navigateur ─────────────
+    const { userFromRequest, membershipOf, companyBalance, adjustCompanyWallet, notifyCompany, minTopupFor, fdj } = await import('../../../lib/company');
+    const caller = await userFromRequest(request);
+    const PAYMENTS = ['waafi', 'cash', 'wallet', 'company_wallet', 'dmoney'];
+    if (!PAYMENTS.includes(rawOrder.payment_method)) return NextResponse.json({ error: 'payment_invalid' }, { status: 400 });
+    // Une commande rattachée à un compte doit être passée par ce compte (jeton), sinon n'importe qui
+    // pourrait commander — et débiter une cagnotte — au nom d'un autre.
+    if (rawOrder.user_id && (!caller || caller.id !== rawOrder.user_id)) return NextResponse.json({ error: 'identity_mismatch' }, { status: 401 });
+    const order: any = {
+      user_id: rawOrder.user_id ? caller!.id : null,
+      total: Number(rawOrder.total) || 0,
+      delivery_fee: Number(rawOrder.delivery_fee) || 0,
+      delivery_option_name: rawOrder.delivery_option_name ?? null,
+      special_instructions: rawOrder.special_instructions ?? null,
+      status: 'pending',
+      payment_method: rawOrder.payment_method,
+      phone: rawOrder.phone ?? null, email: rawOrder.email ?? null,
+      address: rawOrder.address ?? null, customer_name: rawOrder.customer_name ?? null,
+    };
+
+    // ── Commande au nom d'une société (cagnotte société, site de livraison) ───────────────
+    let company: any = null, companyRole: string | null = null, companyRequest: any = null;
+    if (order.payment_method === 'company_wallet' || companyInput) {
+      if (!caller) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+      const m = await membershipOf(caller.id);
+      if (!m || m.company?.status !== 'active') return NextResponse.json({ error: 'company_inactive' }, { status: 403 });
+      if (!['manager', 'buyer'].includes(m.role)) return NextResponse.json({ error: 'forbidden_role' }, { status: 403 });
+      company = m.company; companyRole = m.role;
+      order.payment_method = 'company_wallet';
+      order.user_id = caller.id;
+      if (companyInput?.request_id) {
+        // Demande d'un acheteur validée par le gérant : lignes et site repris de la demande enregistrée
+        if (m.role !== 'manager') return NextResponse.json({ error: 'forbidden_role' }, { status: 403 });
+        const { data: reqRow } = await supabaseAdmin.from('company_order_requests').select('*').eq('id', companyInput.request_id).eq('company_id', company.id).maybeSingle();
+        if (!reqRow || reqRow.status !== 'awaiting') return NextResponse.json({ error: 'request_not_awaiting' }, { status: 409 });
+        companyRequest = reqRow;
+        items = Array.isArray(reqRow.items) ? reqRow.items : [];
+        order.user_id = reqRow.user_id;
+        order.delivery_fee = Number(reqRow.delivery?.fee) || 0;
+        order.delivery_option_name = reqRow.delivery?.option_name ?? null;
+        order.special_instructions = reqRow.delivery?.special_instructions ?? null;
+      }
+      const siteId = companyRequest?.site_id ?? companyInput?.site_id;
+      const { data: site } = siteId
+        ? await supabaseAdmin.from('company_sites').select('*').eq('id', siteId).eq('company_id', company.id).maybeSingle()
+        : { data: null as any };
+      if (!site) return NextResponse.json({ error: 'site_required' }, { status: 400 });
+      order.address = site.address; order.phone = site.phone; order.email = null;
+      order.customer_name = `${company.name} — ${site.recipient_name}`;
+      order.company_id = company.id; order.company_site_id = site.id;
+    }
+    if (!items.length) return NextResponse.json({ error: 'empty_order' }, { status: 400 });
 
     // Vérifier le stock disponible pour chaque article
     const productIds = items.map((i: any) => i.product_id);
@@ -56,8 +113,14 @@ export async function POST(request: Request) {
       for (const item of items) {
         if (serverPrice[item.product_id] != null && Number(item.price) !== serverPrice[item.product_id]) { item.price = serverPrice[item.product_id]; priceAdjusted = true; }
       }
-      if (priceAdjusted) order.total = items.reduce((s: number, i: any) => s + Number(i.price) * Number(i.quantity), 0) + (Number(order.delivery_fee) || 0);
+      // Total toujours recalculé côté serveur (articles au prix serveur + frais de livraison)
+      order.total = items.reduce((s: number, i: any) => s + Number(i.price) * Number(i.quantity), 0) + (Number(order.delivery_fee) || 0);
     } catch (e) { console.error('[orders] price check:', e); }
+
+    // Société : au-delà du seuil, la commande d'un acheteur doit être validée par le gérant
+    if (company && companyRole === 'buyer' && !companyRequest && company.approval_threshold != null && Number(order.total) > Number(company.approval_threshold)) {
+      return NextResponse.json({ error: 'approval_required', threshold: Number(company.approval_threshold), total: Number(order.total) }, { status: 409 });
+    }
 
     const insufficientItems = items.filter((item: any) => {
       const available = stockMap[item.product_id]?.stock_qty ?? 0;
@@ -86,6 +149,11 @@ export async function POST(request: Request) {
       if ((Number(w?.balance) || 0) < Number(order.total)) {
         return NextResponse.json({ error: 'wallet_insufficient', balance: Number(w?.balance) || 0 }, { status: 400 });
       }
+    }
+    // Cagnotte société (prépayée) : solde vérifié avant, puis débit atomique après création
+    if (company) {
+      const bal = await companyBalance(company.id);
+      if (bal < Number(order.total)) return NextResponse.json({ error: 'company_wallet_insufficient', balance: bal }, { status: 400 });
     }
 
     // Réserver le stock AVANT de créer la commande — atomique, tout ou rien (paniers : composants inclus).
@@ -153,6 +221,30 @@ export async function POST(request: Request) {
         p_order: createdOrder.id,
         p_note: 'Paiement commande',
       });
+    }
+
+    // Cagnotte société : débit atomique (refusé si le solde a été dépensé entre-temps → tout est annulé)
+    if (company) {
+      const debit = await adjustCompanyWallet(company.id, -Number(createdOrder.total), 'debit', { orderId: createdOrder.id, userId: caller!.id, note: `Commande #${createdOrder.id}` });
+      if (!debit.ok) {
+        await releaseStock();
+        await supabaseAdmin.from('order_items').delete().eq('order_id', createdOrder.id);
+        await supabaseAdmin.from('orders').delete().eq('id', createdOrder.id);
+        return NextResponse.json({ error: 'company_wallet_insufficient', balance: await companyBalance(company.id) }, { status: 400 });
+      }
+      if (companyRequest) {
+        await supabaseAdmin.from('company_order_requests').update({ status: 'approved', order_id: createdOrder.id, decided_by: caller!.id, decided_at: new Date().toISOString() }).eq('id', companyRequest.id);
+      }
+      try {
+        // Gérants prévenus d'une commande passée par un acheteur ; alerte si le solde passe sous la recharge minimale
+        if (createdOrder.user_id !== caller!.id || companyRole === 'buyer') {
+          await notifyCompany(company.id, ['manager'], { title: `🏢 Commande #${createdOrder.id} — ${fdj(createdOrder.total)}`, body: `Passée pour ${company.name} (${order.customer_name}). Solde de la cagnotte : ${fdj(debit.balance || 0)}.` });
+        }
+        const floor = await minTopupFor(company);
+        if ((debit.balance || 0) < floor) {
+          await notifyCompany(company.id, ['manager'], { title: '⚠️ Cagnotte société bientôt vide', body: `Solde : ${fdj(debit.balance || 0)}. Pensez à recharger pour vos prochaines commandes.` });
+        }
+      } catch (e) { console.error('[orders] company notify:', e); }
     }
 
     // Consommer un crédit parrainage si demandé

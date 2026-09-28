@@ -6,15 +6,20 @@ export type RefundMethod = 'wallet' | 'cash' | 'manual' | 'none';
 //  - wallet : recrédite la cagnotte (transaction tracée)
 //  - cash   : rien à rembourser (payé à la livraison) → on a juste réduit le dû
 //  - waafi/dmoney : remboursement manuel à effectuer → 'manual'
+//  - company_wallet : recrédite la cagnotte de la société (transaction tracée)
 export async function refundOrderAmount(
-  order: { id: string | number; payment_method: string; user_id: string | null },
+  order: { id: string | number; payment_method: string; user_id: string | null; company_id?: number | null },
   amount: number,
   note: string,
 ): Promise<RefundMethod> {
   if (!amount || amount <= 0) return 'none';
 
   let method: RefundMethod;
-  if (order.payment_method === 'wallet' && order.user_id) {
+  if (order.payment_method === 'company_wallet' && order.company_id) {
+    const { adjustCompanyWallet } = await import('./company');
+    await adjustCompanyWallet(Number(order.company_id), amount, 'refund', { orderId: Number(order.id), note });
+    method = 'wallet';
+  } else if (order.payment_method === 'wallet' && order.user_id) {
     await supabaseAdmin.rpc('wallet_adjust', {
       p_user: order.user_id,
       p_amount: amount,

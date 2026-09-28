@@ -15,7 +15,7 @@ async function resolvePendingCancelRequests(orderId: any) {
 export async function executeCancellation(orderId: any): Promise<{ ok: boolean; error?: string }> {
   const { data: order } = await supabaseAdmin
     .from('orders')
-    .select('id, status, total, payment_method, user_id, email, customer_name')
+    .select('id, status, total, payment_method, user_id, email, customer_name, company_id')
     .eq('id', orderId)
     .maybeSingle();
   if (!order) return { ok: false, error: 'not_found' };
@@ -40,7 +40,7 @@ export async function executeCancellation(orderId: any): Promise<{ ok: boolean; 
 
   // 2) Remboursement (cagnotte auto / espèces rien / Waafi à effectuer)
   await refundOrderAmount(
-    { id: orderId, payment_method: order.payment_method, user_id: order.user_id },
+    { id: orderId, payment_method: order.payment_method, user_id: order.user_id, company_id: (order as any).company_id ?? null },
     Number(order.total) || 0,
     'Remboursement : commande annulée',
   );
