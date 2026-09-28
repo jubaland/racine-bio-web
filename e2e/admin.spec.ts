@@ -92,3 +92,15 @@ test('admin › Fidélité : réglages de la carte (sans enregistrer)', async ({
   await expect(page.getByRole('button', { name: 'Enregistrer' })).toBeVisible();
   await expectNoOverflow(page, 'Fidélité');
 });
+
+test('admin › Produits : éditeur de traductions (sans enregistrer)', async ({ page }) => {
+  await openModule(page, /Produits/, /Produits/);
+  await page.getByRole('button', { name: /Traductions/ }).first().click();
+  await expect(page.getByRole('heading', { name: /Traductions du produit/ })).toBeVisible();
+  await expect(page.getByText(/Texte français \(référence\)/)).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText('🇬🇧 English')).toBeVisible();
+  await expectNoOverflow(page, 'Produits › Traductions');
+  await page.getByRole('button', { name: /Annuler/ }).click();
+  await expect(page.getByRole('heading', { name: /Traductions du produit/ })).toHaveCount(0);
+});
+

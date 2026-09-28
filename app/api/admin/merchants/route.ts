@@ -202,11 +202,17 @@ export async function POST(request: Request) {
       await supabaseAdmin.from('products').update({
         status: approve ? 'published' : 'rejected', review_note: approve ? null : (note || null), reviewed_at: new Date().toISOString(),
       }).eq('id', product_id);
+      // Validation : les langues encore vides reprennent le nom traduit d'un produit homonyme du catalogue
+      let translated = 0;
+      if (approve) {
+        try { const { applySuggestions } = await import('../../../../lib/product-translations'); const r = await applySuggestions({ id: prod.id, name: prod.name }); if (r.ok) translated = r.saved; }
+        catch (e) { console.error('[merchants] traductions produit:', e); }
+      }
       if (prod.owner_id) await notifyMerchant(prod.owner_id,
         approve ? `✅ Produit validé : ${prod.name}` : `❌ Produit refusé : ${prod.name}`,
         approve ? 'Votre produit est publié sur Hornafresh (visible tant que votre formule est active).' : `Motif : ${note || 'non précisé'}. Modifiez-le pour le soumettre à nouveau.`,
         undefined, '/producer/products');
-      return NextResponse.json({ ok: true });
+      return NextResponse.json({ ok: true, translated });
     }
 
     // Plans

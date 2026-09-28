@@ -64,13 +64,14 @@ export async function onOrderDelivered(orderId: number | string) {
 
     const { notifyUser } = await import('./notify');
     if (r.rewarded) {
-      await notifyUser(o.user_id, { title: `🎁 Récompense fidélité : +${fdj(r.amount)}`, body: `Merci pour vos ${s.orders_required} commandes ! ${fdj(r.amount)} ont été crédités sur votre cagnotte. Une nouvelle carte commence.`, url: '/profile' });
+      await notifyUser(o.user_id, { title: `🎁 Récompense fidélité : +${fdj(r.amount)}`, body: `Merci pour vos ${s.orders_required} commandes ! ${fdj(r.amount)} ont été crédités sur votre cagnotte. Une nouvelle carte commence.`, url: '/profile', i18n: { key: 'loyalty.reward', params: { amount: fdj(r.amount), n: s.orders_required } } });
     } else {
       const left = Math.max(0, s.orders_required - Number(r.open));
       await notifyUser(o.user_id, {
         title: left === 1 ? '⭐ Plus qu\'une commande avant votre récompense' : `⭐ Tampon fidélité ${r.open}/${s.orders_required}`,
         body: left === 1 ? `Encore une commande livrée et ${fdj(s.reward_amount)} seront crédités sur votre cagnotte.` : `Encore ${left} commandes livrées avant ${fdj(s.reward_amount)} sur votre cagnotte.`,
         url: '/profile',
+        i18n: { key: left === 1 ? 'loyalty.one_left' : 'loyalty.stamp', params: { open: r.open, n: s.orders_required, left, amount: fdj(s.reward_amount) } },
       });
     }
     return r;

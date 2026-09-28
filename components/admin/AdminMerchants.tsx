@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase';
 import { useCan } from '../../context/AdminPermsContext';
 import MerchantPayouts from './MerchantPayouts';
 import MerchantReviewsAdmin from './MerchantReviewsAdmin';
+import ProductTranslationsModal from './ProductTranslationsModal';
 
 type Plan = { id: number; name: string; price_fdj: number; duration_days: number; is_active: boolean };
 type Sub = { id: number; user_id: string; plan_id: number | null; amount: number; starts_at: string | null; ends_at: string | null; status: string; payment_method: string | null; payment_reference: string | null; created_at: string; merchant?: { id: string; name: string; email: string | null } };
@@ -42,6 +43,7 @@ export default function AdminMerchants() {
   const [grantMethod, setGrantMethod] = useState('cash');
   const [grantRef, setGrantRef] = useState('');
   const [planForm, setPlanForm] = useState<Partial<Plan> | null>(null);
+  const [trFor, setTrFor] = useState<number | null>(null);   // produit dont on édite les traductions
   const [comRate, setComRate] = useState('');
   const [comEnabled, setComEnabled] = useState(false);
   const [comSaved, setComSaved] = useState(false);
@@ -134,7 +136,8 @@ export default function AdminMerchants() {
                       {p.description ? <p className="text-xs text-gray-500 mt-1 italic">« {p.description} »</p> : <p className="text-xs text-orange-500 mt-1">⚠️ {t('mer.no_description', 'Sans description')}</p>}
                       {!p.image_url && <p className="text-xs text-orange-500">⚠️ {t('mer.no_photo', 'Sans photo')}</p>}
                     </div>
-                    {canEdit && <div className="flex gap-2 flex-none">
+                    {canEdit && <div className="flex flex-col sm:flex-row gap-2 flex-none">
+                      <button onClick={() => setTrFor(p.id)} title={t('ptr.title', 'Traductions du produit')} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5]">🌍 {t('ptr.btn', 'Traductions')}</button>
                       <button disabled={busy === 'pr' + p.id} onClick={() => act({ action: 'approve_product', product_id: p.id }, 'pr' + p.id)} className="text-xs font-semibold bg-[#a8c800] text-white rounded-lg px-3 py-1.5 hover:bg-[#7d9800] disabled:opacity-50">✅ {t('mer.approve', 'Valider')}</button>
                       <button disabled={busy === 'pr' + p.id} onClick={() => { const note = prompt(t('mer.reject_product_note', 'Motif du refus (communiqué au marchand) :')); if (note !== null) act({ action: 'reject_product', product_id: p.id, note }, 'pr' + p.id); }} className="text-xs font-semibold border border-red-200 text-red-500 rounded-lg px-3 py-1.5 hover:bg-red-50 disabled:opacity-50">✖ {t('mer.reject', 'Refuser')}</button>
                     </div>}
@@ -276,6 +279,8 @@ export default function AdminMerchants() {
           )}
         </>
       )}
+
+      {trFor != null && <ProductTranslationsModal productId={trFor} canEdit={canEdit} onClose={() => setTrFor(null)} />}
 
       {/* Modal : activer / renouveler */}
       {grantFor && (

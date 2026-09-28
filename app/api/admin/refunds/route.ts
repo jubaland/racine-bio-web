@@ -73,6 +73,7 @@ export async function POST(request: Request) {
         title: `💰 Remboursement — Commande #${shortId}`,
         body: `${amt} ont été crédités sur votre cagnotte.`,
         url: '/profile',
+        i18n: { key: 'refund.wallet', params: { id: shortId, amount: amt } },
       });
     } catch { /* ignore */ }
     return NextResponse.json({ ok: true, status: 'done', method: 'wallet' });
@@ -86,6 +87,7 @@ export async function POST(request: Request) {
         title: `📱 Remboursement — Commande #${shortId}`,
         body: `${amt} vous ont été remboursés par Waafi.`,
         url: '/profile',
+        i18n: { key: 'refund.waafi', params: { id: shortId, amount: amt } },
       });
     } catch { /* ignore */ }
   }

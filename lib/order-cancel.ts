@@ -63,6 +63,7 @@ export async function executeCancellation(orderId: any): Promise<{ ok: boolean; 
         title: '❌ Commande annulée',
         body: `Commande #${String(orderId).slice(0, 8).toUpperCase()}`,
         url: '/profile',
+        i18n: { key: 'order.cancelled', params: { id: String(orderId).slice(0, 8).toUpperCase() } },
       });
     }
     // 5) Préparateurs : ne pas préparer

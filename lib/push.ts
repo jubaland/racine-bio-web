@@ -1,6 +1,10 @@
 import webpush from 'web-push';
 import { supabaseAdmin } from './supabase-admin';
 
+type PushText = { title: string; body: string };
+// Texte dans la langue d'un appareil (langue de l'abonnement, null si inconnue) ; absent = texte d'origine
+type Localizer = (deviceLang: any, userId: string | null) => PushText | Promise<PushText>;
+
 function initVapid() {
   const subject = process.env.VAPID_SUBJECT;
   const pub     = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
@@ -11,25 +15,27 @@ function initVapid() {
   return true;
 }
 
-export async function sendPushToAll(payload: { title: string; body: string; url?: string }) {
+export async function sendPushToAll(payload: { title: string; body: string; url?: string }, localizer?: Localizer) {
   const ready = initVapid();
   console.log('[push] sendPushToAll | initVapid:', ready);
-  if (!ready) return { sent: 0, total: 0 };
+  if (!ready) return { sent: 0, total: 0, translated: 0 };
 
   const { data: subs, error } = await supabaseAdmin
     .from('push_subscriptions')
-    .select('endpoint, p256dh, auth');
+    .select('endpoint, p256dh, auth, lang, user_id');
 
   console.log('[push] subs total (broadcast):', subs?.length ?? 0, '| error:', error?.message ?? 'none');
-  if (!subs || subs.length === 0) return { sent: 0, total: 0 };
+  if (!subs || subs.length === 0) return { sent: 0, total: 0, translated: 0 };
 
-  let sent = 0;
+  let sent = 0, translated = 0;
   await Promise.allSettled(
     subs.map(async sub => {
       try {
+        const text = localizer ? await localizer(sub.lang, sub.user_id) : null;
+        if (text && text.title !== payload.title) translated++;
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          JSON.stringify(payload)
+          JSON.stringify(text ? { ...payload, ...text } : payload)
         );
         sent++;
       } catch (e: any) {
@@ -40,17 +46,17 @@ export async function sendPushToAll(payload: { title: string; body: string; url?
     })
   );
   console.log('[push] broadcast sent:', sent, '/', subs.length);
-  return { sent, total: subs.length };
+  return { sent, total: subs.length, translated };
 }
 
-export async function sendPushToUser(userId: string, payload: { title: string; body: string; url?: string }) {
+export async function sendPushToUser(userId: string, payload: { title: string; body: string; url?: string }, localizer?: Localizer) {
   const ready = initVapid();
   console.log('[push] sendPushToUser | initVapid:', ready, '| userId:', userId);
   if (!ready) return;
 
   const { data: subs, error } = await supabaseAdmin
     .from('push_subscriptions')
-    .select('endpoint, p256dh, auth')
+    .select('endpoint, p256dh, auth, lang')
     .eq('user_id', userId);
 
   console.log('[push] subs for user:', subs?.length ?? 0, '| error:', error?.message ?? 'none');
@@ -59,9 +65,10 @@ export async function sendPushToUser(userId: string, payload: { title: string; b
   await Promise.allSettled(
     subs.map(async sub => {
       try {
+        const text = localizer ? await localizer((sub as any).lang, userId) : null;
         const res = await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          JSON.stringify(payload)
+          JSON.stringify(text ? { ...payload, ...text } : payload)
         );
         console.log('[push] user sendNotification ok, statusCode:', res?.statusCode);
       } catch (e: any) {

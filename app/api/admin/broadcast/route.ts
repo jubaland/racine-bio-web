@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { requirePerm } from '../../../../lib/admin-auth';
-import { notifyAllUsers } from '../../../../lib/notify';
+import { notifyAllUsers, previewAllUsers } from '../../../../lib/notify';
 
 // GET — historique des annonces diffusées (admin)
 export async function GET(request: Request) {
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   try {
-    const { title, body, url, translations } = await request.json();
+    const { title, body, url, translations, dry } = await request.json();
     if (!title || !String(title).trim()) {
       return NextResponse.json({ error: 'Titre requis' }, { status: 400 });
     }
@@ -40,6 +40,9 @@ export async function POST(request: Request) {
       if (tt) cleanTr[lang] = { title: tt, body: v?.body ? String(v.body).trim().slice(0, 300) || null : null };
     }
 
+    // Aperçu : qui recevra quoi, par langue — rien n'est enregistré ni envoyé
+    if (dry) return NextResponse.json({ ok: true, dry: true, ...(await previewAllUsers({ title: cleanTitle, body: cleanBody, url: cleanUrl }, cleanTr)) });
+
     // 1) Désactive les anciennes annonces (une seule active à la fois sur le bandeau)
     await supabaseAdmin.from('announcements').update({ active: false }).eq('active', true);
 
@@ -52,11 +55,12 @@ export async function POST(request: Request) {
     if (insErr) return NextResponse.json({ error: insErr.message }, { status: 500 });
 
     // 3) Centre de notifications de chaque client + push PWA à tous les abonnés
+    // Chaque client reçoit la version de sa langue si elle a été saisie, le français sinon
     const result = await notifyAllUsers({
       title: cleanTitle,
       body: cleanBody,
       url: cleanUrl || '/',
-    });
+    }, cleanTr);
 
     return NextResponse.json({ ok: true, announcement: ann, sent: result.sent, total: result.total, recipients: result.recipients });
   } catch (e: any) {

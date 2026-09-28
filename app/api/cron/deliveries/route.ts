@@ -105,7 +105,7 @@ async function expireOne(userId: string, frequency: string) {
   try { if (email) await sendSubscriptionExpired(email, label); } catch {}
   try {
     const { notifyUser: sendPushToUser } = await import('../../../../lib/notify'); // cloche + push
-    await sendPushToUser(userId, { title: '⏳ Abonnement à renouveler', body: `Votre commande modèle ${label} est arrivée à échéance.`, url: '/abonnement' });
+    await sendPushToUser(userId, { title: '⏳ Abonnement à renouveler', body: `Votre commande modèle ${label} est arrivée à échéance.`, url: '/abonnement', i18n: { key: 'sub.expired', params: { label: { key: `freq.${frequency}`, fr: label } } } });
   } catch {}
 }
 
@@ -134,7 +134,7 @@ async function processOne(userId: string, frequency: string, todayStr: string, f
     try { if (email) await sendSubscriptionPaused(email, total, balance); } catch {}
     try {
       const { notifyUser: sendPushToUser } = await import('../../../../lib/notify'); // cloche + push
-      await sendPushToUser(userId, { title: '⏸️ Cagnotte à recharger', body: `Votre livraison ${label} est en pause (solde insuffisant).`, url: '/abonnement' });
+      await sendPushToUser(userId, { title: '⏸️ Cagnotte à recharger', body: `Votre livraison ${label} est en pause (solde insuffisant).`, url: '/abonnement', i18n: { key: 'sub.paused', params: { label: { key: `freq.${frequency}`, fr: label } } } });
     } catch {}
     return { paused: 'low_balance', needed: total, balance };
   }
@@ -188,7 +188,7 @@ async function processOne(userId: string, frequency: string, todayStr: string, f
   // Push livraison
   try {
     const { notifyUser: sendPushToUser } = await import('../../../../lib/notify'); // cloche + push
-    await sendPushToUser(userId, { title: `📦 Livraison ${label}`, body: `Commande #${String(order.id)} en préparation — ${Number(total).toLocaleString('fr-FR')} Fdj`, url: '/profile' });
+    await sendPushToUser(userId, { title: `📦 Livraison ${label}`, body: `Commande #${String(order.id)} en préparation — ${Number(total).toLocaleString('fr-FR')} Fdj`, url: '/profile', i18n: { key: 'sub.delivery', params: { label: { key: `freq.${frequency}`, fr: label }, id: String(order.id), amount: `${Number(total).toLocaleString('fr-FR')} Fdj` } } });
   } catch {}
 
   return { ordered: order.id, total };

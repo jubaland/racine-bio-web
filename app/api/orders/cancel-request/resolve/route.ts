@@ -40,6 +40,7 @@ export async function POST(request: Request) {
           title: `✅ Annulation validée — #${shortId}`,
           body: 'Votre demande d\'annulation a été validée. La commande est annulée et le remboursement traité.',
           url: target,
+          i18n: { key: 'cancel.approved', params: { id: shortId } },
         });
       } catch { /* ignore */ }
     }
@@ -58,6 +59,7 @@ export async function POST(request: Request) {
           ? 'Votre demande d\'annulation n\'a pas pu être acceptée : la commande est maintenue. Contactez-nous au 77 43 26 15 pour toute question.'
           : 'Votre demande d\'annulation n\'a pas été validée. La commande reste active.',
         url: target,
+        i18n: { key: byCustomer ? 'cancel.rejected_customer' : 'cancel.rejected', params: { id: shortId } },
       });
     } catch { /* ignore */ }
   }

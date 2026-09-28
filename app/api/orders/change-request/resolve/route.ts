@@ -47,6 +47,7 @@ export async function POST(request: Request) {
         title: `🧾 Demande refusée — Commande #${shortId}`,
         body: `Votre demande concernant « ${name} » n'a pas été acceptée. Contactez-nous pour en savoir plus.`,
         url: '/profile',
+        i18n: { key: 'change.rejected', params: { id: shortId, name } },
       });
     } catch { /* ignore */ }
   }

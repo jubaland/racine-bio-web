@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabase-admin';
+import { cleanLang } from '../../../lib/i18n-server';
 
 // GET ?endpoint= — l'abonnement est-il connu du serveur ? (auto-réparation côté client :
 // un abonnement gardé par le navigateur mais absent ici a été expiré/supprimé → à renouveler)
@@ -14,7 +15,7 @@ export async function GET(request: Request) {
 // POST — enregistre ou supprime un abonnement push
 export async function POST(request: Request) {
   try {
-    const { subscription, action } = await request.json();
+    const { subscription, action, lang } = await request.json();
 
     // Récupérer l'utilisateur depuis le JWT
     const auth = request.headers.get('Authorization');
@@ -47,6 +48,7 @@ export async function POST(request: Request) {
         auth:      subscription.keys.auth,
         user_id:   userId,
         is_admin:  isAdmin,
+        ...(cleanLang(lang) ? { lang: cleanLang(lang) } : {}),   // langue de l'appareil, si le navigateur l'envoie
       }, { onConflict: 'endpoint' });
 
     return NextResponse.json({ ok: true });

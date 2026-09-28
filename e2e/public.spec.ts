@@ -105,3 +105,12 @@ for (const lang of ['en', 'zh', 'am', 'so']) {
   });
 }
 
+test("titre de l'onglet et langue de la page suivent la langue choisie", async ({ page }) => {
+  await page.addInitScript(() => { localStorage.setItem('lang', 'en'); localStorage.setItem('hf_install_dismissed', '1'); });
+  await page.goto('/'); await settle(page);
+  await expect(page).toHaveTitle(/The premium, fresh/, { timeout: 20_000 });
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await page.goto('/about'); await settle(page);
+  await expect(page).toHaveTitle(/The premium, fresh/, { timeout: 20_000 });   // conservé après navigation
+});
+

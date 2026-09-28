@@ -69,7 +69,8 @@ export async function applyItemChange(order_id: any, item_id: any, new_quantity:
       : refundMethod === 'cash' ? `Votre montant à payer baisse de ${amt}.`
       : `Remboursement de ${amt} par Waafi en cours.`;
     try {
-      await notifyUser(order.user_id, { title: `🧾 Commande #${shortId} modifiée`, body: `${what}. ${tail}`, url: '/profile' });
+      await notifyUser(order.user_id, { title: `🧾 Commande #${shortId} modifiée`, body: `${what}. ${tail}`, url: '/profile',
+        i18n: { key: `order.edit.${isRemoval ? 'removed' : 'reduced'}.${refundMethod === 'wallet' ? 'wallet' : refundMethod === 'cash' ? 'cash' : 'waafi'}`, params: { id: shortId, name, qty: targetQty, amount: amt } } });
     } catch { /* ignore */ }
   }
 

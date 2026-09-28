@@ -54,6 +54,19 @@ export default function AdminBroadcast() {
 
   useEffect(() => { fetchHistory(); }, [fetchHistory]);
 
+  // Aperçu : texte retenu par langue et nombre de clients concernés — rien n'est envoyé
+  const [preview, setPreview] = useState<{ accounts: Record<string, number>; devices: Record<string, number>; texts: Record<string, { title: string; body: string | null; translated: boolean }> } | null>(null);
+  const showPreview = async () => {
+    if (!title.trim() || busy) return;
+    setBusy(true); setFeedback(null);
+    try {
+      const res = await fetch('/api/admin/broadcast', { method: 'POST', headers: await authHeader(), body: JSON.stringify({ title: title.trim(), body: body.trim() || null, url: url.trim() || null, translations: tr, dry: true }) });
+      const json = await res.json();
+      if (!res.ok) setFeedback('❌ ' + (json.error || 'Erreur')); else setPreview(json);
+    } catch (e: any) { setFeedback('❌ ' + e.message); }
+    setBusy(false);
+  };
+
   const send = async () => {
     if (!title.trim() || busy) return;
     if (!confirm(t('admin.bc_confirm', 'Diffuser ce message à TOUS les clients (notification + bandeau) ?'))) return;
@@ -69,7 +82,7 @@ export default function AdminBroadcast() {
       if (!res.ok) { setFeedback('❌ ' + (json.error || 'Erreur')); }
       else {
         setFeedback(`✅ ${t('admin.bc_sent', 'Diffusé !')} ${json.sent}/${json.total} ${t('admin.bc_devices', 'appareils notifiés')}.`);
-        setTitle(''); setBody(''); setUrl(''); setTr({}); setShowTr(false);
+        setTitle(''); setBody(''); setUrl(''); setTr({}); setShowTr(false); setPreview(null);
         fetchHistory();
       }
     } catch (e: any) {
@@ -138,12 +151,12 @@ export default function AdminBroadcast() {
         {/* Traductions du bandeau (facultatif) */}
         <div className="border border-[#e3eebf] rounded-xl">
           <button type="button" onClick={() => setShowTr(v => !v)} className="w-full flex items-center justify-between gap-2 px-4 py-2.5 text-left text-xs font-semibold text-[#526500]">
-            <span>🌍 {t('admin.bc_tr_title', 'Traductions du bandeau (facultatif)')}{Object.values(tr).filter(v => v.title.trim()).length ? ` · ${Object.values(tr).filter(v => v.title.trim()).length}` : ''}</span>
+            <span>🌍 {t('admin.bc_tr_title2', 'Traductions de l\'annonce (facultatif)')}{Object.values(tr).filter(v => v.title.trim()).length ? ` · ${Object.values(tr).filter(v => v.title.trim()).length}` : ''}</span>
             <span>{showTr ? '▲' : '▼'}</span>
           </button>
           {showTr && (
             <div className="px-4 pb-4 space-y-3">
-              <p className="text-[11px] text-gray-400">{t('admin.bc_tr_hint', 'Sans traduction, le bandeau s\'affiche en français dans cette langue. La notification part toujours en français.')}</p>
+              <p className="text-[11px] text-gray-400">{t('admin.bc_tr_hint2', 'Sans traduction, le bandeau et la notification sont en français pour les clients de cette langue.')}</p>
               {TR_LANGS.map(([lang, label]) => (
                 <div key={lang}>
                   <p className="text-xs font-semibold text-gray-600 mb-1">{label}</p>
@@ -161,6 +174,24 @@ export default function AdminBroadcast() {
           <div className="text-sm font-medium px-3 py-2 rounded-xl bg-[#f7fbe9] border border-[#e3eebf] text-gray-700">{feedback}</div>
         )}
 
+        {preview && (
+          <div className="border border-[#e3eebf] rounded-xl px-4 py-3 text-xs text-gray-600 space-y-1.5">
+            <p className="font-semibold text-[#526500]">👁 {t('admin.bc_preview_title', "Aperçu par langue (rien n'est envoyé)")}</p>
+            {Object.entries(preview.texts).map(([l, x]) => (
+              <div key={l} className="flex gap-2">
+                <span className="font-semibold uppercase w-7 flex-none">{l}</span>
+                <span className="flex-1 min-w-0">
+                  <span className="block truncate text-gray-800">{x.title}</span>
+                  <span className="block text-[11px] text-gray-400">{preview.accounts[l] || 0} {t('admin.bc_preview_accounts', 'compte(s)')} · {preview.devices[l] || 0} {t('admin.bc_preview_devices', 'appareil(s)')}{!x.translated ? ` · ⚠️ ${t('admin.bc_preview_fallback', 'non traduit : français')}` : ''}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        <button onClick={showPreview} disabled={!canSend || !title.trim() || busy}
+          className="w-full border border-[#d2e095] text-[#526500] font-semibold py-2.5 rounded-xl hover:bg-[#ecf4d5] transition disabled:opacity-40 disabled:cursor-not-allowed text-sm">
+          👁 {t('admin.bc_preview', 'Aperçu par langue')}
+        </button>
         <button
           onClick={send}
           disabled={!canSend || !title.trim() || busy}

@@ -79,11 +79,17 @@ export async function remindTomorrow(todayStr: string, opts: { onlyUser?: string
     const balance = await balanceOf(userId);
     const missing = Math.max(0, total - balance);
     const labels = parts.map(p => p.label).join(' + ');
+    // Mêmes éléments, traduisibles (modèles srv.* ; le français ci-dessous reste le repli)
+    const labelsP = { list: subs.map(s => ({ key: `freq.${s.frequency}`, fr: FREQ_LABEL[s.frequency] || s.frequency })), sep: ' + ' };
     const omitted = parts.flatMap(p => p.omitted), reduced = parts.flatMap(p => p.reduced);
     const stockNote = [
       omitted.length ? `Indisponible(s) demain, omis : ${omitted.join(', ')}.` : '',
       reduced.length ? `Quantité réduite (stock) : ${reduced.join(', ')}.` : '',
     ].filter(Boolean).join(' ');
+    const noteP = { list: [
+      omitted.length ? { key: 'restock.note_omitted', params: { list: omitted.join(', ') }, fr: `Indisponible(s) demain, omis : ${omitted.join(', ')}.` } : null,
+      reduced.length ? { key: 'restock.note_reduced', params: { list: reduced.join(', ') }, fr: `Quantité réduite (stock) : ${reduced.join(', ')}.` } : null,
+    ] };
 
     let kind: 'ok' | 'missing' | 'empty';
     let title: string, body: string;
@@ -103,7 +109,10 @@ export async function remindTomorrow(todayStr: string, opts: { onlyUser?: string
     report.push({ user: userId, kind, total, balance, missing, omitted, reduced, freqs: subs.map(s => s.frequency) });
     if (opts.dry) continue;
 
-    try { await notifyUser(userId, { title, body, url: '/abonnement' }); } catch (e) { console.error('[restock] notify:', e); }
+    try {
+      await notifyUser(userId, { title, body, url: '/abonnement',
+        i18n: { key: `restock.${kind}`, params: { labels: labelsP, note: noteP, total: fdj(total), balance: fdj(balance), missing: fdj(missing) } } });
+    } catch (e) { console.error('[restock] notify:', e); }
     if (kind !== 'ok') {
       try {
         const email = await emailOf(userId);
@@ -150,6 +159,7 @@ export async function resumeAfterTopUp(userId: string) {
         title: '▶️ Commande modèle reprise',
         body: `Cagnotte rechargée : votre commande modèle ${label} reprend${next ? `, prochaine livraison le ${fmtDate(next)}` : ''} (${fdj(total)}).`,
         url: '/abonnement',
+        i18n: { key: next ? 'restock.resumed_next' : 'restock.resumed', params: { label: { key: `freq.${s.frequency}`, fr: label }, date: next ? { date: next, weekday: true } : null, total: fdj(total) } },
       });
       const email = await emailOf(userId);
       if (email) { const { sendSubscriptionResumed } = await import('./emails'); await sendSubscriptionResumed(email, label, next ? fmtDate(next) : null, total); }

@@ -40,7 +40,7 @@ export default function ServiceWorkerRegister() {
         await fetch('/api/push', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-          body: JSON.stringify({ subscription: sub.toJSON(), action: 'subscribe' }),
+          body: JSON.stringify({ subscription: sub.toJSON(), action: 'subscribe', lang: localStorage.getItem('lang') || 'fr' }),
         });
       } catch { /* silencieux : ne doit jamais gêner la navigation */ }
     })();

@@ -7,6 +7,7 @@ import ImagesField from '../ImagesField';
 import AdminBundles from './AdminBundles';
 import { useCan } from '../../context/AdminPermsContext';
 import Modal, { ConfirmDelete, FormField, inputClass, selectClass } from './Modal';
+import ProductTranslationsModal from './ProductTranslationsModal';
 
 interface Product {
   id: number;
@@ -60,6 +61,7 @@ export default function AdminProducts() {
   const [filterCategory, setFilterCategory] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [trFor, setTrFor] = useState<number | null>(null);   // produit dont on édite les traductions
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState<'products' | 'bundles'>('products');
@@ -316,6 +318,7 @@ export default function AdminProducts() {
                       {can('products', 'edit') && !p.owner_id && !p.is_bundle && p.status === 'published' && (
                         <button onClick={() => { setError(''); setAddTo(p); setAddToBundle(''); setAddToQty('1'); }} className="text-[#526500] hover:text-[#3f4f00] text-xs font-medium mr-3" title={t('admin.add_to_bundle', 'Ajouter à un panier')}>🧺 {t('admin.add_to_bundle_short', 'Panier')}</button>
                       )}
+                      <button onClick={() => setTrFor(p.id)} title={t('ptr.title', 'Traductions du produit')} className="text-[#526500] hover:text-[#3f4f00] text-xs font-medium mr-3">🌍 {t('ptr.btn', 'Traductions')}</button>
                       {can('products', 'edit') && <button onClick={() => openEdit(p)} className="text-[#7d9800] hover:text-[#526500] text-xs font-medium mr-3">{t('admin.edit', 'Modifier')}</button>}
                       {can('products', 'delete') && <button onClick={() => { setError(''); setDeleteId(p.id); }} className="text-orange-400 hover:text-[#f97316] text-xs font-medium">{t('admin.delete', 'Supprimer')}</button>}
                     </td>
@@ -332,6 +335,7 @@ export default function AdminProducts() {
       </>}
 
       {/* Ajouter un produit à un panier (existant ou nouveau) */}
+      {trFor != null && <ProductTranslationsModal productId={trFor} canEdit={can('products', 'edit')} onClose={() => setTrFor(null)} />}
       {addTo && (
         <Modal title={`🧺 ${t('admin.add_to_bundle', 'Ajouter à un panier')} — ${addTo.name}`} onClose={() => setAddTo(null)}>
           <div className="space-y-4">

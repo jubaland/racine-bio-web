@@ -309,7 +309,8 @@ export async function POST(request: Request) {
       const { notifyUser } = await import('../../../lib/notify');
       const shortId = String(createdOrder.id).slice(0, 8).toUpperCase();
       // notifyUser = cloche (historique) + push, pour que la confirmation reste consultable dans le centre de notifications
-      if (createdOrder.user_id) await notifyUser(createdOrder.user_id, { title: '✅ Commande confirmée', body: `Commande #${shortId} — ${Number(createdOrder.total).toLocaleString('fr-FR')} Fdj`, url: '/profile' });
+      if (createdOrder.user_id) await notifyUser(createdOrder.user_id, { title: '✅ Commande confirmée', body: `Commande #${shortId} — ${Number(createdOrder.total).toLocaleString('fr-FR')} Fdj`, url: '/profile',
+        i18n: { key: 'order.confirmed', params: { id: shortId, amount: `${Number(createdOrder.total).toLocaleString('fr-FR')} Fdj` } } });
       await sendPushToAdmin({ title: '🛍️ Nouvelle commande', body: `#${shortId} — ${createdOrder.customer_name} — ${Number(createdOrder.total).toLocaleString('fr-FR')} Fdj`, url: '/admin' });
 
       // Marchands : « nouvelle commande » avec la liste de leurs articles à fournir (cloche + push + e-mail)
@@ -507,6 +508,7 @@ export async function PATCH(request: Request) {
             title: STATUS_PUSH[updatedOrder.status],
             body: `Commande #${String(updatedOrder.id).slice(0, 8).toUpperCase()}`,
             url: '/profile',
+            i18n: { key: `order.${updatedOrder.status}`, params: { id: String(updatedOrder.id).slice(0, 8).toUpperCase() } },
           });
         }
       } catch (_) {}

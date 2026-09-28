@@ -265,7 +265,7 @@ export default function ProfilePage() {
               await fetch('/api/push', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', ...(session.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
-                body: JSON.stringify({ subscription: sub.toJSON(), action: 'subscribe' }),
+                body: JSON.stringify({ subscription: sub.toJSON(), action: 'subscribe', lang: localStorage.getItem('lang') || 'fr' }),
               });
               existing = sub;
             } catch (e) { console.error('[push] auto-subscribe failed:', e); }
@@ -425,7 +425,7 @@ export default function ProfilePage() {
           applicationServerKey: urlBase64ToUint8Array(vapidKey),
         });
         const res = await fetch('/api/push', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ subscription: sub.toJSON(), action: 'subscribe' }) });
+          body: JSON.stringify({ subscription: sub.toJSON(), action: 'subscribe', lang: localStorage.getItem('lang') || 'fr' }) });
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
           throw new Error(body.error || `HTTP ${res.status}`);

@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     } catch (e) { console.error('[deposit approve] email error:', e); }
     try {
       const { notifyUser: sendPushToUser } = await import('../../../../lib/notify'); // cloche + push
-      await sendPushToUser(req.user_id, { title: '✅ Cagnotte rechargée', body: `+${Number(req.amount).toLocaleString('fr-FR')} Fdj`, url: '/profile' });
+      await sendPushToUser(req.user_id, { title: '✅ Cagnotte rechargée', body: `+${Number(req.amount).toLocaleString('fr-FR')} Fdj`, url: '/profile', i18n: { key: 'wallet.topup', params: { amount: `${Number(req.amount).toLocaleString('fr-FR')} Fdj` } } });
     } catch (e) { console.error('[deposit approve] push error:', e); }
     // Réassort intelligent : relancer les commandes modèles en pause pour solde insuffisant
     let resumed: any[] = [];
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       .update({ status: 'rejected', note: note || null, reviewed_at: new Date().toISOString() }).eq('id', id);
     try {
       const { notifyUser: sendPushToUser } = await import('../../../../lib/notify'); // cloche + push
-      await sendPushToUser(req.user_id, { title: '❌ Recharge refusée', body: 'Votre demande de recharge n\'a pas été validée. Contactez-nous.', url: '/profile' });
+      await sendPushToUser(req.user_id, { title: '❌ Recharge refusée', body: 'Votre demande de recharge n\'a pas été validée. Contactez-nous.', url: '/profile', i18n: { key: 'wallet.topup_rejected' } });
     } catch (e) { console.error('[deposit reject] push error:', e); }
     return NextResponse.json({ ok: true });
   }
