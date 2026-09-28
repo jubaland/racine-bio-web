@@ -61,12 +61,21 @@ export async function fetchSiteSettings(): Promise<Record<string, boolean>> {
 }
 
 export async function fetchUITranslations(languageCode: string) {
-  const { data } = await supabase
-    .from('ui_translations')
-    .select('key, value')
-    .eq('language_code', languageCode);
+  // L'API renvoie au plus 1 000 lignes par requête : lecture par pages, sinon les traductions
+  // au-delà de la millième ne sont jamais chargées (textes restés en français).
+  const PAGE = 1000;
   const map: Record<string, string> = {};
-  if (data) data.forEach((item: any) => { map[item.key] = item.value; });
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('ui_translations')
+      .select('key, value')
+      .eq('language_code', languageCode)
+      .order('key', { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error || !data) break;
+    data.forEach((item: any) => { map[item.key] = item.value; });
+    if (data.length < PAGE) break;
+  }
   return map;
 }
 

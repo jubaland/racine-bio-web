@@ -23,6 +23,10 @@ export default function AdminBroadcast() {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [url, setUrl] = useState('');
+  const [tr, setTr] = useState<Record<string, { title: string; body: string }>>({});   // traductions facultatives du bandeau
+  const [showTr, setShowTr] = useState(false);
+  const TR_LANGS: [string, string][] = [['en', '🇬🇧 English'], ['zh', '🇨🇳 中文'], ['so', '🇩🇯 Soomaali'], ['am', '🇪🇹 አማርኛ']];
+  const setTrField = (lang: string, field: 'title' | 'body', v: string) => setTr(p => ({ ...p, [lang]: { title: p[lang]?.title || '', body: p[lang]?.body || '', [field]: v } }));
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [history, setHistory] = useState<Announcement[]>([]);
@@ -59,13 +63,13 @@ export default function AdminBroadcast() {
       const res = await fetch('/api/admin/broadcast', {
         method: 'POST',
         headers: await authHeader(),
-        body: JSON.stringify({ title: title.trim(), body: body.trim() || null, url: url.trim() || null }),
+        body: JSON.stringify({ title: title.trim(), body: body.trim() || null, url: url.trim() || null, translations: tr }),
       });
       const json = await res.json();
       if (!res.ok) { setFeedback('❌ ' + (json.error || 'Erreur')); }
       else {
         setFeedback(`✅ ${t('admin.bc_sent', 'Diffusé !')} ${json.sent}/${json.total} ${t('admin.bc_devices', 'appareils notifiés')}.`);
-        setTitle(''); setBody(''); setUrl('');
+        setTitle(''); setBody(''); setUrl(''); setTr({}); setShowTr(false);
         fetchHistory();
       }
     } catch (e: any) {
@@ -129,6 +133,28 @@ export default function AdminBroadcast() {
             className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-[#a8c800] focus:ring-1 focus:ring-[#a8c800] outline-none text-sm"
           />
           <p className="text-[11px] text-gray-400 mt-1">{t('admin.bc_url_hint', 'Page ouverte au clic. Ex : /product/15 ou /promotions')}</p>
+        </div>
+
+        {/* Traductions du bandeau (facultatif) */}
+        <div className="border border-[#e3eebf] rounded-xl">
+          <button type="button" onClick={() => setShowTr(v => !v)} className="w-full flex items-center justify-between gap-2 px-4 py-2.5 text-left text-xs font-semibold text-[#526500]">
+            <span>🌍 {t('admin.bc_tr_title', 'Traductions du bandeau (facultatif)')}{Object.values(tr).filter(v => v.title.trim()).length ? ` · ${Object.values(tr).filter(v => v.title.trim()).length}` : ''}</span>
+            <span>{showTr ? '▲' : '▼'}</span>
+          </button>
+          {showTr && (
+            <div className="px-4 pb-4 space-y-3">
+              <p className="text-[11px] text-gray-400">{t('admin.bc_tr_hint', 'Sans traduction, le bandeau s\'affiche en français dans cette langue. La notification part toujours en français.')}</p>
+              {TR_LANGS.map(([lang, label]) => (
+                <div key={lang}>
+                  <p className="text-xs font-semibold text-gray-600 mb-1">{label}</p>
+                  <input value={tr[lang]?.title || ''} onChange={e => setTrField(lang, 'title', e.target.value)} maxLength={120} disabled={!canSend}
+                    placeholder={t('admin.bc_field_title', 'Titre')} className="w-full px-3 py-2 rounded-xl border border-gray-200 focus:border-[#a8c800] outline-none text-sm mb-1.5" />
+                  <textarea value={tr[lang]?.body || ''} onChange={e => setTrField(lang, 'body', e.target.value)} maxLength={300} rows={2} disabled={!canSend}
+                    placeholder={t('admin.bc_field_body', 'Message')} className="w-full px-3 py-2 rounded-xl border border-gray-200 focus:border-[#a8c800] outline-none text-sm resize-none" />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {feedback && (

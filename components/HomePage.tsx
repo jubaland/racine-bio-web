@@ -238,7 +238,7 @@ export default function HomePage({ products, categories, promos, producers, sett
             <div className="bg-white/10 backdrop-blur rounded-xl px-5 py-2.5 border border-white/15 flex items-center gap-4">
               <p className="text-xs font-bold text-[#c8e050] uppercase tracking-widest whitespace-nowrap">{t('hero.payment_title', 'Paiement accepté')}</p>
               <div className="flex flex-wrap gap-2">
-                {['📱 Waafi', '💳 D-Money', '💵 Espèces'].map(m => (
+                {['📱 Waafi', '💳 D-Money', `💵 ${t('checkout.cash_label', 'Espèces')}`].map(m => (
                   <span key={m} className="bg-white/15 text-white text-xs px-2.5 py-1 rounded-full">{m}</span>
                 ))}
               </div>
@@ -312,7 +312,7 @@ export default function HomePage({ products, categories, promos, producers, sett
                     <BundleTag p={p} />
                     {saving > 0 && <div className="absolute top-2 right-2 text-xs font-bold px-2 py-1 rounded-md bg-white/90 text-[#f97316] shadow-sm">-{saving}%</div>}
                     {!out && (p.stock_qty ?? 0) <= 5 && (
-                      <div className="absolute bottom-2 left-2 bg-amber-900/80 text-amber-100 text-xs px-2.5 py-0.5 rounded-full backdrop-blur-sm">⚠️ {t('product.stock_low_prefix', 'Plus que')} {p.stock_qty}</div>
+                      <div className="absolute bottom-2 left-2 bg-amber-900/80 text-amber-100 text-xs px-2.5 py-0.5 rounded-full backdrop-blur-sm">⚠️ {t('product.stock_low_short', 'Plus que')} {p.stock_qty}</div>
                     )}
                   </div>
                   <div className="p-3">
@@ -367,12 +367,12 @@ export default function HomePage({ products, categories, promos, producers, sett
                     )}
                     {(p.stock_qty ?? 0) <= 0 && (
                       <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                        <span className="bg-white text-gray-700 text-xs font-semibold px-3 py-1 rounded-full shadow">Rupture de stock</span>
+                        <span className="bg-white text-gray-700 text-xs font-semibold px-3 py-1 rounded-full shadow">{t('product.out_of_stock', 'Rupture de stock')}</span>
                       </div>
                     )}
                     {(p.stock_qty ?? 0) > 0 && (p.stock_qty ?? 0) <= 5 && (
                       <div title={`${t('product.stock_low_prefix', 'Stock limité : il ne reste que')} ${p.stock_qty} ${p.unit?.replace(/^\//, '')} ${t('product.stock_low_suffix', 'disponibles !')}`} className="absolute bottom-2 left-2 bg-amber-900/80 text-amber-100 text-xs px-2.5 py-0.5 rounded-full backdrop-blur-sm cursor-help">
-                        ⚠️ Plus que {p.stock_qty} {p.unit?.replace(/^\//, '')}
+                        ⚠️ {t('product.stock_low_short', 'Plus que')} {p.stock_qty} {p.unit?.replace(/^\//, '')}
                       </div>
                     )}
                     {p.is_bundle ? <BundleTag p={p} /> : isBio && (
@@ -624,12 +624,12 @@ export default function HomePage({ products, categories, promos, producers, sett
                     )}
                     {(product.stock_qty ?? 0) <= 0 && (
                       <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                        <span className="bg-white text-gray-700 text-xs font-semibold px-3 py-1 rounded-full shadow">Rupture de stock</span>
+                        <span className="bg-white text-gray-700 text-xs font-semibold px-3 py-1 rounded-full shadow">{t('product.out_of_stock', 'Rupture de stock')}</span>
                       </div>
                     )}
                     {(product.stock_qty ?? 0) > 0 && (product.stock_qty ?? 0) <= 5 && (
                       <div title={`${t('product.stock_low_prefix', 'Stock limité : il ne reste que')} ${product.stock_qty} ${product.unit?.replace(/^\//, '')} ${t('product.stock_low_suffix', 'disponibles !')}`} className="absolute bottom-2 left-2 bg-amber-900/80 text-amber-100 text-xs px-2.5 py-0.5 rounded-full backdrop-blur-sm cursor-help">
-                        ⚠️ Plus que {product.stock_qty} {product.unit?.replace(/^\//, '')}
+                        ⚠️ {t('product.stock_low_short', 'Plus que')} {product.stock_qty} {product.unit?.replace(/^\//, '')}
                       </div>
                     )}
                     {product.is_bundle ? <BundleTag p={product} /> : isBio && (
@@ -641,7 +641,7 @@ export default function HomePage({ products, categories, promos, producers, sett
                     <button
                       onClick={(e) => { e.stopPropagation(); e.preventDefault(); isFavorite(product.id) ? removeFavorite(product.id) : addFavorite(product); }}
                       className="absolute top-2 right-2 w-8 h-8 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center shadow hover:scale-110 transition-all"
-                      title={isFavorite(product.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                      title={isFavorite(product.id) ? t('profile.remove_favorite', 'Retirer des favoris') : t('fav.add', 'Ajouter aux favoris')}
                     >
                       <svg viewBox="0 0 24 24" className="w-4 h-4" fill={isFavorite(product.id) ? '#f97316' : 'none'} stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />

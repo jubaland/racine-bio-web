@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   try {
-    const { title, body, url } = await request.json();
+    const { title, body, url, translations } = await request.json();
     if (!title || !String(title).trim()) {
       return NextResponse.json({ error: 'Titre requis' }, { status: 400 });
     }
@@ -32,6 +32,13 @@ export async function POST(request: Request) {
     const cleanTitle = String(title).trim().slice(0, 120);
     const cleanBody = body ? String(body).trim().slice(0, 300) : null;
     const cleanUrl = url ? String(url).trim().slice(0, 300) : null;
+    // Traductions facultatives du bandeau : { en: { title, body }, … } ; une langue sans titre est ignorée
+    const cleanTr: Record<string, { title: string; body: string | null }> = {};
+    for (const lang of ['en', 'zh', 'am', 'so', 'aa']) {
+      const v = translations?.[lang];
+      const tt = v?.title ? String(v.title).trim().slice(0, 120) : '';
+      if (tt) cleanTr[lang] = { title: tt, body: v?.body ? String(v.body).trim().slice(0, 300) || null : null };
+    }
 
     // 1) Désactive les anciennes annonces (une seule active à la fois sur le bandeau)
     await supabaseAdmin.from('announcements').update({ active: false }).eq('active', true);
@@ -39,7 +46,7 @@ export async function POST(request: Request) {
     // 2) Enregistre la nouvelle annonce (bandeau du site)
     const { data: ann, error: insErr } = await supabaseAdmin
       .from('announcements')
-      .insert({ title: cleanTitle, body: cleanBody, url: cleanUrl, active: true })
+      .insert({ title: cleanTitle, body: cleanBody, url: cleanUrl, active: true, translations: Object.keys(cleanTr).length ? cleanTr : null })
       .select()
       .single();
     if (insErr) return NextResponse.json({ error: insErr.message }, { status: 500 });

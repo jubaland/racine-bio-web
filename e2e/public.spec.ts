@@ -91,3 +91,17 @@ test('devenir marchand : les formules viennent des réglages', async ({ page, re
   await expect(page.getByText(/zéro commission/i)).toHaveCount(0);
   await expectNoOverflow(page, '/become-producer');
 });
+
+// Régression : l'API ne renvoie que 1 000 lignes par requête ; les traductions sont lues par pages.
+// Sans cela, les clés au-delà de la millième restaient en français (blocs non traduits).
+for (const lang of ['en', 'zh', 'am', 'so']) {
+  test(`accueil en « ${lang} » : aucun bloc resté en français`, async ({ page }) => {
+    await page.addInitScript((l) => { localStorage.setItem('lang', l); localStorage.setItem('hf_install_dismissed', '1'); }, lang);
+    await page.goto('/'); await settle(page);
+    await expect(page.getByText('Reversements suivis')).toHaveCount(0, { timeout: 20_000 });
+    for (const fr of ['Rupture de stock', 'Marchands partenaires', 'Vendez sur Hornafresh', 'Votre vitrine', 'Espèces', 'Tous droits réservés', 'Hornafresh est de retour'])
+      await expect(page.getByText(fr, { exact: false })).toHaveCount(0);
+    await expectNoOverflow(page, `accueil (${lang})`);
+  });
+}
+
