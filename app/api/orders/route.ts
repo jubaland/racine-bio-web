@@ -21,7 +21,7 @@ export async function POST(request: Request) {
 
     // Paniers composés : disponibilité = stock du panier ET stock des composants, validité anti-gaspi ;
     // coût = somme des coûts des composants ; composition photographiée pour les préparateurs.
-    const { loadBundleContents, bundleAvailability, bundleCost, bundleSnapshot, applyStockDeltas } = await import('../../../lib/bundles');
+    const { loadBundleContents, bundleAvailability, bundleCost, bundleSnapshot, applyStockDeltas, reserveStock } = await import('../../../lib/bundles');
     const bundleContents = await loadBundleContents(supabaseAdmin, (stockData || []).filter((p: any) => p.is_bundle).map((p: any) => p.id));
 
     // Produit marchand : commandable seulement si le marchand a un abonnement actif
@@ -88,6 +88,28 @@ export async function POST(request: Request) {
       }
     }
 
+    // Réserver le stock AVANT de créer la commande — atomique, tout ou rien (paniers : composants inclus).
+    // Deux commandes simultanées sur le dernier article : une seule passe, l'autre reçoit stock_insufficient.
+    const orderLines = items.map((item: any) => ({ product_id: item.product_id, quantity: Number(item.quantity) }));
+    const reservation = await reserveStock(supabaseAdmin, orderLines);
+    if (!reservation.ok) {
+      const shortBy: Record<number, { available: number }> = Object.fromEntries(reservation.short.map(s => [s.product_id, s]));
+      const blocked = items.filter((item: any) => shortBy[item.product_id] || (bundleContents[item.product_id] || []).some(c => shortBy[c.product_id]));
+      return NextResponse.json({
+        error: 'stock_insufficient',
+        items: (blocked.length ? blocked : items).map((item: any) => {
+          // Disponible réel : le produit lui-même, ou ce que permettent les composants manquants d'un panier
+          const own = shortBy[item.product_id]?.available;
+          const viaComponents = (bundleContents[item.product_id] || []).filter(c => shortBy[c.product_id])
+            .map(c => Math.floor(shortBy[c.product_id].available / c.quantity));
+          const available = Math.max(0, Math.min(...[own, ...viaComponents].filter((n): n is number => n != null), Number(item.quantity) - 1));
+          return { product_id: item.product_id, name: stockMap[item.product_id]?.name ?? `Produit #${item.product_id}`, available, unit: stockMap[item.product_id]?.unit ?? '', requested: item.quantity };
+        }),
+      }, { status: 400 });
+    }
+    const stockChanges = reservation.changes;
+    const releaseStock = () => applyStockDeltas(supabaseAdmin, orderLines.map((l: any) => ({ product_id: l.product_id, delta: l.quantity }))).catch(e => console.error('[orders] release stock:', e));
+
     // Créer la commande
     const { data: createdOrder, error: orderError } = await supabaseAdmin
       .from('orders')
@@ -95,18 +117,7 @@ export async function POST(request: Request) {
       .select()
       .single();
 
-    if (orderError) return NextResponse.json({ error: orderError.message }, { status: 400 });
-
-    // Paiement par cagnotte : débiter après création de la commande
-    if (order.payment_method === 'wallet' && createdOrder.user_id) {
-      await supabaseAdmin.rpc('wallet_adjust', {
-        p_user: createdOrder.user_id,
-        p_amount: -Number(createdOrder.total),
-        p_type: 'debit',
-        p_order: createdOrder.id,
-        p_note: 'Paiement commande',
-      });
-    }
+    if (orderError) { await releaseStock(); return NextResponse.json({ error: orderError.message }, { status: 400 }); }
 
     // Insérer les articles (snapshot produit)
     const { error: snapshotError } = await supabaseAdmin
@@ -126,10 +137,23 @@ export async function POST(request: Request) {
         }))
       );
 
-    if (snapshotError) return NextResponse.json({ error: snapshotError.message }, { status: 400 });
+    // Échec des lignes : on ne laisse ni commande vide ni stock réservé pour rien
+    if (snapshotError) {
+      await releaseStock();
+      await supabaseAdmin.from('orders').delete().eq('id', createdOrder.id);
+      return NextResponse.json({ error: snapshotError.message }, { status: 400 });
+    }
 
-    // Décrémenter le stock pour chaque article (un panier décrémente aussi ses composants)
-    const stockChanges = await applyStockDeltas(supabaseAdmin, items.map((item: any) => ({ product_id: item.product_id, delta: -Number(item.quantity) })));
+    // Paiement par cagnotte : débiter une fois la commande complète (commande + lignes)
+    if (order.payment_method === 'wallet' && createdOrder.user_id) {
+      await supabaseAdmin.rpc('wallet_adjust', {
+        p_user: createdOrder.user_id,
+        p_amount: -Number(createdOrder.total),
+        p_type: 'debit',
+        p_order: createdOrder.id,
+        p_note: 'Paiement commande',
+      });
+    }
 
     // Consommer un crédit parrainage si demandé
     if (use_referral_credit && createdOrder.user_id) {

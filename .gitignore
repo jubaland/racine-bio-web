@@ -46,3 +46,8 @@ next-env.d.ts
 translations-review/*.json
 translations-review/*.xlsx
 scripts/.phase11_test_state.json
+
+# Tests de parcours (Playwright)
+e2e/.auth/
+test-results/
+playwright-report/

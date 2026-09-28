@@ -75,35 +75,43 @@ const fmtQty = (n: number) => Number.isInteger(n) ? String(n) : String(Math.roun
 
 export type StockChange = { product_id: number; name: string; unit: string; owner_id: string | null; before: number; after: number };
 
+export type StockShort = { product_id: number; name: string; unit: string; available: number; requested: number };
+
+const toChanges = (rows: any[]): StockChange[] => (rows || []).map(c => ({
+  product_id: Number(c.product_id), name: c.name, unit: c.unit, owner_id: c.owner_id ?? null, before: Number(c.before), after: Number(c.after),
+}));
+const cleanLines = (lines: { product_id: number; delta: number }[]) =>
+  lines.map(l => ({ product_id: Number(l.product_id), delta: Number(l.delta) || 0 })).filter(l => l.product_id && l.delta);
+
 /**
- * Applique des variations de stock (delta < 0 = commande, > 0 = remise en stock). Pour un panier,
- * le panier ET ses composants (delta × quantité) sont ajustés. Les deltas sont agrégés par produit,
- * lecture puis écriture (même approche que le reste de l'app). Renvoie l'avant/après par produit
- * touché — utilisé pour les alertes de stock bas.
+ * Applique des variations de stock (delta < 0 = sortie, > 0 = remise en stock). Pour un panier,
+ * le panier ET ses composants (delta × quantité) sont ajustés. Atomique : une seule transaction
+ * SQL (stock_apply), lignes verrouillées — deux appels simultanés ne peuvent pas se marcher dessus.
+ * Le stock ne descend jamais sous 0. Renvoie l'avant/après par produit (alertes de stock bas).
  */
 export async function applyStockDeltas(db: SupabaseClient, lines: { product_id: number; delta: number }[]): Promise<StockChange[]> {
-  const deltas: Record<number, number> = {};
-  const add = (id: number, d: number) => { if (d) deltas[id] = (deltas[id] || 0) + d; };
-  const ids = [...new Set(lines.map(l => Number(l.product_id)).filter(Boolean))];
-  if (!ids.length) return [];
-  const { data: prods } = await db.from('products').select('id, is_bundle').in('id', ids);
-  const bundleIds = (prods || []).filter((p: any) => p.is_bundle).map((p: any) => p.id);
-  const contents = bundleIds.length ? await loadBundleContents(db, bundleIds) : {};
-  for (const l of lines) {
-    const id = Number(l.product_id); const d = Number(l.delta) || 0;
-    add(id, d);
-    for (const c of contents[id] || []) add(c.product_id, d * c.quantity);
-  }
-  const touched = Object.keys(deltas).map(Number);
-  const { data: current } = await db.from('products').select('id, name, unit, owner_id, stock_qty').in('id', touched);
-  const changes: StockChange[] = [];
-  await Promise.all((current || []).map(async (p: any) => {
-    const before = Number(p.stock_qty) || 0;
-    const after = Math.max(0, before + deltas[p.id]);
-    await db.from('products').update({ stock_qty: after }).eq('id', p.id);
-    changes.push({ product_id: p.id, name: p.name, unit: p.unit, owner_id: p.owner_id, before, after });
-  }));
-  return changes;
+  const l = cleanLines(lines);
+  if (!l.length) return [];
+  const { data, error } = await db.rpc('stock_apply', { p_lines: l, p_strict: false });
+  if (error) throw new Error(`stock_apply: ${error.message}`);
+  return toChanges((data as any)?.changes);
+}
+
+/**
+ * Réserve le stock d'une commande (tout ou rien) : si un seul produit ou composant manque, rien
+ * n'est modifié et la liste des manques est renvoyée. À appeler AVANT de créer la commande ;
+ * en cas d'échec ultérieur, rendre le stock avec applyStockDeltas (deltas positifs).
+ */
+export async function reserveStock(db: SupabaseClient, lines: { product_id: number; quantity: number }[]): Promise<{ ok: boolean; changes: StockChange[]; short: StockShort[] }> {
+  const l = cleanLines(lines.map(x => ({ product_id: x.product_id, delta: -Number(x.quantity) })));
+  if (!l.length) return { ok: true, changes: [], short: [] };
+  const { data, error } = await db.rpc('stock_apply', { p_lines: l, p_strict: true });
+  if (error) throw new Error(`stock_apply: ${error.message}`);
+  const d = data as any;
+  return {
+    ok: !!d?.ok, changes: toChanges(d?.changes),
+    short: (d?.short || []).map((s: any) => ({ product_id: Number(s.product_id), name: s.name, unit: s.unit, available: Number(s.available), requested: Number(s.requested) })),
+  };
 }
 
 /**

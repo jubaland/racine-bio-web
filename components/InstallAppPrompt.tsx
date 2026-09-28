@@ -1,14 +1,22 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { useLanguage } from '../context/LanguageContext';
 
-// Bannière « Installer l'app » : déclenche l'installation native (Chrome/Android)
+// Invitation « Installer l'app » : déclenche l'installation native (Chrome/Android)
 // ou affiche les instructions manuelles (iOS / quand la bannière native est en
 // refroidissement). Se masque si l'app est déjà installée ou après fermeture.
+// Discrète : petite pastille en bas à gauche (ne recouvre pas les boutons de la page), affichée
+// après quelques secondes, jamais pendant une commande, une connexion ou dans les espaces de gestion.
+const QUIET_PATHS = ['/checkout', '/login', '/reset-password', '/auth', '/admin', '/producer'];
+const APPEAR_DELAY_MS = 8000;
+
 export default function InstallAppPrompt() {
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
+  const pathname = usePathname() || '/';
+  const quiet = QUIET_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'));
 
   const [deferred, setDeferred] = useState<any>(null);
   const [show, setShow] = useState(false);
@@ -34,14 +42,15 @@ export default function InstallAppPrompt() {
     const onInstalled = () => { setShow(false); localStorage.setItem('hf_install_dismissed', '1'); };
     window.addEventListener('beforeinstallprompt', onBIP);
     window.addEventListener('appinstalled', onInstalled);
-    setShow(true);
+    const timer = window.setTimeout(() => setShow(true), APPEAR_DELAY_MS); // laisser d'abord découvrir la page
     return () => {
+      window.clearTimeout(timer);
       window.removeEventListener('beforeinstallprompt', onBIP);
       window.removeEventListener('appinstalled', onInstalled);
     };
   }, []);
 
-  if (!show) return null;
+  if (!show || quiet) return null;
 
   const dismiss = () => { setShow(false); localStorage.setItem('hf_install_dismissed', '1'); };
 
@@ -58,23 +67,15 @@ export default function InstallAppPrompt() {
   };
 
   return (
-    <div className="fixed bottom-3 left-3 right-3 z-50 max-w-md mx-auto">
-      <div className="bg-[#1c3a05] text-white rounded-2xl shadow-2xl border border-[#2d6410] px-4 py-3">
-        <div className="flex items-center gap-3">
+    <div className="fixed bottom-3 left-3 z-40 pointer-events-none">
+      {/* Pastille compacte : seule sa surface capte les clics, le reste de la page reste utilisable */}
+      <div className="pointer-events-auto inline-flex items-center gap-1 bg-[#1c3a05] text-white rounded-full shadow-lg border border-[#2d6410] pl-1.5 pr-1 py-1">
+        <button onClick={install} title={t('install.sub', 'Accès rapide depuis votre écran d\'accueil.')} className="inline-flex items-center gap-2 rounded-full pr-2 hover:opacity-90 transition">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/icon-192.png" alt="" className="w-10 h-10 rounded-xl flex-none" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold">{t('install.title', "Installez l'app Hornafresh")}</p>
-            <p className="text-xs text-white/70">{t('install.sub', 'Accès rapide depuis votre écran d\'accueil.')}</p>
-          </div>
-          <button
-            onClick={install}
-            className="flex-none bg-[#a8c800] text-[#1c3a05] text-sm font-bold px-4 py-2 rounded-xl hover:bg-[#c8e050] transition"
-          >
-            📲 {t('install.cta', 'Installer')}
-          </button>
-          <button onClick={dismiss} aria-label={t('install.close', 'Fermer')} className="flex-none text-white/50 hover:text-white text-lg leading-none">✕</button>
-        </div>
+          <img src="/icon-192.png" alt="" className="w-7 h-7 rounded-full flex-none" />
+          <span className="text-xs font-semibold whitespace-nowrap">📲 {t('install.cta_short', "Installer l'app")}</span>
+        </button>
+        <button onClick={dismiss} aria-label={t('install.close', 'Fermer')} className="flex-none w-7 h-7 rounded-full text-white/60 hover:text-white hover:bg-white/10 text-sm leading-none">✕</button>
       </div>
 
       {/* Instructions d'installation (modal clair) */}

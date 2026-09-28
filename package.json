@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:api": "node scripts/run_api_tests.mjs",
+    "test:e2e": "playwright test",
+    "test": "npm run test:api && npm run test:e2e"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.0",
@@ -18,6 +21,7 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
