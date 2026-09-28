@@ -8,11 +8,13 @@ import CartDrawer from '../../components/CartDrawer';
 import { useLanguage } from '../../context/LanguageContext';
 
 // Onboarding « Devenir marchand » — modèle hub : le marchand publie (validation Hornafresh), le client
-// commande et paie sur Hornafresh, Hornafresh prépare et livre, le marchand est reversé à 100 % du prix
-// de ses articles livrés. Abonnement seul (plan actif de merchant_plans), pas de commission.
+// commande et paie sur Hornafresh, Hornafresh prépare et livre, puis reverse au marchand.
+// Deux formules au choix (réglées dans admin › Marchands › Plans, lues via /api/merchant-offer) :
+// abonnement (période réglée d'avance, 100 % reversé) ou commission (rien d'avance, un % retenu sur les ventes livrées).
 // La demande nécessite un compte (elle est rattachée au compte qui deviendra marchand).
 
 type Plan = { name: string; price_fdj: number; duration_days: number };
+type Commission = { available: boolean; rate: number | null };
 type Req = { id: string; status: string; farm_name: string; created_at: string; admin_note: string | null };
 
 export default function BecomeMerchantPage() {
@@ -20,6 +22,7 @@ export default function BecomeMerchantPage() {
   const [user, setUser] = useState<any>(null);
   const [request, setRequest] = useState<Req | null>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
+  const [commission, setCommission] = useState<Commission>({ available: false, rate: null });
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -32,11 +35,12 @@ export default function BecomeMerchantPage() {
 
   useEffect(() => {
     (async () => {
-      const [{ data: { session } }, { data: plans }] = await Promise.all([
+      const [{ data: { session } }, offer] = await Promise.all([
         supabase.auth.getSession(),
-        supabase.from('merchant_plans').select('name, price_fdj, duration_days').eq('is_active', true).order('price_fdj').limit(1),
+        fetch('/api/merchant-offer').then(r => r.json()).catch(() => null),
       ]);
-      setPlan(plans?.[0] || null);
+      setPlan(offer?.plans?.[0] || null);
+      if (offer?.commission) setCommission(offer.commission);
       if (session) {
         const u = session.user;
         setUser(u);
@@ -87,13 +91,13 @@ export default function BecomeMerchantPage() {
     { emoji: '🥬', title: t('join.how1_title', 'Vous publiez vos produits'), desc: t('join.how1_desc', 'Nom, prix, photo, stock. Hornafresh valide chaque fiche avant sa mise en ligne.') },
     { emoji: '🛒', title: t('join.how2_title', 'Les clients commandent sur Hornafresh'), desc: t('join.how2_desc', 'Ils paient sur la plateforme (Waafi, espèces, cagnotte). Vous êtes prévenu de chaque commande avec la liste à fournir.') },
     { emoji: '🚚', title: t('join.how3_title', 'Hornafresh prépare et livre'), desc: t('join.how3_desc', 'Vous fournissez vos articles, nous assurons la préparation, la livraison et le service client.') },
-    { emoji: '💸', title: t('join.how4_title', 'Vous êtes reversé à 100 %'), desc: t('join.how4_desc', 'Le prix de chaque article livré vous revient intégralement. Relevé et historique des reversements dans votre espace.') },
+    { emoji: '💸', title: t('join.how4_title2', 'Vous êtes reversé'), desc: t('join.how4_desc2', 'Le prix de vos articles livrés vous est reversé selon votre formule. Relevé et historique des reversements dans votre espace.') },
   ];
   const STEPS = [
     { emoji: '👤', title: t('join.step1', 'Créez votre compte'), desc: t('join.step1_desc', 'Le même compte servira à gérer votre boutique.') },
     { emoji: '📝', title: t('join.step2', 'Déposez votre demande'), desc: t('join.step2_desc', 'Enseigne, contact, produits envisagés : 2 minutes.') },
     { emoji: '✅', title: t('join.step3', 'Validation sous 48 h'), desc: t('join.step3_desc', 'Nous vous rappelons pour finaliser et répondre à vos questions.') },
-    { emoji: '💳', title: t('join.step4', 'Activez votre abonnement'), desc: t('join.step4_desc', 'Réglez l\'abonnement, publiez vos produits, recevez vos commandes.') },
+    { emoji: '💳', title: t('join.step4b', 'Choisissez votre formule'), desc: t('join.step4b_desc', 'Abonnement ou commission, puis publiez vos produits et recevez vos commandes.') },
   ];
   const RULES = [
     t('join.rule1', 'Produits frais, locaux ou régionaux, conformes à la charte Hornafresh.'),
@@ -107,9 +111,9 @@ export default function BecomeMerchantPage() {
     return <Shell><div className="max-w-lg mx-auto px-6 py-24 text-center">
       <p className="text-6xl mb-4">🏪</p>
       <h1 className="text-2xl font-bold text-gray-800 mb-2">{t('join.approved_title', 'Vous êtes marchand partenaire !')}</h1>
-      <p className="text-gray-400 mb-8">{t('join.approved_msg', 'Votre demande a été acceptée. Activez votre abonnement pour rendre vos produits visibles, puis publiez votre catalogue.')}</p>
+      <p className="text-gray-400 mb-8">{t('join.approved_msg2', 'Votre demande a été acceptée. Choisissez votre formule pour rendre vos produits visibles, puis publiez votre catalogue.')}</p>
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
-        <Link href="/producer/subscription" className="inline-block bg-[#a8c800] text-white px-8 py-3 rounded-full font-semibold hover:bg-[#7d9800] transition">💳 {t('producer.nav_subscription', 'Mon abonnement')}</Link>
+        <Link href="/producer/subscription" className="inline-block bg-[#a8c800] text-white px-8 py-3 rounded-full font-semibold hover:bg-[#7d9800] transition">💳 {t('producer.nav_formula', 'Ma formule')}</Link>
         <Link href="/producer/dashboard" className="inline-block border border-[#d2e095] text-[#526500] px-8 py-3 rounded-full font-semibold hover:bg-[#ecf4d5] transition">🏪 {t('producer.go_to_space', 'Accéder à mon espace')}</Link>
       </div>
     </div></Shell>;
@@ -120,7 +124,7 @@ export default function BecomeMerchantPage() {
       <h1 className="text-2xl font-bold text-gray-800 mb-2">{submitted ? t('producer.request_sent', 'Candidature envoyée !') : t('producer.request_pending', 'Demande en cours d\'examen')}</h1>
       <p className="text-gray-500 mb-2">{t('join.pending_msg', 'Notre équipe examine votre demande et vous rappelle sous 48 h au numéro indiqué.')}</p>
       {request?.created_at && !submitted && <p className="text-xs text-gray-400 mb-6">{t('join.sent_on', 'Envoyée le')} {new Date(request.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>}
-      <p className="text-sm text-gray-400 mb-8">{t('join.pending_next', 'Dès l\'acceptation, vous serez notifié et pourrez activer votre abonnement.')}</p>
+      <p className="text-sm text-gray-400 mb-8">{t('join.pending_next2', 'Dès l\'acceptation, vous serez notifié et pourrez choisir votre formule.')}</p>
       <Link href="/" className="text-sm text-[#7d9800] hover:underline">← {t('producer.back_home', 'Retour à l\'accueil')}</Link>
     </div></Shell>;
   }
@@ -132,7 +136,11 @@ export default function BecomeMerchantPage() {
         <div className="max-w-3xl mx-auto text-center">
           <span className="inline-block bg-white/20 text-white text-xs font-semibold px-3 py-1 rounded-full mb-5">🏪 {t('join.tag', 'Marchands partenaires')}</span>
           <h1 className="text-2xl md:text-4xl font-bold mb-4 leading-tight">{t('join.title1', 'Vendez vos produits frais')}<br /><span className="text-[#c8e050]">{t('join.title2', 'sur Hornafresh')}</span></h1>
-          <p className="text-white/75 text-base md:text-lg max-w-xl mx-auto mb-7 leading-relaxed">{t('join.desc', 'Vous fournissez, nous vendons, préparons et livrons. Vous gardez 100 % du prix de vos articles, pour un abonnement fixe et sans commission.')}</p>
+          <p className="text-white/75 text-base md:text-lg max-w-xl mx-auto mb-7 leading-relaxed">{commission.available && plan
+            ? t('join.desc_two', 'Vous fournissez, nous vendons, préparons et livrons. Deux formules au choix : un abonnement fixe, ou une commission sur vos ventes sans rien payer d\'avance.')
+            : commission.available
+            ? t('join.desc_com', 'Vous fournissez, nous vendons, préparons et livrons. Rien à payer d\'avance : une commission est retenue sur vos ventes livrées.')
+            : t('join.desc_sub', 'Vous fournissez, nous vendons, préparons et livrons. Le prix de vos articles vous est reversé en totalité, pour un abonnement fixe.')}</p>
           <a href="#candidature" className="inline-block bg-[#c8e050] text-[#1c3a05] px-6 md:px-8 py-3.5 rounded-full font-bold text-base md:text-lg hover:bg-[#d4f060] transition">📤 {t('join.cta', 'Déposer ma demande')}</a>
         </div>
       </section>
@@ -153,22 +161,37 @@ export default function BecomeMerchantPage() {
 
       {/* Tarif */}
       <section className="bg-white border-y border-[#d2e095] py-10 px-4 md:px-6">
-        <div className="max-w-4xl mx-auto grid md:grid-cols-[1.2fr_1fr] gap-8 items-center">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-3">{t('join.price_title', 'Un abonnement, zéro commission')}</h2>
-            <ul className="space-y-2 text-sm text-gray-600">
-              <li>✅ {t('join.price_l1', '100 % du prix de vos articles livrés vous est reversé (Waafi ou espèces).')}</li>
-              <li>✅ {t('join.price_l2', 'Vitrine publique à votre enseigne, produits mis en avant sur le marché.')}</li>
-              <li>✅ {t('join.price_l3', 'Espace marchand : produits, commandes, ventes par produit, relevés de reversements.')}</li>
-              <li>✅ {t('join.price_l4', 'Sans engagement : chaque période est réglée d\'avance, vous renouvelez quand vous voulez.')}</li>
-            </ul>
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-800">{commission.available && plan ? t('join.formulas_title', 'Deux formules, à vous de choisir') : t('join.formula_title', 'Notre formule')}</h2>
+            <p className="text-sm text-gray-400 mt-1">{t('join.formulas_sub', 'Vous choisissez après l\'acceptation de votre demande, et vous pouvez en changer.')}</p>
           </div>
-          <div className="bg-gradient-to-br from-[#f6f9e6] to-white border-2 border-[#a8c800] rounded-3xl p-6 text-center">
-            <p className="text-xs font-semibold text-[#7d9800] uppercase tracking-widest">{plan?.name || 'Mensuel'}</p>
-            <p className="text-4xl font-bold text-[#526500] my-2">{plan ? fdj(plan.price_fdj) : '5 000 Fdj'}</p>
-            <p className="text-sm text-gray-500">{t('join.price_per', 'pour')} {plan?.duration_days || 30} {t('join.price_days', 'jours')}</p>
-            <p className="text-xs text-gray-400 mt-3">{t('join.price_note', 'Paiement Waafi ou espèces, activé après vérification par Hornafresh.')}</p>
+          <div className={`grid gap-4 ${commission.available && plan ? 'md:grid-cols-2' : 'max-w-md mx-auto'}`}>
+            {plan && (
+              <div className="bg-gradient-to-br from-[#f6f9e6] to-white border-2 border-[#a8c800] rounded-3xl p-6 text-center">
+                <p className="text-xs font-semibold text-[#7d9800] uppercase tracking-widest">💳 {t('join.formula_sub', 'Abonnement')} · {plan.name}</p>
+                <p className="text-4xl font-bold text-[#526500] my-2">{fdj(plan.price_fdj)}</p>
+                <p className="text-sm text-gray-500">{t('join.price_per', 'pour')} {plan.duration_days} {t('join.price_days', 'jours')}</p>
+                <p className="text-sm text-gray-600 mt-3">{t('join.formula_sub_desc', 'Le prix de vos articles livrés vous est reversé en totalité.')}</p>
+                <p className="text-xs text-gray-400 mt-2">{t('join.price_note', 'Paiement Waafi ou espèces, activé après vérification par Hornafresh.')}</p>
+              </div>
+            )}
+            {commission.available && commission.rate != null && (
+              <div className="bg-white border-2 border-[#d2e095] rounded-3xl p-6 text-center">
+                <p className="text-xs font-semibold text-[#7d9800] uppercase tracking-widest">🤝 {t('join.formula_com', 'Commission')}</p>
+                <p className="text-4xl font-bold text-[#526500] my-2">{commission.rate} %</p>
+                <p className="text-sm text-gray-500">{t('join.formula_com_on', 'sur vos ventes livrées')}</p>
+                <p className="text-sm text-gray-600 mt-3">{t('join.formula_com_desc', 'Rien à payer d\'avance. Pas de vente, pas de frais.')}</p>
+                <p className="text-xs text-gray-400 mt-2">{t('join.formula_com_note', 'La commission est retenue sur chaque reversement.')}</p>
+              </div>
+            )}
           </div>
+          <ul className="grid sm:grid-cols-2 gap-x-6 gap-y-2 text-sm text-gray-600 mt-6">
+            <li>✅ {t('join.price_l1b', 'Reversements par Waafi ou en espèces, avec relevé détaillé.')}</li>
+            <li>✅ {t('join.price_l2', 'Vitrine publique à votre enseigne, produits mis en avant sur le marché.')}</li>
+            <li>✅ {t('join.price_l3', 'Espace marchand : produits, commandes, ventes par produit, relevés de reversements.')}</li>
+            <li>✅ {t('join.price_l4b', 'Sans engagement : vous changez de formule ou arrêtez quand vous voulez.')}</li>
+          </ul>
         </div>
       </section>
 

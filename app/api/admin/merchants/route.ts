@@ -4,6 +4,7 @@ import { requirePerm } from '../../../../lib/admin-auth';
 import { notifyUser } from '../../../../lib/notify';
 import { sendMerchantEmail } from '../../../../lib/emails';
 import { roleOf } from '../../../../lib/permissions';
+import { merchantState, formulasOf, commissionSettings, saveCommissionSettings, effectiveRate, switchToCommission, switchToSubscription } from '../../../../lib/merchant-formula';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const addDays = (d: string, n: number) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
@@ -34,24 +35,27 @@ export async function GET(request: Request) {
     supabaseAdmin.from('producer_requests').select('*').order('created_at', { ascending: false }),
     supabaseAdmin.from('merchant_profiles').select('user_id, shop_name'),
   ]);
+  const commission = await commissionSettings();
   const userMap = Object.fromEntries(users.map(u => [u.id, u]));
   const shopMap: Record<string, string> = Object.fromEntries((profiles || []).map((m: any) => [m.user_id, m.shop_name]));
   const merchants = users.filter(u => roleOf(u.user_metadata) === 'producer');
   const t = today();
+  const formulas = await formulasOf(merchants.map(u => u.id));
 
   const view = merchants.map(u => {
     const mine = (subs || []).filter((s: any) => s.user_id === u.id);
-    const active = mine.find((s: any) => s.status === 'active' && s.ends_at >= t) || null;
-    const pending = mine.find((s: any) => s.status === 'pending_payment') || null;
-    const last = mine[0] || null;
+    const f = formulas[u.id] || null;
+    const ms = merchantState(mine, f, t);           // règle unique (abonnement + formule commission)
+    const { active, pending, last } = ms;
     const req = (reqs || []).find((r: any) => r.email?.toLowerCase() === u.email?.toLowerCase() && r.status === 'approved');
     const mp = (prods || []).filter((p: any) => p.owner_id === u.id);
-    const hadPeriod = mine.some((s: any) => s.status === 'active' || s.status === 'expired');
-    const state = active ? 'active' : pending ? 'pending_payment' : last?.status === 'suspended' ? 'suspended' : hadPeriod ? 'expired' : 'none';
+    const state = ms.state === 'pending' ? 'pending_payment' : ms.state;
     return {
       id: u.id, email: u.email, name: nameOf(u), phone: u.user_metadata?.phone || null,
       farm_name: shopMap[u.id] || req?.farm_name || null, created_at: u.created_at,
       state, active, pending, last,
+      // Formule en vigueur (un abonnement payé en cours prime), taux appliqué, taux particulier, changement demandé
+      formula: { kind: ms.kind, chosen: f?.kind || 'subscription', rate: ms.kind === 'commission' ? effectiveRate(f, commission.rate) : 0, custom_rate: f?.commission_rate ?? null, pending_kind: f?.pending_kind || null, status: f?.status || 'active', since: f?.since || null },
       products: { total: mp.length, published: mp.filter((p: any) => p.status === 'published').length, pending: mp.filter((p: any) => p.status === 'pending_review').length },
     };
   });
@@ -63,6 +67,7 @@ export async function GET(request: Request) {
     pending_products: (prods || []).filter((p: any) => p.status === 'pending_review')
       .map((p: any) => ({ ...p, merchant: { id: p.owner_id, name: shopMap[p.owner_id] ? `${shopMap[p.owner_id]} — ${nameOf(userMap[p.owner_id])}` : nameOf(userMap[p.owner_id]) } })),
     plans: plans || [],
+    commission,                                   // { enabled, rate } — réglage général de la formule commission
     requests: (reqs || []).filter((r: any) => r.status === 'pending'),
   });
 }
@@ -124,6 +129,7 @@ export async function POST(request: Request) {
         payment_method: payment_method || 'cash', payment_reference: reference || null, paid_at: new Date().toISOString(), confirmed_by: auth.user.id,
       });
       if (error) throw error;
+      await switchToSubscription(user_id);          // une période payée remet le marchand en formule abonnement
       await notifyMerchant(user_id, '✅ Abonnement activé', `Votre abonnement « ${plan.name} » est actif du ${fmt(p.starts_at)} au ${fmt(p.ends_at)}. Vos produits validés sont visibles sur Hornafresh.`, 'Votre abonnement Hornafresh est actif');
       return NextResponse.json({ ok: true, ...p });
     }
@@ -138,9 +144,11 @@ export async function POST(request: Request) {
         await notifyMerchant(sub.user_id, '❌ Paiement non confirmé', `Nous n'avons pas pu confirmer votre paiement${note ? ` : ${note}` : ''}. Contactez-nous au 77 43 26 15.`, 'Hornafresh — paiement non confirmé');
         return NextResponse.json({ ok: true });
       }
-      const duration = sub.merchant_plans?.duration_days || 30;
+      const duration = Number(sub.merchant_plans?.duration_days);
+      if (!(duration >= 1)) return NextResponse.json({ error: 'plan_duration_missing' }, { status: 400 });
       const p = await periodFor(sub.user_id, duration);
       await supabaseAdmin.from('merchant_subscriptions').update({ status: 'active', starts_at: p.starts_at, ends_at: p.ends_at, paid_at: new Date().toISOString(), confirmed_by: auth.user.id, notes: note || null }).eq('id', subscription_id);
+      await switchToSubscription(sub.user_id);      // une période payée remet le marchand en formule abonnement
       await notifyMerchant(sub.user_id, '✅ Abonnement activé', `Paiement confirmé. Votre abonnement est actif du ${fmt(p.starts_at)} au ${fmt(p.ends_at)}.`, 'Votre abonnement Hornafresh est actif');
       return NextResponse.json({ ok: true, ...p });
     }
@@ -151,7 +159,17 @@ export async function POST(request: Request) {
       const to = action === 'suspend' ? 'suspended' : 'active';
       const { data: rows } = await supabaseAdmin.from('merchant_subscriptions').update({ status: to, notes: note || null })
         .eq('user_id', user_id).eq('status', from).gte('ends_at', today()).select('id');
-      if (!rows?.length) return NextResponse.json({ error: 'nothing_to_change' }, { status: 409 });
+      if (!rows?.length) {
+        // Marchand en formule commission : la suspension porte sur la formule
+        const { data: frows } = await supabaseAdmin.from('merchant_formulas').update({ status: to, note: note || null, updated_at: new Date().toISOString() })
+          .eq('user_id', user_id).eq('kind', 'commission').eq('status', from).select('user_id');
+        if (!frows?.length) return NextResponse.json({ error: 'nothing_to_change' }, { status: 409 });
+        await notifyMerchant(user_id,
+          action === 'suspend' ? '⏸️ Boutique suspendue' : '▶️ Boutique réactivée',
+          action === 'suspend' ? `Votre boutique est suspendue${note ? ` : ${note}` : ''}. Vos produits ne sont plus visibles. Contactez-nous au 77 43 26 15.` : 'Votre boutique est de nouveau active : vos produits validés sont visibles.',
+          action === 'suspend' ? 'Hornafresh — boutique suspendue' : 'Hornafresh — boutique réactivée');
+        return NextResponse.json({ ok: true });
+      }
       await notifyMerchant(user_id,
         action === 'suspend' ? '⏸️ Abonnement suspendu' : '▶️ Abonnement réactivé',
         action === 'suspend' ? `Votre abonnement est suspendu${note ? ` : ${note}` : ''}. Vos produits ne sont plus visibles. Contactez-nous au 77 43 26 15.` : 'Votre abonnement est de nouveau actif : vos produits validés sont visibles.',
@@ -182,7 +200,7 @@ export async function POST(request: Request) {
       }).eq('id', product_id);
       if (prod.owner_id) await notifyMerchant(prod.owner_id,
         approve ? `✅ Produit validé : ${prod.name}` : `❌ Produit refusé : ${prod.name}`,
-        approve ? 'Votre produit est publié sur Hornafresh (visible si votre abonnement est actif).' : `Motif : ${note || 'non précisé'}. Modifiez-le pour le soumettre à nouveau.`,
+        approve ? 'Votre produit est publié sur Hornafresh (visible tant que votre formule est active).' : `Motif : ${note || 'non précisé'}. Modifiez-le pour le soumettre à nouveau.`,
         undefined, '/producer/products');
       return NextResponse.json({ ok: true });
     }
@@ -190,12 +208,58 @@ export async function POST(request: Request) {
     // Plans
     if (action === 'save_plan') {
       const { id, name, price_fdj, duration_days, is_active } = body;
-      const row = { name: String(name || '').trim(), price_fdj: Number(price_fdj) || 0, duration_days: Math.max(1, Number(duration_days) || 30), is_active: is_active !== false };
+      // Aucune valeur par défaut : prix et durée sont saisis par l'admin
+      const price = Number(price_fdj), duration = Math.round(Number(duration_days));
+      if (price_fdj === '' || price_fdj == null || isNaN(price) || price < 0) return NextResponse.json({ error: 'Prix requis' }, { status: 400 });
+      if (!(duration >= 1)) return NextResponse.json({ error: 'Durée requise (en jours)' }, { status: 400 });
+      const row = { name: String(name || '').trim(), price_fdj: price, duration_days: duration, is_active: is_active !== false };
       if (!row.name) return NextResponse.json({ error: 'Nom requis' }, { status: 400 });
       const { error } = id
         ? await supabaseAdmin.from('merchant_plans').update(row).eq('id', id)
         : await supabaseAdmin.from('merchant_plans').insert(row);
       if (error) throw error;
+      return NextResponse.json({ ok: true });
+    }
+
+    // Formule commission : réglage général (proposée ou non, taux en %)
+    if (action === 'save_commission') {
+      const patch: { enabled?: boolean; rate?: number } = {};
+      if ('enabled' in body) patch.enabled = !!body.enabled;
+      if ('rate' in body) {
+        const r = Number(body.rate);
+        if (body.rate === '' || body.rate == null || isNaN(r) || r < 0 || r > 100) return NextResponse.json({ error: 'Taux invalide (0 à 100)' }, { status: 400 });
+        patch.rate = Math.round(r * 100) / 100;
+      }
+      await saveCommissionSettings(patch);
+      return NextResponse.json({ ok: true, commission: await commissionSettings() });
+    }
+
+    // Taux particulier d'un marchand (vide = taux général). S'applique aux prochaines commandes.
+    if (action === 'set_commission_rate') {
+      const { user_id } = body;
+      const raw = body.rate;
+      const rate = raw === '' || raw == null ? null : Number(raw);
+      if (!user_id || (rate != null && (isNaN(rate) || rate < 0 || rate > 100))) return NextResponse.json({ error: 'Taux invalide (0 à 100)' }, { status: 400 });
+      const { data: existing } = await supabaseAdmin.from('merchant_formulas').select('user_id').eq('user_id', user_id).maybeSingle();
+      const { error } = existing
+        ? await supabaseAdmin.from('merchant_formulas').update({ commission_rate: rate, updated_at: new Date().toISOString() }).eq('user_id', user_id)
+        : await supabaseAdmin.from('merchant_formulas').insert({ user_id, kind: 'subscription', commission_rate: rate });
+      if (error) throw error;
+      return NextResponse.json({ ok: true });
+    }
+
+    // Formule d'un marchand décidée par l'admin (immédiat)
+    if (action === 'set_formula') {
+      const { user_id, kind } = body;
+      if (!user_id || !['subscription', 'commission'].includes(kind)) return NextResponse.json({ error: 'Formule invalide' }, { status: 400 });
+      if (kind === 'commission') {
+        const r = await switchToCommission(user_id, { force: true, note: 'Décision Hornafresh' });
+        if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
+        await notifyMerchant(user_id, '🤝 Formule commission activée', `Vous êtes en formule commission : ${r.rate} % retenus sur vos ventes livrées, rien à payer d'avance. Vos produits validés sont visibles.`, 'Hornafresh — formule commission');
+        return NextResponse.json({ ok: true, rate: r.rate });
+      }
+      await switchToSubscription(user_id);
+      await notifyMerchant(user_id, '💳 Formule abonnement', 'Vous êtes en formule abonnement : vos produits sont visibles pendant les périodes réglées. Activez une période depuis « Ma formule ».', 'Hornafresh — formule abonnement');
       return NextResponse.json({ ok: true });
     }
 
@@ -220,7 +284,7 @@ export async function POST(request: Request) {
           const { data: existing } = await supabaseAdmin.from('merchant_profiles').select('user_id').eq('user_id', user.id).maybeSingle();
           if (!existing) await setShopName(user.id, (req.farm_name || '').trim() || `Boutique ${nameOf(user)}`);
           await notifyMerchant(user.id, '🎉 Adhésion acceptée',
-            `Bienvenue chez Hornafresh, ${req.farm_name} ! Prochaines étapes : 1) activez votre abonnement (Mon abonnement), 2) ajoutez vos produits (validés par Hornafresh), 3) recevez vos commandes et vos reversements.`,
+            `Bienvenue chez Hornafresh, ${req.farm_name} ! Prochaines étapes : 1) choisissez votre formule, abonnement ou commission (Ma formule), 2) ajoutez vos produits (validés par Hornafresh), 3) recevez vos commandes et vos reversements.`,
             'Bienvenue chez Hornafresh — votre espace marchand', '/producer/subscription');
         } else {
           await notifyMerchant(user.id, 'Adhésion non retenue',

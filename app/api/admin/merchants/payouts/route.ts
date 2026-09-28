@@ -15,23 +15,24 @@ export async function GET(request: Request) {
 
   if (userId) {
     const [lines, payouts] = await Promise.all([unsettledLines(userId), payoutHistory(userId)]);
-    return NextResponse.json({ lines, due: lines.reduce((s, l) => s + l.total, 0), payouts });
+    return NextResponse.json({ lines, due: lines.reduce((s, l) => s + l.net, 0), gross: lines.reduce((s, l) => s + l.total, 0), commission: lines.reduce((s, l) => s + l.commission, 0), payouts });
   }
 
   const [lines, payouts, { data: profiles }] = await Promise.all([unsettledLines(), payoutHistory(), supabaseAdmin.from('merchant_profiles').select('user_id, shop_name')]);
   const shops: Record<string, string> = Object.fromEntries((profiles || []).map((m: any) => [m.user_id, m.shop_name]));
-  const byMerchant: Record<string, { id: string; shop: string; due: number; lines: number; oldest: string | null }> = {};
+  const byMerchant: Record<string, { id: string; shop: string; due: number; gross: number; commission: number; lines: number; oldest: string | null }> = {};
   for (const l of lines) {
-    const m = byMerchant[l.owner_id] ||= { id: l.owner_id, shop: l.shop, due: 0, lines: 0, oldest: null };
-    m.due += l.total; m.lines += 1;
+    const m = byMerchant[l.owner_id] ||= { id: l.owner_id, shop: l.shop, due: 0, gross: 0, commission: 0, lines: 0, oldest: null };
+    m.due += l.net; m.gross += l.total; m.commission += l.commission; m.lines += 1;
     if (!m.oldest || l.order_date < m.oldest) m.oldest = l.order_date;
   }
   // Marchands déjà reversés mais sans dû en ce moment : présents avec due 0 (historique)
-  for (const p of payouts) if (!byMerchant[p.user_id]) byMerchant[p.user_id] = { id: p.user_id, shop: shops[p.user_id] || 'Marchand', due: 0, lines: 0, oldest: null };
+  for (const p of payouts) if (!byMerchant[p.user_id]) byMerchant[p.user_id] = { id: p.user_id, shop: shops[p.user_id] || 'Marchand', due: 0, gross: 0, commission: 0, lines: 0, oldest: null };
   return NextResponse.json({
     merchants: Object.values(byMerchant).sort((a, b) => b.due - a.due),
     payouts: payouts.map((p: any) => ({ ...p, shop: shops[p.user_id] || 'Marchand' })),
-    total_due: lines.reduce((s, l) => s + l.total, 0),
+    total_due: lines.reduce((s, l) => s + l.net, 0),
+    total_commission: lines.reduce((s, l) => s + l.commission, 0),   // commissions à retenir sur les lignes en attente
   });
 }
 

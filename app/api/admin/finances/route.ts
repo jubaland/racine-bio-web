@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
+import { commissionOf } from '../../../../lib/merchant-formula';
 import { requirePerm } from '../../../../lib/admin-auth';
 
 // GET /api/admin/finances?period=month|30d|year|all
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
   if (orderIds.length) {
     const { data, error } = await supabaseAdmin
       .from('order_items')
-      .select('order_id, product_id, product_name, product_unit, quantity, price, product_cost')
+      .select('order_id, product_id, product_name, product_unit, quantity, price, product_cost, commission_rate')
       .in('order_id', orderIds);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     items = data || [];
@@ -61,20 +62,22 @@ export async function GET(request: Request) {
   // 4) Agrégation par produit
   type Row = { product_id: number; name: string; unit: string; qty: number; revenue: number; cost: number; hasCost: boolean; allCost: boolean; merchant: string | null };
   const byProduct: Record<number, Row> = {};
-  let caProduits = 0, costTotal = 0, caWithCost = 0, marginTotal = 0, caMarchands = 0;
+  let caProduits = 0, costTotal = 0, caWithCost = 0, marginTotal = 0, caMarchands = 0, commissions = 0;
 
   for (const it of items) {
     const qty = Number(it.quantity) || 0;
     const revenue = (Number(it.price) || 0) * qty;
     caProduits += revenue;
     const merchant = merchantOf[it.product_id] || null;
-    if (merchant) caMarchands += revenue;
+    // Produit marchand : le coût est ce qui est reversé (brut − commission au taux photographié sur la ligne)
+    const commission = merchant ? commissionOf(revenue, (it as any).commission_rate) : 0;
+    if (merchant) { caMarchands += revenue; commissions += commission; }
 
-    const unitCost = merchant ? (Number(it.price) || 0)
+    const unitCost = merchant ? null
       : it.product_cost != null ? Number(it.product_cost)
       : (costMap[it.product_id] != null ? costMap[it.product_id]! : null);
-    const knownCost = unitCost != null;
-    const lineCost = knownCost ? unitCost! * qty : 0;
+    const knownCost = merchant ? true : unitCost != null;
+    const lineCost = merchant ? revenue - commission : knownCost ? unitCost! * qty : 0;
     if (knownCost) { costTotal += lineCost; caWithCost += revenue; marginTotal += revenue - lineCost; }
 
     const r = byProduct[it.product_id] ||= {
@@ -108,7 +111,9 @@ export async function GET(request: Request) {
     period,
     kpis: {
       caProduits,                                            // CA produits (hors livraison), ventes marchands incluses
-      caMarchands,                                           // part reversée aux marchands (marge Hornafresh = 0)
+      caMarchands,                                           // ventes des produits marchands (brut)
+      commissions,                                           // commissions retenues sur ces ventes (marge Hornafresh)
+      reverseMarchands: caMarchands - commissions,           // net reversé aux marchands
       caHornafresh: caProduits - caMarchands,                // CA propre Hornafresh
       caEntreprises, nbOrdersEntreprises: companyOrders.length, // dont commandes des comptes entreprise
       nbOrders,

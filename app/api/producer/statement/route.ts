@@ -8,7 +8,9 @@ export async function GET(request: Request) {
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const [lines, payouts] = await Promise.all([unsettledLines(auth.user.id), payoutHistory(auth.user.id)]);
   return NextResponse.json({
-    due: lines.reduce((s, l) => s + l.total, 0),
+    due: lines.reduce((s, l) => s + l.net, 0),                       // net à recevoir
+    gross: lines.reduce((s, l) => s + l.total, 0),                   // ventes livrées en attente
+    commission: lines.reduce((s, l) => s + l.commission, 0),         // commission Hornafresh retenue
     lines: lines.map(({ owner_id, shop, ...l }) => l),
     payouts,
     total_paid: payouts.reduce((s: number, p: any) => s + Number(p.amount), 0),

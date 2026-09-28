@@ -1,12 +1,15 @@
 import { supabaseAdmin } from './supabase-admin';
+import { commissionOf } from './merchant-formula';
 
 // Relevés et reversements marchands (Phase 2).
 // Ligne due = article d'une commande LIVRÉE, produit appartenant à un marchand, non encore reversé.
-// Montant dû = prix × quantité (100 % au marchand ; livraison = Hornafresh).
+// Brut = prix × quantité ; commission = brut × taux photographié sur la ligne (0 en formule abonnement) ;
+// net dû au marchand = brut − commission. La livraison reste à Hornafresh.
 
 export type SettlementLine = {
   item_id: number; order_id: number; order_date: string; customer: string;
-  product_id: number; name: string; unit: string; quantity: number; price: number; total: number;
+  product_id: number; name: string; unit: string; quantity: number; price: number; total: number;   // total = brut
+  commission_rate: number; commission: number; net: number;                                       // net = dû au marchand
   owner_id: string; shop: string;
 };
 
@@ -24,7 +27,7 @@ export async function unsettledLines(userId?: string): Promise<SettlementLine[]>
   const shop: Record<string, string> = Object.fromEntries((profiles || []).map((m: any) => [m.user_id, m.shop_name]));
 
   const { data: items } = await supabaseAdmin
-    .from('order_items').select('id, order_id, product_id, quantity, price')
+    .from('order_items').select('id, order_id, product_id, quantity, price, commission_rate')
     .in('product_id', prods.map((p: any) => p.id)).is('payout_id', null);
   if (!items || !items.length) return [];
   const orderIds = [...new Set(items.map((i: any) => i.order_id))];
@@ -39,10 +42,14 @@ export async function unsettledLines(userId?: string): Promise<SettlementLine[]>
     .filter((i: any) => omap[i.order_id])
     .map((i: any) => {
       const p = pmap[i.product_id]; const o = omap[i.order_id];
+      const gross = Number(i.price) * i.quantity;
+      const rate = Number(i.commission_rate) || 0;
+      const commission = commissionOf(gross, rate);
       return {
         item_id: i.id, order_id: i.order_id, order_date: o.created_at, customer: firstName(o.customer_name),
         product_id: i.product_id, name: p.name, unit: p.unit || '', quantity: i.quantity, price: Number(i.price),
-        total: Number(i.price) * i.quantity, owner_id: p.owner_id, shop: shop[p.owner_id] || 'Marchand',
+        total: gross, commission_rate: rate, commission, net: gross - commission,
+        owner_id: p.owner_id, shop: shop[p.owner_id] || 'Marchand',
       };
     })
     .sort((a, b) => (a.order_date < b.order_date ? 1 : -1));
@@ -52,10 +59,12 @@ export async function unsettledLines(userId?: string): Promise<SettlementLine[]>
 export async function createPayout(userId: string, opts: { method: string; reference?: string | null; note?: string | null; created_by?: string | null }) {
   const lines = await unsettledLines(userId);
   if (!lines.length) return { ok: false as const, error: 'nothing_due' };
-  const amount = lines.reduce((s, l) => s + l.total, 0);
+  const amount = lines.reduce((s, l) => s + l.net, 0);            // net reversé au marchand
+  const gross = lines.reduce((s, l) => s + l.total, 0);
+  const commission = lines.reduce((s, l) => s + l.commission, 0);
   const dates = lines.map(l => l.order_date.slice(0, 10)).sort();
   const { data: payout, error } = await supabaseAdmin.from('merchant_payouts').insert({
-    user_id: userId, amount, lines_count: lines.length,
+    user_id: userId, amount, gross_amount: gross, commission_amount: commission, lines_count: lines.length,
     method: ['waafi', 'cash', 'other'].includes(opts.method) ? opts.method : 'other',
     reference: opts.reference || null, note: opts.note || null,
     period_from: dates[0], period_to: dates[dates.length - 1], created_by: opts.created_by || null,
@@ -69,14 +78,16 @@ export async function createPayout(userId: string, opts: { method: string; refer
   if (n !== lines.length) {
     // Écart (course) : on recale le montant sur les lignes effectivement marquées
     const kept = new Set((marked || []).map((m: any) => m.id));
-    const amt = lines.filter(l => kept.has(l.item_id)).reduce((s, l) => s + l.total, 0);
-    await supabaseAdmin.from('merchant_payouts').update({ amount: amt, lines_count: n }).eq('id', payout.id);
-    payout.amount = amt; payout.lines_count = n;
+    const keptLines = lines.filter(l => kept.has(l.item_id));
+    const amt = keptLines.reduce((s, l) => s + l.net, 0);
+    const g = keptLines.reduce((s, l) => s + l.total, 0), c = keptLines.reduce((s, l) => s + l.commission, 0);
+    await supabaseAdmin.from('merchant_payouts').update({ amount: amt, gross_amount: g, commission_amount: c, lines_count: n }).eq('id', payout.id);
+    payout.amount = amt; payout.gross_amount = g; payout.commission_amount = c; payout.lines_count = n;
   }
 
   // Marchand prévenu : cloche + push + e-mail
   const methodLabel = payout.method === 'cash' ? 'en espèces' : payout.method === 'waafi' ? 'par Waafi' : '';
-  const text = `Hornafresh vous a reversé ${Number(payout.amount).toLocaleString('fr-FR')} Fdj ${methodLabel}${payout.reference ? ` (réf. ${payout.reference})` : ''} pour ${payout.lines_count} article(s) livré(s). Le détail est dans « Mes reversements ».`;
+  const text = `Hornafresh vous a reversé ${Number(payout.amount).toLocaleString('fr-FR')} Fdj ${methodLabel}${payout.reference ? ` (réf. ${payout.reference})` : ''} pour ${payout.lines_count} article(s) livré(s)${Number(payout.commission_amount) > 0 ? ` (ventes ${Number(payout.gross_amount).toLocaleString('fr-FR')} Fdj, commission ${Number(payout.commission_amount).toLocaleString('fr-FR')} Fdj)` : ''}. Le détail est dans « Mes reversements ».`;
   try {
     const { notifyUser } = await import('./notify');
     await notifyUser(userId, { title: '💸 Reversement effectué', body: text, url: '/producer/statement' });

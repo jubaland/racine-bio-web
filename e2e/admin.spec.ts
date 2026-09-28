@@ -34,6 +34,15 @@ for (const [button, heading] of MODULES) {
   });
 }
 
+test('admin › Marchands › Plans : réglage de la formule commission', async ({ page }) => {
+  await openModule(page, /Marchands/, /Marchands/);
+  await page.getByRole('button', { name: /Plans/ }).first().click();
+  await expect(page.getByText(/Formule commission/).first()).toBeVisible();
+  await expect(page.getByText(/Taux général/).first()).toBeVisible();
+  await expect(page.getByText(/Plans d'abonnement/).first()).toBeVisible();
+  await expectNoOverflow(page, 'Marchands › Plans');
+});
+
 test('admin › Marchands : tous les onglets', async ({ page }) => {
   await openModule(page, /Marchands/, /Marchands/);
   for (const tab of ['Marchands', 'Reversements', 'Avis', 'Plans', 'À traiter']) {

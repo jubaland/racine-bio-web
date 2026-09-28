@@ -15,12 +15,15 @@ const CRON_HOUR_UTC = 6;
 export async function computeCompanyTemplate(companyId: number, frequency: string) {
   const { data: items } = await supabaseAdmin.from('company_subscription_items').select('product_id, quantity').eq('company_id', companyId).eq('frequency', frequency);
   if (!items?.length) return { lines: [] as { p: any; qty: number }[], itemsTotal: 0, omitted: [] as string[] };
-  const { data: prods } = await supabaseAdmin.from('products').select('id, name, price, unit, image_url, farm, stock_qty, status, is_bundle, cost_price').in('id', items.map((i: any) => i.product_id));
+  const { data: prods } = await supabaseAdmin.from('products').select('id, name, price, unit, image_url, farm, stock_qty, status, is_bundle, cost_price, owner_id').in('id', items.map((i: any) => i.product_id));
   const pmap: Record<number, any> = Object.fromEntries((prods || []).map((p: any) => [p.id, p]));
+  // Produits marchands : livrés seulement si le marchand est actif (abonnement en cours ou formule commission)
+  const { merchantTerms } = await import('./merchant-formula');
+  const terms = await merchantTerms((prods || []).map((p: any) => p.owner_id).filter(Boolean));
   const lines: { p: any; qty: number }[] = []; const omitted: string[] = [];
   for (const it of items) {
     const p = pmap[it.product_id];
-    if (!p || p.status !== 'published' || p.is_bundle) { omitted.push(p?.name || `Produit #${it.product_id}`); continue; }
+    if (!p || p.status !== 'published' || p.is_bundle || (p.owner_id && !terms[p.owner_id]?.active)) { omitted.push(p?.name || `Produit #${it.product_id}`); continue; }
     const q = Math.min(Number(it.quantity), Number(p.stock_qty) || 0);
     if (q <= 0) { omitted.push(p.name); continue; }
     lines.push({ p, qty: q });
@@ -62,8 +65,10 @@ export async function processCompanyDeliveries(todayStr: string, opts: { onlyCom
       customer_name: `${s.companies.name} — ${site.recipient_name}`, email: null,
     }).select().single();
     if (error || !order) { await release(); results.push({ company: s.company_id, frequency: s.frequency, error: error?.message }); continue; }
+    const { commissionRatesForProducts } = await import('./merchant-formula');
+    const rates = await commissionRatesForProducts(lines.map(l => l.p));
     await supabaseAdmin.from('order_items').insert(lines.map(l => ({
-      order_id: order.id, product_id: l.p.id, quantity: l.qty, price: l.p.price, product_cost: l.p.cost_price ?? null,
+      order_id: order.id, product_id: l.p.id, quantity: l.qty, price: l.p.price, product_cost: l.p.cost_price ?? null, commission_rate: rates[l.p.id] ?? null,
       product_name: l.p.name, product_image_url: l.p.image_url, product_unit: l.p.unit, product_farm: l.p.farm,
     })));
     const debit = await adjustCompanyWallet(s.company_id, -total, 'debit', { orderId: order.id, userId: s.updated_by, note: `Livraison ${label} (récurrente)` });

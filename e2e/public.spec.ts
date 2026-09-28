@@ -81,3 +81,13 @@ test('fiche produit → panier → checkout (4 étapes, sans confirmer)', async 
   await page.evaluate(() => localStorage.removeItem('hornafresh_cart_v1'));
   expect(errors).toEqual([]);
 });
+
+test('devenir marchand : les formules viennent des réglages', async ({ page, request }) => {
+  const offer = await (await request.get('/api/merchant-offer')).json();
+  await page.addInitScript(() => localStorage.setItem('hf_install_dismissed', '1'));
+  await page.goto('/become-producer'); await settle(page);
+  if (offer.commission?.available) await expect(page.getByText(`${offer.commission.rate} %`).first()).toBeVisible();
+  if (offer.plans?.length) await expect(page.getByText(new RegExp(String(offer.plans[0].duration_days))).first()).toBeVisible();
+  await expect(page.getByText(/zéro commission/i)).toHaveCount(0);
+  await expectNoOverflow(page, '/become-producer');
+});

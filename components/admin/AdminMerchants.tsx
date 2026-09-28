@@ -14,10 +14,13 @@ type Merchant = {
   state: 'active' | 'pending_payment' | 'suspended' | 'expired' | 'none';
   active: Sub | null; pending: Sub | null; last: Sub | null;
   products: { total: number; published: number; pending: number };
+  // kind : formule en vigueur ; chosen : formule posée ; custom_rate : taux particulier (null = taux général)
+  formula: { kind: 'subscription' | 'commission'; chosen: 'subscription' | 'commission'; rate: number; custom_rate: number | null; pending_kind: string | null; status: string; since: string | null };
 };
+type Commission = { enabled: boolean; rate: number | null };
 type PendingProduct = { id: number; name: string; price: number; old_price: number | null; unit: string; image_url: string | null; created_at: string; description: string | null; category: string | null; product_type: string | null; origin_country: string | null; region: string | null; stock_qty: number | null; is_local: boolean | null; merchant: { id: string; name: string } };
 type Req = { id: string; email: string; farm_name: string; full_name: string | null; region: string | null; products_description: string | null; created_at: string };
-type Data = { merchants: Merchant[]; pending_payments: Sub[]; pending_products: PendingProduct[]; plans: Plan[]; requests: Req[] };
+type Data = { merchants: Merchant[]; pending_payments: Sub[]; pending_products: PendingProduct[]; plans: Plan[]; requests: Req[]; commission: Commission };
 
 const fdj = (n: number) => `${Math.round(Number(n)).toLocaleString('fr-FR')} Fdj`;
 const dateFr = (d: string | null) => d ? new Date(d.length === 10 ? d + 'T00:00:00' : d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
@@ -37,6 +40,9 @@ export default function AdminMerchants() {
   const [grantMethod, setGrantMethod] = useState('cash');
   const [grantRef, setGrantRef] = useState('');
   const [planForm, setPlanForm] = useState<Partial<Plan> | null>(null);
+  const [comRate, setComRate] = useState('');
+  const [comEnabled, setComEnabled] = useState(false);
+  const [comSaved, setComSaved] = useState(false);
 
   const token = async () => {
     let { data: { session } } = await supabase.auth.getSession();
@@ -48,7 +54,7 @@ export default function AdminMerchants() {
     try {
       const res = await fetch('/api/admin/merchants', { headers: { Authorization: `Bearer ${await token()}` } });
       const j = await res.json();
-      if (res.ok) setData(j);
+      if (res.ok) { setData(j); setComRate(j.commission?.rate != null ? String(j.commission.rate) : ''); setComEnabled(j.commission?.rate != null && !!j.commission?.enabled); }
     } catch { /* ignore */ }
     setLoading(false);
   }, []);
@@ -72,7 +78,7 @@ export default function AdminMerchants() {
     pending_payment: { label: t('mer.state_pending', 'Paiement à confirmer'), cls: 'bg-amber-100 text-amber-800' },
     suspended:       { label: t('mer.state_suspended', 'Suspendu'),      cls: 'bg-red-100 text-red-600' },
     expired:         { label: t('mer.state_expired', 'Expiré'),          cls: 'bg-gray-100 text-gray-600' },
-    none:            { label: t('mer.state_none', 'Sans abonnement'),    cls: 'bg-gray-100 text-gray-500' },
+    none:            { label: t('mer.state_none2', 'Sans formule'),    cls: 'bg-gray-100 text-gray-500' },
   };
 
   const todoCount = (data?.pending_payments.length || 0) + (data?.pending_products.length || 0) + (data?.requests.length || 0);
@@ -159,6 +165,9 @@ export default function AdminMerchants() {
               <div className="space-y-2">
                 {data.merchants.map(m => {
                   const st = STATE[m.state];
+                  const f = m.formula;
+                  const genRate = data.commission.rate;
+                  const appliedRate = f.custom_rate ?? genRate;   // taux qui s'applique(rait) à ce marchand
                   return (
                     <div key={m.id} className="bg-white rounded-2xl border-2 border-[#d2e095] px-4 py-3">
                       <div className="flex flex-wrap items-center gap-3">
@@ -179,15 +188,23 @@ export default function AdminMerchants() {
                               >✏️</button>
                             )}
                             <span className={`ml-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${st.cls}`}>{st.label}</span>
+                            <span className="ml-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#ecf4d5] text-[#526500] whitespace-nowrap">{f.kind === 'commission' ? `🤝 ${t('mer.formula_com', 'Commission')} ${f.rate} %` : `💳 ${t('mer.formula_sub', 'Abonnement')}`}</span>
                           </p>
                           <p className="text-xs text-gray-500">{m.email}{m.phone ? ` · 📞 ${m.phone}` : ''} · {t('mer.products', 'produits')} : {m.products.published} {t('mer.published', 'publiés')}{m.products.pending ? `, ${m.products.pending} ${t('mer.to_review', 'à valider')}` : ''}</p>
                           {m.active && <p className="text-xs text-green-700 mt-0.5">✅ {t('mer.active_until', 'Actif jusqu\'au')} {dateFr(m.active.ends_at)} · {fdj(m.active.amount)}</p>}
                           {!m.active && m.last && <p className="text-xs text-gray-400 mt-0.5">{t('mer.last', 'Dernier')} : {m.last.status} · {dateFr(m.last.ends_at)}</p>}
+                          {f.kind === 'commission' && f.since && <p className="text-xs text-green-700 mt-0.5">🤝 {t('mer.com_since', 'En commission depuis le')} {dateFr(f.since)}</p>}
+                          {m.active && (f.pending_kind === 'commission' || f.chosen === 'commission') && <p className="text-xs text-[#7d9800] mt-0.5">🤝 {t('mer.com_next', 'Passera en commission à la fin de l\'abonnement')}{appliedRate != null ? ` (${appliedRate} %)` : ''}</p>}
+                          {f.custom_rate != null && <p className="text-xs text-gray-500 mt-0.5">％ {t('mer.custom_rate', 'Taux particulier')} : {f.custom_rate} %{genRate != null ? ` (${t('mer.general_rate', 'taux général')} ${genRate} %)` : ''}</p>}
                         </div>
                         {canEdit && (
                           <div className="flex flex-wrap gap-1.5">
                             <button onClick={() => { setGrantFor(m); setGrantPlan(data.plans.find(p => p.is_active)?.id ?? null); setGrantMethod('cash'); setGrantRef(''); }} className="text-xs font-semibold bg-[#526500] text-white rounded-lg px-3 py-1.5 hover:bg-[#3a4800]">💳 {m.active ? t('mer.renew', 'Renouveler') : t('mer.activate', 'Activer')}</button>
                             {m.active && <button disabled={busy === 'x' + m.id} onClick={() => act({ action: 'extend', user_id: m.id, days: 7 }, 'x' + m.id)} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5]">+7 j</button>}
+                            {f.chosen !== 'commission' && genRate != null && m.state !== 'suspended' && <button disabled={busy === 'f' + m.id} onClick={() => act({ action: 'set_formula', user_id: m.id, kind: 'commission' }, 'f' + m.id, `${t('mer.to_com_confirm', 'Passer ce marchand en formule commission ? Taux appliqué :')} ${appliedRate} %${m.active ? `\n\n${t('mer.to_com_after', 'Son abonnement payé reste valable jusqu\'à son échéance, sans commission ; la commission s\'applique ensuite.')}` : ''}`)} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5] disabled:opacity-50">🤝 {t('mer.to_com', 'Passer en commission')}</button>}
+                            {f.chosen === 'commission' && <button disabled={busy === 'f' + m.id} onClick={() => act({ action: 'set_formula', user_id: m.id, kind: 'subscription' }, 'f' + m.id, t('mer.to_sub_confirm', 'Remettre ce marchand en formule abonnement ? Sans période payée en cours, ses produits ne seront plus visibles.'))} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5] disabled:opacity-50">💳 {t('mer.to_sub', 'Passer en abonnement')}</button>}
+                            <button disabled={busy === 'rt' + m.id} onClick={() => { const v = prompt(`${t('mer.rate_prompt', 'Taux de commission particulier pour ce marchand, en %. Laissez vide pour appliquer le taux général')}${genRate != null ? ` (${genRate} %)` : ''}. ${t('mer.rate_prompt_note', 'S\'applique aux prochaines commandes.')}`, f.custom_rate != null ? String(f.custom_rate) : ''); if (v !== null) act({ action: 'set_commission_rate', user_id: m.id, rate: v.trim().replace(',', '.') }, 'rt' + m.id); }} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5] disabled:opacity-50">％ {t('mer.rate_btn', 'Taux')}</button>
+                            {!m.active && f.kind === 'commission' && m.state === 'active' && <button disabled={busy === 's' + m.id} onClick={() => { const note = prompt(t('mer.suspend_note', 'Motif de suspension (communiqué au marchand) :')); if (note !== null) act({ action: 'suspend', user_id: m.id, note }, 's' + m.id); }} className="text-xs font-semibold border border-red-200 text-red-500 rounded-lg px-3 py-1.5 hover:bg-red-50">⏸ {t('mer.suspend', 'Suspendre')}</button>}
                             {m.active && <button disabled={busy === 's' + m.id} onClick={() => { const note = prompt(t('mer.suspend_note', 'Motif de suspension (communiqué au marchand) :')); if (note !== null) act({ action: 'suspend', user_id: m.id, note }, 's' + m.id); }} className="text-xs font-semibold border border-red-200 text-red-500 rounded-lg px-3 py-1.5 hover:bg-red-50">⏸ {t('mer.suspend', 'Suspendre')}</button>}
                             {m.state === 'suspended' && <button disabled={busy === 's' + m.id} onClick={() => act({ action: 'reactivate', user_id: m.id }, 's' + m.id)} className="text-xs font-semibold bg-[#a8c800] text-white rounded-lg px-3 py-1.5 hover:bg-[#7d9800]">▶ {t('mer.reactivate', 'Réactiver')}</button>}
                           </div>
@@ -207,13 +224,28 @@ export default function AdminMerchants() {
           {/* ── Plans ── */}
           {tab === 'plans' && (
             <div className="space-y-2">
+              {/* Formule commission : proposée ou non, taux général */}
+              <div className="bg-white rounded-2xl border-2 border-[#d2e095] px-4 py-4 mb-4">
+                <p className="font-semibold text-gray-800">🤝 {t('mer.com_title', 'Formule commission')}</p>
+                <p className="text-xs text-gray-500 mb-3">{t('mer.com_desc', 'Le marchand ne paie rien d\'avance : ce pourcentage est retenu sur ses ventes livrées, à chaque reversement. Le taux est enregistré sur chaque commande au moment où elle est passée : le modifier ne change pas les commandes déjà passées.')}</p>
+                <div className="flex flex-wrap items-end gap-3">
+                  <label className="text-xs text-gray-600">{t('mer.com_rate', 'Taux général (%)')}
+                    <input type="number" inputMode="decimal" min={0} max={100} step="0.5" disabled={!canEdit} value={comRate} onChange={e => { setComRate(e.target.value); setComSaved(false); }} placeholder={t('mer.com_rate_ph', 'Ex : taux en %')} className="block w-36 border border-[#d2e095] rounded-xl px-3 py-2 text-sm mt-1" />
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-gray-700 pb-2"><input type="checkbox" disabled={!canEdit} checked={comEnabled} onChange={e => { setComEnabled(e.target.checked); setComSaved(false); }} className="accent-[#a8c800]" /> {t('mer.com_enabled', 'Formule proposée aux marchands')}</label>
+                  {canEdit && <button disabled={busy === 'com' || comRate.trim() === ''} onClick={async () => { if (await act({ action: 'save_commission', rate: comRate.trim().replace(',', '.'), enabled: comEnabled }, 'com')) setComSaved(true); }} className="text-xs font-semibold bg-[#a8c800] text-white rounded-lg px-4 py-2 hover:bg-[#7d9800] disabled:opacity-50">💾 {t('admin.save', 'Enregistrer')}</button>}
+                  {comSaved && <span className="text-xs text-green-700 pb-2">✅ {t('mer.com_saved', 'Enregistré')}</span>}
+                </div>
+                <p className="text-xs text-gray-400 mt-2">{t('mer.com_custom_hint', 'Un taux particulier peut être fixé pour un marchand depuis l\'onglet Marchands (bouton « Taux »).')}</p>
+              </div>
+              <p className="font-semibold text-gray-800">💳 {t('mer.plans_title', 'Plans d\'abonnement')}</p>
               {data.plans.map(p => (
                 <div key={p.id} className="bg-white rounded-xl border border-[#d2e095] px-4 py-3 flex flex-wrap items-center gap-3">
                   <div className="flex-1"><p className="font-semibold text-gray-800">{p.name} {!p.is_active && <span className="text-[11px] text-gray-400">({t('mer.plan_inactive', 'inactif')})</span>}</p><p className="text-xs text-gray-500">{fdj(p.price_fdj)} · {p.duration_days} {t('mer.days', 'jours')}</p></div>
                   {canEdit && <button onClick={() => setPlanForm(p)} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5]">✏️ {t('admin.edit', 'Modifier')}</button>}
                 </div>
               ))}
-              {canEdit && <button onClick={() => setPlanForm({ name: '', price_fdj: 5000, duration_days: 30, is_active: true })} className="text-xs font-semibold bg-[#a8c800] text-white rounded-lg px-4 py-2 hover:bg-[#7d9800]">➕ {t('mer.new_plan', 'Nouveau plan')}</button>}
+              {canEdit && <button onClick={() => setPlanForm({ name: '', is_active: true })} className="text-xs font-semibold bg-[#a8c800] text-white rounded-lg px-4 py-2 hover:bg-[#7d9800]">➕ {t('mer.new_plan', 'Nouveau plan')}</button>}
             </div>
           )}
         </>
@@ -249,13 +281,13 @@ export default function AdminMerchants() {
             <h3 className="font-bold text-[#2d6410]">📋 {planForm.id ? t('admin.edit', 'Modifier') : t('mer.new_plan', 'Nouveau plan')}</h3>
             <input value={planForm.name || ''} onChange={e => setPlanForm({ ...planForm, name: e.target.value })} placeholder={t('mer.plan_name_ph', 'Ex : Mensuel')} className="w-full border border-[#d2e095] rounded-xl px-3 py-2 text-sm" />
             <div className="grid grid-cols-2 gap-2">
-              <label className="text-xs text-gray-600">{t('mer.price', 'Prix (Fdj)')}<input type="number" value={planForm.price_fdj ?? ''} onChange={e => setPlanForm({ ...planForm, price_fdj: Number(e.target.value) })} className="w-full border border-[#d2e095] rounded-xl px-3 py-2 text-sm mt-1" /></label>
-              <label className="text-xs text-gray-600">{t('mer.duration', 'Durée (jours)')}<input type="number" value={planForm.duration_days ?? ''} onChange={e => setPlanForm({ ...planForm, duration_days: Number(e.target.value) })} className="w-full border border-[#d2e095] rounded-xl px-3 py-2 text-sm mt-1" /></label>
+              <label className="text-xs text-gray-600">{t('mer.price', 'Prix (Fdj)')}<input type="number" value={planForm.price_fdj ?? ''} onChange={e => setPlanForm({ ...planForm, price_fdj: e.target.value === '' ? undefined : Number(e.target.value) })} placeholder={t('mer.price_ph', 'Ex : montant en Fdj')} className="w-full border border-[#d2e095] rounded-xl px-3 py-2 text-sm mt-1" /></label>
+              <label className="text-xs text-gray-600">{t('mer.duration', 'Durée (jours)')}<input type="number" value={planForm.duration_days ?? ''} onChange={e => setPlanForm({ ...planForm, duration_days: e.target.value === '' ? undefined : Number(e.target.value) })} placeholder={t('mer.duration_ph', 'Ex : nombre de jours')} className="w-full border border-[#d2e095] rounded-xl px-3 py-2 text-sm mt-1" /></label>
             </div>
             <label className="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" checked={planForm.is_active !== false} onChange={e => setPlanForm({ ...planForm, is_active: e.target.checked })} className="accent-[#a8c800]" /> {t('mer.plan_active', 'Plan proposé aux marchands')}</label>
             <div className="flex gap-2 justify-end">
               <button onClick={() => setPlanForm(null)} className="text-sm px-4 py-2 rounded-xl border border-gray-200 text-gray-600">{t('admin.cancel', 'Annuler')}</button>
-              <button disabled={busy === 'plan'} onClick={async () => { if (await act({ action: 'save_plan', ...planForm }, 'plan')) setPlanForm(null); }} className="text-sm font-semibold px-4 py-2 rounded-xl bg-[#a8c800] text-white hover:bg-[#7d9800] disabled:opacity-50">💾 {t('admin.save', 'Enregistrer')}</button>
+              <button disabled={busy === 'plan' || !planForm.name?.trim() || planForm.price_fdj == null || !planForm.duration_days} onClick={async () => { if (await act({ action: 'save_plan', ...planForm }, 'plan')) setPlanForm(null); }} className="text-sm font-semibold px-4 py-2 rounded-xl bg-[#a8c800] text-white hover:bg-[#7d9800] disabled:opacity-50">💾 {t('admin.save', 'Enregistrer')}</button>
             </div>
           </div>
         </div>

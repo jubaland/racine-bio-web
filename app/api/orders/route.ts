@@ -81,16 +81,16 @@ export async function POST(request: Request) {
     const { loadBundleContents, bundleAvailability, bundleCost, bundleSnapshot, applyStockDeltas, reserveStock } = await import('../../../lib/bundles');
     const bundleContents = await loadBundleContents(supabaseAdmin, (stockData || []).filter((p: any) => p.is_bundle).map((p: any) => p.id));
 
-    // Produit marchand : commandable seulement si le marchand a un abonnement actif
-    const ownerIds = [...new Set((stockData || []).map((p: any) => p.owner_id).filter(Boolean))];
-    const activeOwners = new Set<string>();
-    if (ownerIds.length) {
-      const today = new Date().toISOString().slice(0, 10);
-      const { data: subs } = await supabaseAdmin
-        .from('merchant_subscriptions').select('user_id')
-        .in('user_id', ownerIds).eq('status', 'active').gte('ends_at', today);
-      (subs || []).forEach((s: any) => activeOwners.add(s.user_id));
-    }
+    // Produit marchand : commandable seulement si le marchand est actif (abonnement en cours ou formule
+    // commission active). Le taux de commission du moment est photographié sur la ligne de commande.
+    const ownerIds = [...new Set((stockData || []).map((p: any) => p.owner_id).filter(Boolean))] as string[];
+    const { merchantTerms } = await import('../../../lib/merchant-formula');
+    const terms = await merchantTerms(ownerIds);
+    const activeOwners = new Set<string>(ownerIds.filter(id => terms[id]?.active));
+    const commissionRateOf = (productId: number): number | null => {
+      const owner = (stockData || []).find((p: any) => p.id === productId)?.owner_id;
+      return owner && terms[owner]?.rate > 0 ? terms[owner].rate : null;
+    };
     // Un produit non publié ou d'un marchand inactif est traité comme indisponible (stock 0)
     const stockMap: Record<number, { name: string; stock_qty: number; unit: string; cost_price: number | null }> =
       Object.fromEntries((stockData || []).map((p: any) => {
@@ -202,6 +202,7 @@ export async function POST(request: Request) {
           product_farm:      item.product_farm      ?? null,
           product_cost:      stockMap[item.product_id]?.cost_price ?? null,
           bundle_contents:   (stockMap[item.product_id] as any)?.bundle_contents ?? null,
+          commission_rate:   commissionRateOf(item.product_id),
         }))
       );
 

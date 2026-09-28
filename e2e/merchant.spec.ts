@@ -13,7 +13,7 @@ const MERCHANT_PAGES: [string, RegExp][] = [
   ['/producer/orders',       /Mes commandes/],
   ['/producer/promotions',   /Mes promotions/],
   ['/producer/statement',    /Mes reversements/],
-  ['/producer/subscription', /Mon abonnement/],
+  ['/producer/subscription', /Ma formule/],
 ];
 
 for (const [path, heading] of MERCHANT_PAGES) {
@@ -25,6 +25,14 @@ for (const [path, heading] of MERCHANT_PAGES) {
     expect(errors).toEqual([]);
   });
 }
+
+test('marchand › Ma formule : historique présent, aucune erreur', async ({ page }) => {
+  const errors = trackErrors(page);
+  await page.goto('/producer/subscription'); await settle(page);
+  await expect(page.getByRole('heading', { name: /Historique/ })).toBeVisible();
+  await expectNoOverflow(page, '/producer/subscription');
+  expect(errors).toEqual([]);
+});
 
 test('marchand : réglage WhatsApp de la boutique présent', async ({ page }) => {
   await page.goto('/producer/dashboard'); await settle(page);

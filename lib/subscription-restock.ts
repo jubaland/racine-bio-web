@@ -19,13 +19,16 @@ export async function computeTemplateOrder(userId: string, frequency: string): P
   const { data: items } = await supabaseAdmin.from('subscription_items').select('product_id, quantity').eq('user_id', userId).eq('frequency', frequency);
   if (!items || !items.length) return { lines: [], itemsTotal: 0, omitted: [], reduced: [] };
   const ids = items.map((i: any) => i.product_id);
-  const { data: prods } = await supabaseAdmin.from('products').select('id, name, price, unit, image_url, farm, stock_qty, status, is_bundle, cost_price').in('id', ids);
+  const { data: prods } = await supabaseAdmin.from('products').select('id, name, price, unit, image_url, farm, stock_qty, status, is_bundle, cost_price, owner_id').in('id', ids);
   const pmap: Record<number, any> = Object.fromEntries((prods || []).map((p: any) => [p.id, p]));
+  // Produits marchands : livrés seulement si le marchand est actif (abonnement en cours ou formule commission)
+  const { merchantTerms } = await import('./merchant-formula');
+  const terms = await merchantTerms((prods || []).map((p: any) => p.owner_id).filter(Boolean));
   const lines: TemplateLine[] = []; const omitted: string[] = []; const reduced: string[] = [];
   for (const it of items) {
     const p = pmap[it.product_id];
     // Paniers composés : composition variable, jamais en commande modèle
-    if (!p || p.status !== 'published' || p.is_bundle) { omitted.push(p?.name || `Produit #${it.product_id}`); continue; }
+    if (!p || p.status !== 'published' || p.is_bundle || (p.owner_id && !terms[p.owner_id]?.active)) { omitted.push(p?.name || `Produit #${it.product_id}`); continue; }
     const wanted = Number(it.quantity), q = Math.min(wanted, Number(p.stock_qty) || 0);
     if (q <= 0) { omitted.push(p.name); continue; }
     if (q < wanted) reduced.push(`${p.name} (${q} ${p.unit || ''} sur ${wanted})`.replace(/\s+/g, ' '));

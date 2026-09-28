@@ -373,7 +373,7 @@ export async function sendMerchantEmail(email: string, subject: string, title: s
 // ── 4c. Récapitulatif quotidien → marchand (mode e-mail « daily ») ──────────
 export async function sendMerchantDigest(email: string, d: {
   shop: string; new_orders: { id: number; status: string; customer: string; lines: string[]; amount: number }[];
-  delivered: number; cancelled: number; amount_new: number; low_stock: { name: string; stock: number; unit: string }[]; due: number; sub_days_left: number | null;
+  delivered: number; cancelled: number; amount_new: number; low_stock: { name: string; stock: number; unit: string }[]; due: number; sub_days_left: number | null; commission_rate?: number | null; visible?: boolean;
 }) {
   const fdj = (n: number) => `${Number(n).toLocaleString('fr-FR')} Fdj`;
   const STATUS: Record<string, string> = { pending: '⏳ En attente', processing: '🚚 En préparation', shipping: '📦 Expédiée', delivered: '✅ Livrée', cancelled: '❌ Annulée' };
@@ -392,7 +392,9 @@ export async function sendMerchantDigest(email: string, d: {
     ${lowHtml}
     <div style="background:#f8faf0;border-radius:12px;padding:14px;margin:18px 0;font-size:13px;color:#374151;">
       <p style="margin:0;">💸 À vous reverser : <strong>${fdj(d.due)}</strong></p>
-      ${d.sub_days_left != null ? `<p style="margin:6px 0 0;">💳 Abonnement : <strong>${d.sub_days_left} jour(s)</strong> restant(s)</p>` : '<p style="margin:6px 0 0;color:#b91c1c;">💳 Aucun abonnement actif — vos produits ne sont pas visibles.</p>'}
+      ${d.sub_days_left != null ? `<p style="margin:6px 0 0;">💳 Abonnement : <strong>${d.sub_days_left} jour(s)</strong> restant(s)</p>`
+        : d.commission_rate != null ? `<p style="margin:6px 0 0;">🤝 Formule commission : <strong>${d.commission_rate} %</strong> retenus sur vos ventes livrées</p>`
+        : '<p style="margin:6px 0 0;color:#b91c1c;">💳 Aucune formule active — vos produits ne sont pas visibles.</p>'}
     </div>
     <p style="text-align:center;margin:0 0 20px;">
       <a href="https://www.hornafresh.com/producer/orders" style="display:inline-block;background:#a8c800;color:#ffffff;text-decoration:none;padding:12px 26px;border-radius:9999px;font-weight:bold;font-size:14px;">Ouvrir mes commandes</a>

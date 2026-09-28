@@ -1,5 +1,6 @@
 import { supabaseAdmin } from './supabase-admin';
 import { unsettledLines } from './merchant-settlement';
+import { merchantTerms } from './merchant-formula';
 
 // Récapitulatif quotidien marchand : commandes reçues depuis le dernier envoi (ou 24 h), livraisons,
 // annulations, stock bas, montant à reverser, abonnement. Envoyé par le cron marchands aux marchands
@@ -11,6 +12,8 @@ export type Digest = {
   delivered: number; cancelled: number; amount_new: number;
   low_stock: { name: string; stock: number; unit: string }[];
   due: number; sub_days_left: number | null;
+  commission_rate: number | null;   // formule commission active : taux retenu (null sinon)
+  visible: boolean;                 // produits visibles (abonnement en cours ou formule commission active)
 };
 
 const firstName = (full: string | null) => (full || '').trim().split(/\s+/)[0] || 'Client';
@@ -30,6 +33,7 @@ export async function buildDigests(now = new Date()): Promise<Digest[]> {
   const subEnd: Record<string, string> = {};
   (subs || []).forEach((s: any) => { if (!subEnd[s.user_id] || s.ends_at > subEnd[s.user_id]) subEnd[s.user_id] = s.ends_at; });
 
+  const terms = await merchantTerms(ownerIds);
   const out: Digest[] = [];
   for (const pr of profiles as any[]) {
     const mine = prodByOwner[pr.user_id] || [];
@@ -53,11 +57,12 @@ export async function buildDigests(now = new Date()): Promise<Digest[]> {
     }
     const low_stock = mine.filter((p: any) => p.status === 'published' && (p.stock_qty ?? 0) <= 5).map((p: any) => ({ name: p.name, stock: p.stock_qty ?? 0, unit: p.unit || '' }));
     const dueLines = await unsettledLines(pr.user_id);
-    const due = dueLines.reduce((s, l) => s + l.total, 0);
+    const due = dueLines.reduce((s, l) => s + l.net, 0);   // net de commission
     const { data: u } = await supabaseAdmin.auth.admin.getUserById(pr.user_id);
     const end = subEnd[pr.user_id];
     const sub_days_left = end ? Math.ceil((new Date(end + 'T00:00:00Z').getTime() - new Date(today + 'T00:00:00Z').getTime()) / 86400000) : null;
-    out.push({ user_id: pr.user_id, email: u?.user?.email || null, shop: pr.shop_name, email_mode: pr.email_mode, since: since.toISOString(), new_orders, delivered, cancelled, amount_new, low_stock, due, sub_days_left });
+    out.push({ user_id: pr.user_id, email: u?.user?.email || null, shop: pr.shop_name, email_mode: pr.email_mode, since: since.toISOString(), new_orders, delivered, cancelled, amount_new, low_stock, due, sub_days_left,
+      commission_rate: !end && terms[pr.user_id]?.active ? terms[pr.user_id].rate : null, visible: !!terms[pr.user_id]?.active });
   }
   return out;
 }

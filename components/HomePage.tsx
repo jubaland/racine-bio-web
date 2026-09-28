@@ -715,7 +715,7 @@ export default function HomePage({ products, categories, promos, producers, sett
                 <span className="text-[#c8e050]">{t('producerSpaceTitle2', 'Vendez sur Hornafresh')}</span>
               </h2>
               <p className="text-white/75 text-base mb-6 leading-relaxed">
-                {t('producerSpaceDesc', 'Vous fournissez vos produits, nous les vendons, préparons et livrons. 100 % du prix de vos articles vous est reversé, pour un abonnement fixe sans commission.')}
+                {t('producerSpaceDesc2', 'Vous fournissez vos produits, nous les vendons, préparons et livrons. Abonnement fixe ou commission sur vos ventes : vous choisissez la formule qui vous convient.')}
               </p>
               <Link
                 href="/become-producer"
@@ -728,7 +728,7 @@ export default function HomePage({ products, categories, promos, producers, sett
               {[
                 { emoji: '🏪', title: t('ps.seeds', 'Votre vitrine'), desc: t('ps.seeds_desc', 'Une boutique à votre enseigne sur le marché Hornafresh') },
                 { emoji: '🚚', title: t('ps.advice', 'Préparation et livraison'), desc: t('ps.advice_desc', 'Nous préparons, livrons et gérons le service client') },
-                { emoji: '💸', title: t('ps.equipment', 'Reversement à 100 %'), desc: t('ps.equipment_desc', 'Le prix de vos articles livrés vous revient intégralement') },
+                { emoji: '💸', title: t('ps.payout', 'Reversements suivis'), desc: t('ps.payout_desc', 'Vos ventes livrées vous sont reversées, avec un relevé détaillé') },
                 { emoji: '📊', title: t('ps.community', 'Espace marchand'), desc: t('ps.community_desc', 'Produits, commandes, ventes et reversements en un coup d\'œil') },
               ].map(b => (
                 <div key={b.title} className="bg-white/10 backdrop-blur rounded-2xl p-4 hover:bg-white/15 transition">

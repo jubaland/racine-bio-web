@@ -156,8 +156,10 @@ async function processOne(userId: string, frequency: string, todayStr: string, f
   }).select().single();
   if (orderErr || !order) return { error: orderErr?.message || 'order_failed' };
 
+  const { commissionRatesForProducts } = await import('../../../../lib/merchant-formula');
+  const rates = await commissionRatesForProducts(lines.map(l => l.p));   // taux de commission photographié (produits marchands)
   await supabaseAdmin.from('order_items').insert(lines.map(l => ({
-    order_id: order.id, product_id: l.p.id, quantity: l.qty, price: l.p.price,
+    order_id: order.id, product_id: l.p.id, quantity: l.qty, price: l.p.price, product_cost: l.p.cost_price ?? null, commission_rate: rates[l.p.id] ?? null,
     product_name: l.p.name, product_image_url: l.p.image_url, product_unit: l.p.unit, product_farm: l.p.farm,
   })));
 
