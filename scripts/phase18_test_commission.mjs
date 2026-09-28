@@ -45,7 +45,7 @@ try {
   const { data: preps } = await admin.from('preparers').select('id').eq('is_active', true);
   state.preparers = (preps || []).map(p => p.id);
   if (state.preparers.length) await admin.from('preparers').update({ is_active: false }).in('id', state.preparers);
-  state.before = (await admin.from('app_settings').select('key, value_num').like('key', 'merchant.commission%')).data || [];
+  state.before = (await admin.from('app_settings').select('key, value_num').like('key', 'merchant.%')).data || [];
 
   state.merchant = await mkUser('m', { full_name: 'Test Commission Marchand', role: 'producer' });
   state.client = await mkUser('c', { full_name: 'Test Commission Client' });
@@ -189,6 +189,38 @@ try {
   ok(r.status === 400, 'plan sans prix refusé', String(r.status));
   r = await adm({ action: 'save_plan', name: 'TEST plan sans durée', price_fdj: 100 });
   ok(r.status === 400, 'plan sans durée refusé', String(r.status));
+
+  console.log('\n11) Délais paramétrables (rappels, alerte paiement, prolongation)');
+  r = await api('/api/admin/merchants', M.token, { action: 'save_delays', extend_days: 2 });
+  ok(r.status === 401 || r.status === 403, 'un marchand ne peut pas modifier les délais', String(r.status));
+  r = await adm({ action: 'save_delays', extend_days: 0 });
+  ok(r.status === 400, 'durée nulle refusée', String(r.status));
+  r = await adm({ action: 'save_delays', extend_days: 2.5 });
+  ok(r.status === 400, 'durée non entière refusée', String(r.status));
+  r = await adm({ action: 'save_delays', reminder_first_days: 3, reminder_last_days: 5 });
+  ok(r.status === 400, 'dernier rappel plus éloigné que le premier : refusé', String(r.status));
+  r = await adm({ action: 'save_delays', reminder_first_days: 12, reminder_last_days: 4, stale_payment_days: 6, extend_days: 9 });
+  ok(r.status === 200 && r.j.delays?.reminder_first_days === 12 && r.j.delays?.reminder_last_days === 4 && r.j.delays?.stale_payment_days === 6 && r.j.delays?.extend_days === 9, 'délais enregistrés : 12, 4, 6, 9 jours', JSON.stringify(r.j.delays));
+  // Abonnement qui expire dans 12 jours → premier rappel ; puis prolongation rapide de 9 jours
+  await adm({ action: 'set_formula', user_id: M.id, kind: 'subscription' });
+  await admin.from('merchant_subscriptions').delete().eq('user_id', M.id);
+  await admin.from('merchant_subscriptions').insert({ user_id: M.id, plan_id: plan.id, amount: plan.price_fdj, status: 'active', starts_at: addDays(today, -5), ends_at: addDays(today, 12), payment_method: 'cash' });
+  let c11 = await (await fetch(`${BASE}/api/cron/merchants?user=${M.id}&dry=1`, { headers: cronHeaders })).json();
+  ok(c11.reminded_first?.length === 1 && c11.reminded_last?.length === 0, 'cron : premier rappel à 12 jours de l\'échéance', JSON.stringify({ f: c11.reminded_first, l: c11.reminded_last }));
+  await admin.from('merchant_subscriptions').update({ ends_at: addDays(today, 4) }).eq('user_id', M.id);
+  c11 = await (await fetch(`${BASE}/api/cron/merchants?user=${M.id}&dry=1`, { headers: cronHeaders })).json();
+  ok(c11.reminded_last?.length === 1 && c11.reminded_first?.length === 0, 'cron : dernier rappel à 4 jours de l\'échéance', JSON.stringify({ f: c11.reminded_first, l: c11.reminded_last }));
+  r = await adm({ action: 'extend', user_id: M.id });
+  ok(r.status === 200 && r.j.ends_at === addDays(today, 13), 'prolongation rapide : 9 jours ajoutés', JSON.stringify(r.j));
+  await admin.from('merchant_subscriptions').insert({ user_id: M.id, plan_id: plan.id, amount: plan.price_fdj, status: 'pending_payment', payment_method: 'cash', created_at: new Date(Date.now() - 6 * 86400000).toISOString() });
+  c11 = await (await fetch(`${BASE}/api/cron/merchants?user=${M.id}&dry=1`, { headers: cronHeaders })).json();
+  ok(c11.stale_payments?.length === 1, 'cron : paiement déclaré depuis 6 jours signalé', JSON.stringify(c11.stale_payments));
+  r = await adm({ action: 'save_delays', reminder_first_days: '', reminder_last_days: '', stale_payment_days: '', extend_days: '' });
+  ok(r.status === 200 && Object.values(r.j.delays || { x: 1 }).every(v => v === null), 'champs vidés : fonctions désactivées', JSON.stringify(r.j.delays));
+  c11 = await (await fetch(`${BASE}/api/cron/merchants?user=${M.id}&dry=1`, { headers: cronHeaders })).json();
+  ok(c11.stale_payments?.length === 0 && c11.reminded_first?.length === 0 && c11.reminded_last?.length === 0, 'cron : plus aucun rappel ni alerte');
+  r = await adm({ action: 'extend', user_id: M.id });
+  ok(r.status === 400, 'prolongation rapide sans durée réglée : refusée', String(r.status));
 } catch (e) {
   fail++; console.error('\n💥 Erreur inattendue :', e);
 } finally {
@@ -197,7 +229,7 @@ try {
     // Réglages rétablis à l'identique
     for (const s of state.before) await admin.from('app_settings').upsert({ key: s.key, value_num: s.value_num, updated_at: new Date().toISOString() }, { onConflict: 'key' });
     const keep = new Set(state.before.map(s => s.key));
-    for (const k of ['merchant.commission_enabled', 'merchant.commission_rate']) if (!keep.has(k)) await admin.from('app_settings').delete().eq('key', k);
+    for (const k of ['commission_enabled', 'commission_rate', 'reminder_first_days', 'reminder_last_days', 'stale_payment_days', 'extend_days']) if (!keep.has(`merchant.${k}`)) await admin.from('app_settings').delete().eq('key', `merchant.${k}`);
     const ids = [state.merchant?.id, state.client?.id].filter(Boolean);
     if (state.product) {
       const { data: its } = await admin.from('order_items').select('order_id').eq('product_id', state.product);
@@ -223,7 +255,7 @@ try {
       ok(!delErr, 'compte temporaire supprimé', delErr?.message);
     }
     if (state.preparers.length) await admin.from('preparers').update({ is_active: true }).in('id', state.preparers);
-    const after = (await admin.from('app_settings').select('key, value_num').like('key', 'merchant.commission%')).data || [];
+    const after = (await admin.from('app_settings').select('key, value_num').like('key', 'merchant.%')).data || [];
     const same = JSON.stringify([...after].sort((a, b) => a.key.localeCompare(b.key))) === JSON.stringify([...state.before].sort((a, b) => a.key.localeCompare(b.key)));
     ok(same, 'réglages rétablis', JSON.stringify(after));
   } catch (e) { fail++; console.error('Nettoyage incomplet :', e); }

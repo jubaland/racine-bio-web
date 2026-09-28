@@ -20,14 +20,19 @@ try {
     return data.user.id;
   };
   const { data: plan } = await admin.from('merchant_plans').select('id').order('id').limit(1).maybeSingle();
+  // Délais lus dans les réglages (admin › Marchands › Plans) : le test suit leurs valeurs
+  const { data: st } = await admin.from('app_settings').select('key, value_num').like('key', 'merchant.%');
+  const S = Object.fromEntries((st || []).map(r => [r.key.replace('merchant.', ''), Number(r.value_num)]));
+  const FIRST = S.reminder_first_days, LAST = S.reminder_last_days, STALE = S.stale_payment_days;
+  if (!FIRST || !LAST || !STALE) throw new Error('réglages de délais marchands non définis');
   const uA = await mk('A'), uB = await mk('B'), uC = await mk('C');
   const rows = [
     { user_id: uA, plan_id: plan.id, status: 'active', starts_at: addDays(today, -61), ends_at: addDays(today, -31) },  // ancienne période échue (renouvelée ensuite) → expire en silence
-    { user_id: uA, plan_id: plan.id, status: 'active', starts_at: addDays(today, -23), ends_at: addDays(today, 7) },    // période courante J-7 → rappel
-    { user_id: uB, plan_id: plan.id, status: 'active', starts_at: addDays(today, -29), ends_at: addDays(today, 1) },    // J-1 mais…
-    { user_id: uB, plan_id: plan.id, status: 'active', starts_at: addDays(today, 2),   ends_at: addDays(today, 31) },   // …renouvellement enchaîné → pas de rappel
+    { user_id: uA, plan_id: plan.id, status: 'active', starts_at: addDays(today, -23), ends_at: addDays(today, FIRST) }, // période courante, premier rappel
+    { user_id: uB, plan_id: plan.id, status: 'active', starts_at: addDays(today, -29), ends_at: addDays(today, LAST) },  // dernier rappel mais…
+    { user_id: uB, plan_id: plan.id, status: 'active', starts_at: addDays(today, LAST + 1), ends_at: addDays(today, LAST + 30) },   // …renouvellement enchaîné → pas de rappel
     { user_id: uC, plan_id: plan.id, status: 'active', starts_at: addDays(today, -31), ends_at: addDays(today, -1) },   // échu sans suite → expire + notif
-    { user_id: uC, plan_id: plan.id, status: 'pending_payment', payment_method: 'waafi', payment_reference: 'OLD', created_at: new Date(Date.now() - 5 * 86400000).toISOString() }, // déclaré depuis 5 j → alerte admin
+    { user_id: uC, plan_id: plan.id, status: 'pending_payment', payment_method: 'waafi', payment_reference: 'OLD', created_at: new Date(Date.now() - (STALE + 2) * 86400000).toISOString() }, // déclaré depuis plus que le délai → alerte admin
   ];
   // (insertion groupée : chaque ligne doit porter toutes les clés, sinon null → on fixe created_at partout)
   const { data: ins, error } = await admin.from('merchant_subscriptions')
@@ -41,10 +46,10 @@ try {
   ok('cron dry 200', res.status === 200, String(res.status));
   ok('expire : ancienne période A → silencieuse (renouvelée)', j.expired?.find(x => x.id === idOf(uA, addDays(today, -31)))?.silent === true, JSON.stringify(j.expired));
   ok('expire : C échu sans suite → notifié', j.expired?.find(x => x.id === idOf(uC, addDays(today, -1)))?.silent === false, JSON.stringify(j.expired));
-  ok('J-7 : A rappelé', j.reminded_7?.some(x => x.id === idOf(uA, addDays(today, 7))), JSON.stringify(j.reminded_7));
-  ok('J-1 : B NON rappelé (renouvellement enchaîné)', !j.reminded_1?.some(x => x.id === idOf(uB, addDays(today, 1))), JSON.stringify(j.reminded_1));
-  ok('stale : paiement C (5 j) signalé', j.stale_payments?.some(x => x.shop === 'Boutique Cron C'), JSON.stringify(j.stale_payments));
-  ok('enseignes résolues', j.reminded_7?.[0]?.shop === 'Boutique Cron A', j.reminded_7?.[0]?.shop);
+  ok('premier rappel : A rappelé', j.reminded_first?.some(x => x.id === idOf(uA, addDays(today, FIRST))), JSON.stringify(j.reminded_first));
+  ok('dernier rappel : B NON rappelé (renouvellement enchaîné)', !j.reminded_last?.some(x => x.id === idOf(uB, addDays(today, LAST))), JSON.stringify(j.reminded_last));
+  ok('paiement C déclaré depuis trop longtemps : signalé', j.stale_payments?.some(x => x.shop === 'Boutique Cron C'), JSON.stringify(j.stale_payments));
+  ok('enseignes résolues', j.reminded_first?.[0]?.shop === 'Boutique Cron A', j.reminded_first?.[0]?.shop);
   ok('dry : aucune écriture', (await admin.from('merchant_subscriptions').select('id', { count: 'exact', head: true }).eq('user_id', uA).eq('status', 'expired')).count === 0);
   const unauth = await fetch(`${BASE}/api/cron/merchants?dry=1`);
   ok('sans secret → 401 (si CRON_SECRET défini localement)', !env.CRON_SECRET || unauth.status === 401, String(unauth.status));

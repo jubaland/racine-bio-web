@@ -6,8 +6,10 @@ import { sendPushToAdmin } from '../../../../lib/push';
 
 // Cron quotidien — abonnements marchands (voir vercel.json).
 //  1. Abonnements échus  → statut `expired` + notification/e-mail au marchand (sauf renouvellement déjà enchaîné)
-//  2. Rappels J-7 et J-1 → notification/e-mail au marchand (une seule fois chacun : colonnes reminder_*_sent_at)
-//  3. Paiements déclarés non traités depuis ≥ 3 jours → alerte admin (une seule fois : stale_alerted_at)
+//  2. Premier et dernier rappel avant l'échéance → notification/e-mail au marchand (une seule fois chacun :
+//     colonnes reminder_7_sent_at = premier rappel, reminder_1_sent_at = dernier rappel)
+//  3. Paiements déclarés non traités depuis un certain nombre de jours → alerte admin (une fois : stale_alerted_at)
+//  Les délais viennent des réglages (admin › Marchands › Plans) ; un délai non défini désactive l'étape.
 //  4. Résumé admin (cloche + push) uniquement s'il s'est passé quelque chose
 //  6. Paniers anti-gaspi expirés (products.bundle_ends_at dépassé) → archivés (ils sont déjà
 //     invisibles et non commandables dès l'échéance : ceci n'est que de la tenue du catalogue)
@@ -21,7 +23,6 @@ import { sendPushToAdmin } from '../../../../lib/push';
 // NB : la visibilité des produits ne dépend PAS de ce cron — merchant_is_active() (SQL) compare
 // déjà ends_at à la date du jour. Le cron ne fait que la tenue des statuts et les notifications.
 
-const STALE_DAYS = 3;
 const addDays = (d: string, n: number) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
 const fmt = (d: string | null) => d ? new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '—';
 
@@ -51,6 +52,10 @@ export async function GET(request: Request) {
   const hasFollowUp = (s: Sub) => subs.some(o => o.user_id === s.user_id && o.id !== s.id && o.status === 'active' && (o.ends_at || '') > (s.ends_at || ''));
   const hasPendingRenewal = (s: Sub) => subs.some(o => o.user_id === s.user_id && o.id !== s.id && o.status === 'pending_payment');
 
+  const { merchantDelays } = await import('../../../../lib/merchant-formula');
+  const delays = await merchantDelays();
+  const FIRST = delays.reminder_first_days, LAST = delays.reminder_last_days, STALE_DAYS = delays.stale_payment_days;
+
   // Marchands qui passent (ou sont déjà) en formule commission à l'échéance de leur abonnement
   const { formulasOf, switchToCommission } = await import('../../../../lib/merchant-formula');
   const formulas = await formulasOf(subs.map(s => s.user_id));
@@ -58,9 +63,9 @@ export async function GET(request: Request) {
 
   const plan = {
     expire:     subs.filter(s => s.status === 'active' && s.ends_at && s.ends_at < today),
-    remind7:    subs.filter(s => s.status === 'active' && s.ends_at === addDays(today, 7) && !s.reminder_7_sent_at && !hasFollowUp(s) && !hasPendingRenewal(s) && !toCommission(s)),
-    remind1:    subs.filter(s => s.status === 'active' && s.ends_at === addDays(today, 1) && !s.reminder_1_sent_at && !hasFollowUp(s) && !hasPendingRenewal(s) && !toCommission(s)),
-    stale:      subs.filter(s => s.status === 'pending_payment' && !s.stale_alerted_at && s.created_at.slice(0, 10) <= addDays(today, -STALE_DAYS)),
+    remind7:    FIRST == null ? [] : subs.filter(s => s.status === 'active' && s.ends_at === addDays(today, FIRST) && !s.reminder_7_sent_at && !hasFollowUp(s) && !hasPendingRenewal(s) && !toCommission(s)),
+    remind1:    LAST == null ? [] : subs.filter(s => s.status === 'active' && s.ends_at === addDays(today, LAST) && !s.reminder_1_sent_at && !hasFollowUp(s) && !hasPendingRenewal(s) && !toCommission(s)),
+    stale:      STALE_DAYS == null ? [] : subs.filter(s => s.status === 'pending_payment' && !s.stale_alerted_at && s.created_at.slice(0, 10) <= addDays(today, -STALE_DAYS)),
   };
 
   // Enseignes + e-mails (une seule lecture pour tous les marchands concernés)
@@ -82,11 +87,11 @@ export async function GET(request: Request) {
   const { buildDigests, digestHasContent } = await import('../../../../lib/merchant-digest');
   const digests = onlyUser ? [] : await buildDigests();
   const report = {
-    date: today, dry,
+    date: today, dry, delays,
     digests: digests.map(d => ({ shop: d.shop, email: d.email ? d.email.replace(/^(..)[^@]*/, '$1***') : null, since: d.since, new_orders: d.new_orders.length, delivered: d.delivered, cancelled: d.cancelled, low_stock: d.low_stock.length, due: d.due, will_send: digestHasContent(d) && !!d.email })),
     expired: plan.expire.map(s => ({ id: s.id, shop: label(s), ends_at: s.ends_at, silent: hasFollowUp(s), to_commission: !hasFollowUp(s) && toCommission(s) })),
-    reminded_7: plan.remind7.map(s => ({ id: s.id, shop: label(s), ends_at: s.ends_at })),
-    reminded_1: plan.remind1.map(s => ({ id: s.id, shop: label(s), ends_at: s.ends_at })),
+    reminded_first: plan.remind7.map(s => ({ id: s.id, shop: label(s), ends_at: s.ends_at })),
+    reminded_last: plan.remind1.map(s => ({ id: s.id, shop: label(s), ends_at: s.ends_at })),
     stale_payments: plan.stale.map(s => ({ id: s.id, shop: label(s), amount: s.amount, since: s.created_at.slice(0, 10) })),
     expired_bundles: [] as { id: number; name: string }[],
     errors: [] as string[],
@@ -127,16 +132,16 @@ export async function GET(request: Request) {
   for (const s of plan.remind7) {
     const { error: e } = await supabaseAdmin.from('merchant_subscriptions').update({ reminder_7_sent_at: nowIso }).eq('id', s.id).is('reminder_7_sent_at', null);
     if (e) { report.errors.push(`remind7 ${s.id}: ${e.message}`); continue; }
-    await merchantNotify(s, '⏳ Abonnement : 7 jours restants',
+    await merchantNotify(s, `⏳ Abonnement : ${FIRST} jour(s) restant(s)`,
       `Votre abonnement Hornafresh expire le ${fmt(s.ends_at)}. Renouvelez-le dès maintenant depuis « Ma formule » : la nouvelle période s'enchaînera sans interruption.`,
-      'Votre abonnement Hornafresh expire dans 7 jours');
+      `Votre abonnement Hornafresh expire dans ${FIRST} jour(s)`);
   }
   for (const s of plan.remind1) {
     const { error: e } = await supabaseAdmin.from('merchant_subscriptions').update({ reminder_1_sent_at: nowIso }).eq('id', s.id).is('reminder_1_sent_at', null);
     if (e) { report.errors.push(`remind1 ${s.id}: ${e.message}`); continue; }
-    await merchantNotify(s, '⚠️ Abonnement : dernier jour demain',
-      `Votre abonnement Hornafresh expire demain (${fmt(s.ends_at)}). Sans renouvellement, vos produits seront masqués du site après cette date.`,
-      'Votre abonnement Hornafresh expire demain');
+    await merchantNotify(s, `⚠️ Abonnement : plus que ${LAST} jour(s)`,
+      `Votre abonnement Hornafresh expire le ${fmt(s.ends_at)}, dans ${LAST} jour(s). Sans renouvellement, vos produits seront masqués du site après cette date.`,
+      `Votre abonnement Hornafresh expire dans ${LAST} jour(s)`);
   }
 
   // 3. Paiements déclarés non traités
@@ -169,8 +174,8 @@ export async function GET(request: Request) {
   const switched = report.expired.filter(x => x.to_commission);
   if (switched.length) lines.push(`${switched.length} marchand(s) passé(s) en commission : ${switched.map(x => x.shop).join(', ')}`);
   if (loud.length) lines.push(`${loud.length} abonnement(s) expiré(s) : ${loud.map(x => x.shop).join(', ')}`);
-  if (report.reminded_7.length) lines.push(`J-7 : ${report.reminded_7.map(x => x.shop).join(', ')}`);
-  if (report.reminded_1.length) lines.push(`J-1 : ${report.reminded_1.map(x => x.shop).join(', ')}`);
+  if (report.reminded_first.length) lines.push(`J-${FIRST} : ${report.reminded_first.map(x => x.shop).join(', ')}`);
+  if (report.reminded_last.length) lines.push(`J-${LAST} : ${report.reminded_last.map(x => x.shop).join(', ')}`);
   if (report.stale_payments.length) lines.push(`${report.stale_payments.length} paiement(s) déclaré(s) à confirmer depuis ≥ ${STALE_DAYS} j : ${report.stale_payments.map(x => `${x.shop} (${Number(x.amount).toLocaleString('fr-FR')} Fdj)`).join(', ')}`);
   if (report.errors.length) lines.push(`⚠️ ${report.errors.length} erreur(s)`);
   if (lines.length && !onlyUser) {

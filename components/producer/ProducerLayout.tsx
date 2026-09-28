@@ -16,7 +16,8 @@ export interface Merchant {
   farm_name: string;
   region: string;
   // kind : formule en vigueur (un abonnement payé en cours prime sur la formule commission)
-  subscription: { state: 'active' | 'pending' | 'suspended' | 'expired' | 'none'; ends_at: string | null; days_left: number | null; kind: 'subscription' | 'commission'; pending_kind: string | null };
+  // renew_notice_days : premier rappel avant échéance (réglage admin) ; null = pas d'alerte anticipée
+  subscription: { renew_notice_days: number | null; state: 'active' | 'pending' | 'suspended' | 'expired' | 'none'; ends_at: string | null; days_left: number | null; kind: 'subscription' | 'commission'; pending_kind: string | null };
 }
 
 interface ProducerLayoutProps {
@@ -48,11 +49,12 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
 
       // État de l'abonnement (RLS : le marchand lit ses propres lignes) + enseigne (merchant_profiles, gérée par l'admin)
       const today = new Date().toISOString().slice(0, 10);
-      const [{ data: subs }, { data: profile }, { data: formula }] = await Promise.all([
+      const [{ data: subs }, { data: profile }, { data: formula }, { data: notice }] = await Promise.all([
         supabase.from('merchant_subscriptions').select('status, ends_at, created_at')
           .eq('user_id', user.id).order('created_at', { ascending: false }),
         supabase.from('merchant_profiles').select('shop_name').eq('user_id', user.id).maybeSingle(),
         supabase.from('merchant_formulas').select('kind, status, pending_kind').eq('user_id', user.id).maybeSingle(),
+        supabase.from('app_settings').select('value_num').eq('key', 'merchant.reminder_first_days').maybeSingle(),
       ]);
       // Règle unique d'état, partagée avec le serveur (lib/merchant-state)
       const { state, active, days_left, kind } = merchantState(subs || [], (formula as any) || null, today);
@@ -63,7 +65,7 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
         full_name: meta.full_name || req?.full_name || user.email || '',
         farm_name: profile?.shop_name || req?.farm_name || meta.shop_name || meta.full_name || t('producer.default_shop', 'Ma boutique'),
         region: req?.region || '',
-        subscription: { state, ends_at: active?.ends_at || null, days_left, kind, pending_kind: formula?.pending_kind || null },
+        subscription: { renew_notice_days: notice?.value_num != null ? Number(notice.value_num) : null, state, ends_at: active?.ends_at || null, days_left, kind, pending_kind: formula?.pending_kind || null },
       });
       setLoading(false);
     };
@@ -106,6 +108,7 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
 
   const sub = producer.subscription;
   const dateFr = (d: string | null) => d ? new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  const soon = sub.renew_notice_days != null && sub.days_left != null && sub.days_left <= sub.renew_notice_days;   // échéance proche
   const toCommission = sub.pending_kind === 'commission';   // bascule programmée : pas de rappel de renouvellement
   const banner =
     sub.state === 'active' && sub.kind === 'commission'
@@ -114,7 +117,7 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
       ? { cls: 'bg-red-50 border-red-200 text-red-700', text: `⏸️ ${t('producer.com_suspended', 'Boutique suspendue — vos produits ne sont pas visibles. Contactez-nous au 77 43 26 15.')}` }
     : sub.state === 'active' && toCommission
       ? { cls: 'bg-green-50 border-green-200 text-green-800', text: `✅ ${t('producer.sub_active', 'Abonnement actif jusqu\'au')} ${dateFr(sub.ends_at)} · 🤝 ${t('producer.com_scheduled', 'passage à la commission ensuite')}` }
-    : sub.state === 'active' && sub.days_left != null && sub.days_left <= 7
+    : sub.state === 'active' && soon
       ? { cls: 'bg-amber-50 border-amber-200 text-amber-800', text: `⏳ ${t('producer.sub_expiring', 'Votre abonnement expire le')} ${dateFr(sub.ends_at)} (${sub.days_left} j). ${t('producer.sub_renew_hint', 'Pensez à le renouveler pour garder vos produits visibles.')}` }
     : sub.state === 'active'
       ? { cls: 'bg-green-50 border-green-200 text-green-800', text: `✅ ${t('producer.sub_active', 'Abonnement actif jusqu\'au')} ${dateFr(sub.ends_at)}` }
@@ -126,7 +129,7 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
   // Lien d'action vers « Mon abonnement » dès que l'abonnement n'est pas simplement actif (sauf sur la page elle-même)
   const bannerLink = pathname !== '/producer/subscription' && sub.state !== 'active'
     ? { href: '/producer/subscription', label: sub.state === 'pending' ? t('producer.sub_link_view', 'Voir ma demande') : sub.state === 'expired' ? t('producer.sub_link_renew', 'Renouveler') : t('producer.formula_link_choose', 'Choisir ma formule') }
-    : pathname !== '/producer/subscription' && sub.state === 'active' && !toCommission && sub.days_left != null && sub.days_left <= 7
+    : pathname !== '/producer/subscription' && sub.state === 'active' && !toCommission && soon
       ? { href: '/producer/subscription', label: t('producer.sub_link_renew', 'Renouveler') }
       : null;
 

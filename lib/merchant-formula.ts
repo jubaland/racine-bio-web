@@ -88,3 +88,27 @@ export async function switchToSubscription(userId: string) {
   if (!existing) return;
   await supabaseAdmin.from('merchant_formulas').update({ kind: 'subscription', status: 'active', pending_kind: null, since: today(), updated_at: new Date().toISOString() }).eq('user_id', userId);
 }
+
+// ── Délais de l'abonnement marchand (admin › Marchands › Plans) ──────────────
+// Aucun chiffre ici : un réglage non défini (null) désactive la fonction correspondante.
+//   merchant.reminder_first_days  → premier rappel avant l'échéance (jours)
+//   merchant.reminder_last_days   → dernier rappel avant l'échéance (jours)
+//   merchant.stale_payment_days   → alerte admin si un paiement déclaré attend depuis ce nombre de jours
+//   merchant.extend_days          → durée du bouton de prolongation rapide (jours)
+export const MERCHANT_DELAY_KEYS = ['reminder_first_days', 'reminder_last_days', 'stale_payment_days', 'extend_days'] as const;
+export type MerchantDelayKey = typeof MERCHANT_DELAY_KEYS[number];
+export type MerchantDelays = Record<MerchantDelayKey, number | null>;
+export const MERCHANT_DELAY_MAX = 365;
+
+export async function merchantDelays(): Promise<MerchantDelays> {
+  const { data } = await supabaseAdmin.from('app_settings').select('key, value_num').in('key', MERCHANT_DELAY_KEYS.map(k => `merchant.${k}`));
+  const v: Record<string, number | null> = Object.fromEntries((data || []).map((r: any) => [r.key, r.value_num != null ? Number(r.value_num) : null]));
+  return Object.fromEntries(MERCHANT_DELAY_KEYS.map(k => [k, v[`merchant.${k}`] ?? null])) as MerchantDelays;
+}
+
+/** Enregistre les délais fournis ; `null` retire le réglage (fonction désactivée). */
+export async function saveMerchantDelays(patch: Partial<MerchantDelays>) {
+  const now = new Date().toISOString();
+  const rows = MERCHANT_DELAY_KEYS.filter(k => k in patch).map(k => ({ key: `merchant.${k}`, value_num: patch[k] ?? null, updated_at: now }));
+  if (rows.length) await supabaseAdmin.from('app_settings').upsert(rows, { onConflict: 'key' });
+}

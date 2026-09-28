@@ -40,6 +40,8 @@ test('admin › Marchands › Plans : réglage de la formule commission', async 
   await expect(page.getByText(/Formule commission/).first()).toBeVisible();
   await expect(page.getByText(/Taux général/).first()).toBeVisible();
   await expect(page.getByText(/Plans d'abonnement/).first()).toBeVisible();
+  await expect(page.getByText(/Rappels et délais/).first()).toBeVisible();
+  await expect(page.getByText(/Prolongation rapide/).first()).toBeVisible();
   await expectNoOverflow(page, 'Marchands › Plans');
 });
 

@@ -18,9 +18,11 @@ type Merchant = {
   formula: { kind: 'subscription' | 'commission'; chosen: 'subscription' | 'commission'; rate: number; custom_rate: number | null; pending_kind: string | null; status: string; since: string | null };
 };
 type Commission = { enabled: boolean; rate: number | null };
+type DelayKey = 'reminder_first_days' | 'reminder_last_days' | 'stale_payment_days' | 'extend_days';
+type Delays = Record<DelayKey, number | null>;
 type PendingProduct = { id: number; name: string; price: number; old_price: number | null; unit: string; image_url: string | null; created_at: string; description: string | null; category: string | null; product_type: string | null; origin_country: string | null; region: string | null; stock_qty: number | null; is_local: boolean | null; merchant: { id: string; name: string } };
 type Req = { id: string; email: string; farm_name: string; full_name: string | null; region: string | null; products_description: string | null; created_at: string };
-type Data = { merchants: Merchant[]; pending_payments: Sub[]; pending_products: PendingProduct[]; plans: Plan[]; requests: Req[]; commission: Commission };
+type Data = { merchants: Merchant[]; pending_payments: Sub[]; pending_products: PendingProduct[]; plans: Plan[]; requests: Req[]; commission: Commission; delays: Delays };
 
 const fdj = (n: number) => `${Math.round(Number(n)).toLocaleString('fr-FR')} Fdj`;
 const dateFr = (d: string | null) => d ? new Date(d.length === 10 ? d + 'T00:00:00' : d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
@@ -43,6 +45,8 @@ export default function AdminMerchants() {
   const [comRate, setComRate] = useState('');
   const [comEnabled, setComEnabled] = useState(false);
   const [comSaved, setComSaved] = useState(false);
+  const [delays, setDelays] = useState<Record<DelayKey, string>>({ reminder_first_days: '', reminder_last_days: '', stale_payment_days: '', extend_days: '' });
+  const [delaysSaved, setDelaysSaved] = useState(false);
 
   const token = async () => {
     let { data: { session } } = await supabase.auth.getSession();
@@ -54,7 +58,7 @@ export default function AdminMerchants() {
     try {
       const res = await fetch('/api/admin/merchants', { headers: { Authorization: `Bearer ${await token()}` } });
       const j = await res.json();
-      if (res.ok) { setData(j); setComRate(j.commission?.rate != null ? String(j.commission.rate) : ''); setComEnabled(j.commission?.rate != null && !!j.commission?.enabled); }
+      if (res.ok) { setData(j); setComRate(j.commission?.rate != null ? String(j.commission.rate) : ''); setComEnabled(j.commission?.rate != null && !!j.commission?.enabled); setDelays(Object.fromEntries(Object.entries(j.delays || {}).map(([k, v]) => [k, v != null ? String(v) : ''])) as Record<DelayKey, string>); }
     } catch { /* ignore */ }
     setLoading(false);
   }, []);
@@ -200,7 +204,7 @@ export default function AdminMerchants() {
                         {canEdit && (
                           <div className="flex flex-wrap gap-1.5">
                             <button onClick={() => { setGrantFor(m); setGrantPlan(data.plans.find(p => p.is_active)?.id ?? null); setGrantMethod('cash'); setGrantRef(''); }} className="text-xs font-semibold bg-[#526500] text-white rounded-lg px-3 py-1.5 hover:bg-[#3a4800]">💳 {m.active ? t('mer.renew', 'Renouveler') : t('mer.activate', 'Activer')}</button>
-                            {m.active && <button disabled={busy === 'x' + m.id} onClick={() => act({ action: 'extend', user_id: m.id, days: 7 }, 'x' + m.id)} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5]">+7 j</button>}
+                            {m.active && data.delays.extend_days != null && <button disabled={busy === 'x' + m.id} title={t('mer.extend_title', 'Prolonger l\'abonnement')} onClick={() => act({ action: 'extend', user_id: m.id }, 'x' + m.id)} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5]">+{data.delays.extend_days} {t('mer.days_short', 'j')}</button>}
                             {f.chosen !== 'commission' && genRate != null && m.state !== 'suspended' && <button disabled={busy === 'f' + m.id} onClick={() => act({ action: 'set_formula', user_id: m.id, kind: 'commission' }, 'f' + m.id, `${t('mer.to_com_confirm', 'Passer ce marchand en formule commission ? Taux appliqué :')} ${appliedRate} %${m.active ? `\n\n${t('mer.to_com_after', 'Son abonnement payé reste valable jusqu\'à son échéance, sans commission ; la commission s\'applique ensuite.')}` : ''}`)} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5] disabled:opacity-50">🤝 {t('mer.to_com', 'Passer en commission')}</button>}
                             {f.chosen === 'commission' && <button disabled={busy === 'f' + m.id} onClick={() => act({ action: 'set_formula', user_id: m.id, kind: 'subscription' }, 'f' + m.id, t('mer.to_sub_confirm', 'Remettre ce marchand en formule abonnement ? Sans période payée en cours, ses produits ne seront plus visibles.'))} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5] disabled:opacity-50">💳 {t('mer.to_sub', 'Passer en abonnement')}</button>}
                             <button disabled={busy === 'rt' + m.id} onClick={() => { const v = prompt(`${t('mer.rate_prompt', 'Taux de commission particulier pour ce marchand, en %. Laissez vide pour appliquer le taux général')}${genRate != null ? ` (${genRate} %)` : ''}. ${t('mer.rate_prompt_note', 'S\'applique aux prochaines commandes.')}`, f.custom_rate != null ? String(f.custom_rate) : ''); if (v !== null) act({ action: 'set_commission_rate', user_id: m.id, rate: v.trim().replace(',', '.') }, 'rt' + m.id); }} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5] disabled:opacity-50">％ {t('mer.rate_btn', 'Taux')}</button>
@@ -237,6 +241,28 @@ export default function AdminMerchants() {
                   {comSaved && <span className="text-xs text-green-700 pb-2">✅ {t('mer.com_saved', 'Enregistré')}</span>}
                 </div>
                 <p className="text-xs text-gray-400 mt-2">{t('mer.com_custom_hint', 'Un taux particulier peut être fixé pour un marchand depuis l\'onglet Marchands (bouton « Taux »).')}</p>
+              </div>
+              {/* Délais de l'abonnement : rappels, alerte paiement, prolongation rapide */}
+              <div className="bg-white rounded-2xl border-2 border-[#d2e095] px-4 py-4 mb-4">
+                <p className="font-semibold text-gray-800">⏰ {t('mer.delays_title', 'Rappels et délais')}</p>
+                <p className="text-xs text-gray-500 mb-3">{t('mer.delays_desc', 'En jours. Laissez un champ vide pour désactiver la fonction correspondante.')}</p>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {([
+                    ['reminder_first_days', t('mer.delay_first', 'Premier rappel avant l\'échéance'), t('mer.delay_first_hint', 'Le marchand est prévenu et le bandeau « expire bientôt » s\'affiche dans son espace.')],
+                    ['reminder_last_days', t('mer.delay_last', 'Dernier rappel avant l\'échéance'), t('mer.delay_last_hint', 'Doit être plus proche de l\'échéance que le premier rappel.')],
+                    ['stale_payment_days', t('mer.delay_stale', 'Alerte : paiement déclaré non traité'), t('mer.delay_stale_hint', 'Vous êtes alerté quand une déclaration attend depuis ce nombre de jours.')],
+                    ['extend_days', t('mer.delay_extend', 'Prolongation rapide'), t('mer.delay_extend_hint', 'Durée ajoutée par le bouton de prolongation de l\'onglet Marchands.')],
+                  ] as [DelayKey, string, string][]).map(([k, label, hint]) => (
+                    <label key={k} className="text-xs text-gray-600">{label}
+                      <input type="number" inputMode="numeric" min={1} step={1} disabled={!canEdit} value={delays[k]} onChange={e => { setDelays({ ...delays, [k]: e.target.value }); setDelaysSaved(false); }} placeholder={t('mer.duration_ph', 'Ex : nombre de jours')} className="block w-full border border-[#d2e095] rounded-xl px-3 py-2 text-sm mt-1" />
+                      <span className="block text-[11px] text-gray-400 mt-1">{hint}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="flex items-center gap-3 mt-3">
+                  {canEdit && <button disabled={busy === 'delays'} onClick={async () => { if (await act({ action: 'save_delays', ...delays }, 'delays')) setDelaysSaved(true); }} className="text-xs font-semibold bg-[#a8c800] text-white rounded-lg px-4 py-2 hover:bg-[#7d9800] disabled:opacity-50">💾 {t('admin.save', 'Enregistrer')}</button>}
+                  {delaysSaved && <span className="text-xs text-green-700">✅ {t('mer.com_saved', 'Enregistré')}</span>}
+                </div>
               </div>
               <p className="font-semibold text-gray-800">💳 {t('mer.plans_title', 'Plans d\'abonnement')}</p>
               {data.plans.map(p => (

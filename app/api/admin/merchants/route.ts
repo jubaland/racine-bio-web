@@ -4,7 +4,7 @@ import { requirePerm } from '../../../../lib/admin-auth';
 import { notifyUser } from '../../../../lib/notify';
 import { sendMerchantEmail } from '../../../../lib/emails';
 import { roleOf } from '../../../../lib/permissions';
-import { merchantState, formulasOf, commissionSettings, saveCommissionSettings, effectiveRate, switchToCommission, switchToSubscription } from '../../../../lib/merchant-formula';
+import { merchantState, formulasOf, commissionSettings, saveCommissionSettings, effectiveRate, switchToCommission, switchToSubscription, merchantDelays, saveMerchantDelays, MERCHANT_DELAY_KEYS, MERCHANT_DELAY_MAX } from '../../../../lib/merchant-formula';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const addDays = (d: string, n: number) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
@@ -68,6 +68,7 @@ export async function GET(request: Request) {
       .map((p: any) => ({ ...p, merchant: { id: p.owner_id, name: shopMap[p.owner_id] ? `${shopMap[p.owner_id]} — ${nameOf(userMap[p.owner_id])}` : nameOf(userMap[p.owner_id]) } })),
     plans: plans || [],
     commission,                                   // { enabled, rate } — réglage général de la formule commission
+    delays: await merchantDelays(),               // rappels, alerte paiement, prolongation rapide (jours ; null = désactivé)
     requests: (reqs || []).filter((r: any) => r.status === 'pending'),
   });
 }
@@ -179,7 +180,10 @@ export async function POST(request: Request) {
 
     if (action === 'extend') {
       const { user_id, days } = body;
-      const n = Math.max(1, Math.min(365, Number(days) || 7));
+      // Durée demandée, sinon celle du réglage « prolongation rapide » ; aucune valeur par défaut
+      const wanted = days != null && days !== '' ? Number(days) : (await merchantDelays()).extend_days;
+      const n = Math.round(Number(wanted));
+      if (!(n >= 1 && n <= MERCHANT_DELAY_MAX)) return NextResponse.json({ error: 'Durée de prolongation non définie' }, { status: 400 });
       const { data: cur } = await supabaseAdmin.from('merchant_subscriptions').select('id, ends_at')
         .eq('user_id', user_id).eq('status', 'active').gte('ends_at', today()).order('ends_at', { ascending: false }).limit(1).maybeSingle();
       if (!cur) return NextResponse.json({ error: 'no_active' }, { status: 409 });
@@ -219,6 +223,24 @@ export async function POST(request: Request) {
         : await supabaseAdmin.from('merchant_plans').insert(row);
       if (error) throw error;
       return NextResponse.json({ ok: true });
+    }
+
+    // Délais : rappels avant échéance, alerte paiement déclaré, prolongation rapide (vide = désactivé)
+    if (action === 'save_delays') {
+      const patch: Record<string, number | null> = {};
+      for (const k of MERCHANT_DELAY_KEYS) {
+        if (!(k in body)) continue;
+        const raw = body[k];
+        if (raw === '' || raw == null) { patch[k] = null; continue; }
+        const n = Number(raw);
+        if (!Number.isInteger(n) || n < 1 || n > MERCHANT_DELAY_MAX) return NextResponse.json({ error: `Valeur invalide (nombre entier de jours, de 1 à ${MERCHANT_DELAY_MAX})`, field: k }, { status: 400 });
+        patch[k] = n;
+      }
+      const next = { ...(await merchantDelays()), ...patch };
+      if (next.reminder_first_days != null && next.reminder_last_days != null && next.reminder_last_days >= next.reminder_first_days)
+        return NextResponse.json({ error: 'Le dernier rappel doit être plus proche de l\'échéance que le premier', field: 'reminder_last_days' }, { status: 400 });
+      await saveMerchantDelays(patch);
+      return NextResponse.json({ ok: true, delays: await merchantDelays() });
     }
 
     // Formule commission : réglage général (proposée ou non, taux en %)
