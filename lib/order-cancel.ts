@@ -71,6 +71,9 @@ export async function executeCancellation(orderId: any): Promise<{ ok: boolean; 
     if (prepEmails.length && updated) await sendOrderCancelledToPreparers(updated, prepEmails);
   } catch (e) { console.error('[cancel] notify failed:', e); }
 
+  // 5 bis) Fidélité : le tampon de cette commande est retiré (s'il n'a pas déjà servi à une récompense)
+  try { const { onOrderCancelled } = await import('./loyalty'); await onOrderCancelled(orderId); } catch { /* ignore */ }
+
   // 6) Clôturer les demandes d'annulation en attente
   await resolvePendingCancelRequests(orderId);
 

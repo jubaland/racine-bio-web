@@ -18,6 +18,7 @@ import AdminFinances from '../../components/admin/AdminFinances';
 import AdminRefunds from '../../components/admin/AdminRefunds';
 import AdminMerchants from '../../components/admin/AdminMerchants';
 import AdminCompanies from '../../components/admin/AdminCompanies';
+import AdminLoyalty from '../../components/admin/AdminLoyalty';
 import AdminPreparers from '../../components/admin/AdminPreparers';
 import AdminWallets from '../../components/admin/AdminWallets';
 import AdminSubscriptions from '../../components/admin/AdminSubscriptions';
@@ -26,7 +27,7 @@ import AdminForecast from '../../components/admin/AdminForecast';
 import { canAccessAdmin, hasPerm, roleOf } from '../../lib/permissions';
 import { AdminPermsProvider } from '../../context/AdminPermsContext';
 
-type Section = 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'preparers' | 'wallets' | 'subscriptions' | 'forecast' | 'requests' | 'users' | 'delivery' | 'notifications' | 'homepage' | 'announcements' | 'finances' | 'refunds' | 'merchants' | 'companies';
+type Section = 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'preparers' | 'wallets' | 'subscriptions' | 'forecast' | 'requests' | 'users' | 'delivery' | 'notifications' | 'homepage' | 'announcements' | 'finances' | 'refunds' | 'merchants' | 'companies' | 'loyalty';
 
 export default function AdminPage() {
   const [user, setUser] = useState<any>(null);
@@ -61,6 +62,7 @@ export default function AdminPage() {
     { id: 'refunds', emoji: '💸', label: t('admin.nav_refunds', 'Remboursements') },
     { id: 'merchants', emoji: '🏪', label: t('admin.nav_merchants', 'Marchands') },
     { id: 'companies', emoji: '🏢', label: t('admin.nav_companies', 'Entreprises') },
+    { id: 'loyalty', emoji: '🎁', label: t('admin.nav_loyalty', 'Fidélité') },
   ];
   // Onglets visibles selon le rôle/droits (admin = tout)
   const visibleNav = NAV_ITEMS.filter(i => hasPerm(meta, i.id, 'view'));
@@ -154,6 +156,7 @@ export default function AdminPage() {
       case 'refunds': return <AdminRefunds />;
       case 'merchants': return <AdminMerchants />;
       case 'companies': return <AdminCompanies />;
+      case 'loyalty': return <AdminLoyalty />;
     }
   };
 

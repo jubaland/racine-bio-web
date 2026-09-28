@@ -473,6 +473,12 @@ export async function PATCH(request: Request) {
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
+  // Fidélité : une commande livrée pose un tampon (et verse la récompense quand le compte est atteint)
+  if (updatedOrder?.status === 'delivered') {
+    const { onOrderDelivered } = await import('../../../lib/loyalty');
+    await onOrderDelivered(updatedOrder.id);
+  }
+
   // Notifier le client — awaité (serverless : le code après le return ne s'exécute pas)
   try {
     let customerEmail: string | null = null;

@@ -59,3 +59,9 @@ test('client sans société : « Mon entreprise » renvoie vers la présentation
   await expect(page.getByText(/Nom de l'établissement/).first()).toBeVisible();
   await expectNoOverflow(page, '/entreprises (connecté)');
 });
+
+test('client : carte de fidélité visible dans le profil', async ({ page }) => {
+  await page.goto('/profile'); await settle(page);
+  await expect(page.getByText(/Ma carte de fidélité/)).toBeVisible();
+  await expectNoOverflow(page, 'profil › carte de fidélité');
+});

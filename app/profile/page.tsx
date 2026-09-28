@@ -6,6 +6,7 @@ import { titleCase } from '../../lib/format';
 import Link from 'next/link';
 import { useLanguage } from '../../context/LanguageContext';
 import { hornafreshWa } from '../../lib/whatsapp';
+import LoyaltyCard from '../../components/LoyaltyCard';
 import { useFavorites } from '../../context/FavoritesContext';
 import { useCart } from '../../context/CartContext';
 import Header from '../../components/Header';
@@ -688,6 +689,8 @@ export default function ProfilePage() {
                 <p className="text-xs text-gray-400 mt-1.5">#{String(orders[0].id).slice(0, 8).toUpperCase()} · {new Date(orders[0].created_at).toLocaleDateString('fr-FR')}</p>
               </button>
             )}
+            {/* Carte de fidélité (masquée si le programme est en pause) */}
+            <LoyaltyCard />
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {([
                 { emoji: '🛒', label: t('profile.qa_shop', 'Commander'), href: '/' },

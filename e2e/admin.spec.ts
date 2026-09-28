@@ -22,6 +22,7 @@ const MODULES: [RegExp, RegExp][] = [
   [/Finances/,   /Finances/],
   [/Promotions/, /Promotions/],
   [/Entreprises/, /Entreprises/],
+  [/Fidélité/, /Fidélité/],
 ];
 
 for (const [button, heading] of MODULES) {
@@ -71,4 +72,12 @@ test('admin › Entreprises : onglets et réglage de la recharge minimale', asyn
   }
   await page.getByRole('button', { name: /Réglages/ }).first().click();
   await expect(page.getByRole('heading', { name: /Recharge minimale des sociétés/ })).toBeVisible();
+});
+
+test('admin › Fidélité : réglages de la carte (sans enregistrer)', async ({ page }) => {
+  await openModule(page, /Fidélité/, /Fidélité/);
+  await expect(page.getByRole('heading', { name: /Réglages de la carte/ })).toBeVisible();
+  await expect(page.getByText(/Récompense versée sur la cagnotte/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Enregistrer' })).toBeVisible();
+  await expectNoOverflow(page, 'Fidélité');
 });
