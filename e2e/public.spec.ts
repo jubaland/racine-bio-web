@@ -16,7 +16,7 @@ test('accueil : catalogue visible, sans erreur ni débordement', async ({ page }
   expect(errors).toEqual([]);
 });
 
-for (const path of ['/become-producer', '/entreprises', '/about', '/login', '/favorites']) {
+for (const path of ['/become-producer', '/entreprises', '/about', '/login', '/favorites', '/achats-groupes']) {
   test(`page publique ${path} : sans débordement`, async ({ page }) => {
     const errors = trackErrors(page);
     await page.goto(path); await settle(page);
@@ -128,5 +128,17 @@ test('recherche tolérante : faute de frappe et autre langue', async ({ page }) 
   await box.fill('zzzzqqqq');
   await expect(page.getByText('Tomate', { exact: true })).toHaveCount(0);
   await expectNoOverflow(page, 'accueil (recherche)');
+});
+
+test('achats groupés : page de présentation et campagne inconnue', async ({ page }) => {
+  const errors = trackErrors(page);
+  await page.addInitScript(() => localStorage.setItem('hf_install_dismissed', '1'));
+  await page.goto('/achats-groupes'); await settle(page);
+  await expect(page.getByRole('heading', { name: /Achats groupés/ }).first()).toBeVisible();
+  await expect(page.getByText(/Vous réservez et payez votre quantité/)).toBeVisible();
+  await page.goto('/achats-groupes/999999999'); await settle(page);
+  await expect(page.getByText(/n'existe pas ou n'est plus disponible/)).toBeVisible({ timeout: 20_000 });
+  await expectNoOverflow(page, '/achats-groupes/inconnue');
+  expect(errors.filter(e => !/404/.test(e))).toEqual([]);
 });
 

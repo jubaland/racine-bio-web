@@ -46,6 +46,10 @@ export default function AdminToday({ onOpen }: { onOpen: (module: string) => voi
     company_deposits:  { emoji: '🏦', text: t('today.company_deposits', 'recharge(s) entreprise à valider') },
     stock_out:         { emoji: '⛔', text: t('today.stock_out', 'produit(s) en rupture') },
     stock_low:         { emoji: '⚠️', text: t('today.stock_low', 'produit(s) en stock bas') },
+    campaign_payments:       { emoji: '🌍', text: t('today.campaign_payments', 'paiement(s) d\'achat groupé à confirmer') },
+    campaigns_to_order:      { emoji: '🎯', text: t('today.campaigns_to_order', 'achat(s) groupé(s) à commander au producteur') },
+    campaigns_to_distribute: { emoji: '📦', text: t('today.campaigns_to_distribute', 'achat(s) groupé(s) à distribuer') },
+    campaigns_in_transit:    { emoji: '🚚', text: t('today.campaigns_in_transit', 'achat(s) groupé(s) en route') },
     errors:            { emoji: '🚨', text: t('today.errors', 'erreur(s) du site à examiner') },
   };
   const STYLE: Record<Item['level'], string> = {

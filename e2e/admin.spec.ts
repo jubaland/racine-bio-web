@@ -23,6 +23,7 @@ const MODULES: [RegExp, RegExp][] = [
   [/Promotions/, /Promotions/],
   [/Entreprises/, /Entreprises/],
   [/Fidélité/, /Fidélité/],
+  [/Achats groupés/, /Achats groupés/],
   [/Surveillance/, /Surveillance/],
   [/Aperçu des e-mails/, /Aperçu des e-mails/],
 ];
@@ -137,5 +138,33 @@ test('admin › Aperçu des e-mails : e-mail affiché, changement de langue', as
   await page.getByRole('button', { name: /English/ }).click();
   await expect(page.getByText(/Order #1234 confirmed/)).toBeVisible({ timeout: 30_000 });
   await expectNoOverflow(page, 'Aperçu des e-mails');
+});
+
+test('admin › Achats groupés : onglets, fiche de coût calculée (sans enregistrer)', async ({ page }) => {
+  await openModule(page, /Achats groupés/, /Achats groupés/);
+  for (const tab of ['Producteurs', 'Réglages', 'Campagnes']) {
+    await page.getByRole('button', { name: new RegExp(tab) }).first().click();
+    await page.waitForTimeout(600);
+    await expectNoOverflow(page, `Achats groupés › ${tab}`);
+  }
+  await page.getByRole('button', { name: /Producteurs/ }).first().click();
+  await page.getByRole('button', { name: /Nouveau producteur/ }).click();
+  await expect(page.getByText(/Moyen de paiement du producteur/)).toBeVisible();
+  await expectNoOverflow(page, 'Achats groupés › nouveau producteur');
+  await page.getByRole('button', { name: /Annuler/ }).click();
+
+  // La fiche de coût se calcule à la saisie (s'il existe un producteur pour créer une campagne)
+  await page.getByRole('button', { name: /Campagnes/ }).first().click();
+  const create = page.getByRole('button', { name: /Nouvelle campagne/ });
+  test.skip(!(await create.isVisible().catch(() => false)), 'aucun producteur actif : pas de campagne à créer');
+  await create.click();
+  await page.getByLabel(/Prix du producteur/).fill('20');
+  await page.getByLabel(/Taux de change/).fill('178');
+  await page.getByLabel(/Transport/).fill('400');
+  await expect(page.getByText(/coût de revient/)).toBeVisible();
+  await page.getByLabel(/Marge visée/).fill('20');
+  await expect(page.getByText(/Prix conseillé/)).toBeVisible();
+  await expectNoOverflow(page, 'Achats groupés › nouvelle campagne');
+  await page.getByRole('button', { name: /Annuler/ }).click();
 });
 

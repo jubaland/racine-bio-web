@@ -70,6 +70,12 @@ async function GET_(request: Request) {
     run(async () => add('stock_out', 'products', 'todo', await count('products', q => q.eq('status', 'published').is('owner_id', null).eq('is_bundle', false).lte('stock_qty', 0))));
     if (low != null) run(async () => add('stock_low', 'products', 'info', await count('products', q => q.eq('status', 'published').is('owner_id', null).eq('is_bundle', false).gt('stock_qty', 0).lte('stock_qty', low))));
   }
+  if (can('campaigns')) {
+    run(async () => add('campaign_payments', 'campaigns', 'urgent', await count('campaign_orders', q => q.eq('status', 'pending_payment').eq('payment_method', 'waafi'))));
+    run(async () => add('campaigns_to_order', 'campaigns', 'urgent', await count('campaigns', q => q.eq('status', 'closed'))));
+    run(async () => add('campaigns_to_distribute', 'campaigns', 'todo', await count('campaigns', q => q.in('status', ['arrived', 'distributing']))));
+    run(async () => add('campaigns_in_transit', 'campaigns', 'info', await count('campaigns', q => q.in('status', ['ordered', 'in_transit']))));
+  }
   if (can('monitoring')) run(async () => add('errors', 'monitoring', 'urgent', await count('error_logs', q => q.is('resolved_at', null))));
 
   let today: { orders: number; revenue: number } | null = null;

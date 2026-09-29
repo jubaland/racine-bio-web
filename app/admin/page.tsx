@@ -27,10 +27,11 @@ import AdminForecast from '../../components/admin/AdminForecast';
 import AdminMonitoring from '../../components/admin/AdminMonitoring';
 import AdminEmailPreview from '../../components/admin/AdminEmailPreview';
 import AdminToday from '../../components/admin/AdminToday';
+import AdminCampaigns from '../../components/admin/AdminCampaigns';
 import { canAccessAdmin, hasPerm, roleOf } from '../../lib/permissions';
 import { AdminPermsProvider } from '../../context/AdminPermsContext';
 
-type Section = 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'preparers' | 'wallets' | 'subscriptions' | 'forecast' | 'requests' | 'users' | 'delivery' | 'notifications' | 'homepage' | 'announcements' | 'finances' | 'refunds' | 'merchants' | 'companies' | 'loyalty' | 'monitoring' | 'emails';
+type Section = 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'preparers' | 'wallets' | 'subscriptions' | 'forecast' | 'requests' | 'users' | 'delivery' | 'notifications' | 'homepage' | 'announcements' | 'finances' | 'refunds' | 'merchants' | 'companies' | 'loyalty' | 'monitoring' | 'emails' | 'campaigns';
 
 export default function AdminPage() {
   const [user, setUser] = useState<any>(null);
@@ -66,6 +67,7 @@ export default function AdminPage() {
     { id: 'merchants', emoji: '🏪', label: t('admin.nav_merchants', 'Marchands') },
     { id: 'companies', emoji: '🏢', label: t('admin.nav_companies', 'Entreprises') },
     { id: 'loyalty', emoji: '🎁', label: t('admin.nav_loyalty', 'Fidélité') },
+    { id: 'campaigns', emoji: '🌍', label: t('admin.nav_campaigns', 'Achats groupés') },
     { id: 'monitoring', emoji: '🚨', label: t('admin.nav_monitoring', 'Surveillance') },
     { id: 'emails', emoji: '✉️', label: t('admin.nav_emails', 'Aperçu des e-mails') },
   ];
@@ -73,6 +75,10 @@ export default function AdminPage() {
   const visibleNav = NAV_ITEMS.filter(i => hasPerm(meta, i.id, 'view'));
 
   useEffect(() => {
+    // Canal temps réel du badge : gardé ici pour être fermé au démontage (le retour d'une fonction
+    // asynchrone n'est jamais appelé par React, le canal restait ouvert et sa recréation échouait).
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let alive = true;
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -121,15 +127,18 @@ export default function AdminPage() {
         } catch { /* ignore */ }
       }
 
-      const channel = supabase
+      if (!alive) return;
+      // Un canal du même nom resté ouvert est fermé avant d'en créer un nouveau
+      for (const c of supabase.getChannels().filter(c => c.topic === 'realtime:admin_notifs_badge')) await supabase.removeChannel(c);
+      channel = supabase
         .channel('admin_notifs_badge')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'admin_notifications' },
           () => setUnreadCount(c => c + 1)
         )
         .subscribe();
-      return () => { supabase.removeChannel(channel); };
     };
     init();
+    return () => { alive = false; if (channel) supabase.removeChannel(channel); };
   }, []);
 
   const handleSignOut = async () => {
@@ -162,6 +171,7 @@ export default function AdminPage() {
       case 'merchants': return <AdminMerchants />;
       case 'companies': return <AdminCompanies />;
       case 'loyalty': return <AdminLoyalty />;
+      case 'campaigns': return <AdminCampaigns />;
       case 'monitoring': return <AdminMonitoring />;
       case 'emails': return <AdminEmailPreview />;
     }

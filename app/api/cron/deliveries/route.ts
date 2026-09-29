@@ -94,7 +94,11 @@ async function GET_(request: Request) {
   }
   const reminders = await runReminders();
   const companies = await runCompanies(true);
-  return NextResponse.json({ date: todayStr, dow, due: due.length, results, reminders, companies });
+  // 6. Achats groupés : clôture des campagnes dont la date limite est passée (seuil atteint ou remboursement)
+  let campaigns: any = [];
+  try { const { closeDueCampaigns } = await import('../../../../lib/campaigns'); campaigns = await closeDueCampaigns(); }
+  catch (e: any) { campaigns = { error: e.message }; }
+  return NextResponse.json({ date: todayStr, dow, due: due.length, results, reminders, companies, campaigns });
 }
 
 async function expireOne(userId: string, frequency: string) {

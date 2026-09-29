@@ -15,6 +15,7 @@ import { HORNAFRESH_WHATSAPP } from '../lib/whatsapp';
 import { supabase } from '../lib/supabase';
 import { useProductSearch } from '../lib/useProductSearch';
 import ReorderLastOrder from './ReorderLastOrder';
+import GroupBuyingTeaser from './GroupBuyingTeaser';
 
 // Lit le rôle directement depuis le jeton stocké (synchrone, sans appel réseau)
 function localRole(): string | null {
@@ -287,6 +288,9 @@ export default function HomePage({ products, categories, promos, producers, sett
           </div>
         </section>
       )}
+
+      {/* Achats groupés à l'import (affiché seulement s'il y en a d'ouverts) */}
+      <GroupBuyingTeaser />
 
       {/* Paniers composés : thématiques & anti-gaspi */}
       {show('home.bundles') && bundleProducts.length > 0 && (
