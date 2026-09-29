@@ -2,13 +2,14 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../lib/supabase-admin';
 import { requirePerm } from '../../../../../lib/admin-auth';
 import { unsettledLines, createPayout, payoutHistory } from '../../../../../lib/merchant-settlement';
+import { monitored } from '../../../../../lib/monitor';
 
 // Reversements aux marchands (Phase 2) — module admin « Marchands → Reversements »
 //   GET                  → { merchants: [{ id, shop, due, lines, oldest }], payouts: [...] }
 //   GET ?user_id=<uuid>  → { lines (dues), payouts } pour un marchand
 //   POST { user_id, method, reference?, note? } → reversement de toutes les lignes dues du marchand
 
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = await requirePerm(request, 'merchants', 'view');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const userId = new URL(request.url).searchParams.get('user_id');
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
   });
 }
 
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   const auth = await requirePerm(request, 'merchants', 'edit');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   let body: any = {};
@@ -48,3 +49,7 @@ export async function POST(request: Request) {
   if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.error === 'nothing_due' ? 409 : 500 });
   return NextResponse.json({ ok: true, payout: r.payout });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/admin/merchants/payouts', GET_);
+export const POST = monitored('/api/admin/merchants/payouts', POST_);

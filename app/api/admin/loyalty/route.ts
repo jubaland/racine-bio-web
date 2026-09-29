@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { requirePerm } from '../../../../lib/admin-auth';
 import { loyaltyStats, saveLoyaltySettings } from '../../../../lib/loyalty';
+import { monitored } from '../../../../lib/monitor';
 
 // Admin › Fidélité — GET : réglages + indicateurs + dernières récompenses ; POST : réglages.
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = await requirePerm(request, 'loyalty', 'view');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const stats = await loyaltyStats();
@@ -14,7 +15,7 @@ export async function GET(request: Request) {
   return NextResponse.json({ ...stats, rewards: stats.rewards.slice(0, 50).map((r: any) => ({ ...r, customer: names[r.user_id] || '—' })) });
 }
 
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   const auth = await requirePerm(request, 'loyalty', 'edit');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   let b: any = {};
@@ -29,3 +30,7 @@ export async function POST(request: Request) {
   await saveLoyaltySettings(patch);
   return NextResponse.json({ ok: true, ...(await loyaltyStats()).settings });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/admin/loyalty', GET_);
+export const POST = monitored('/api/admin/loyalty', POST_);

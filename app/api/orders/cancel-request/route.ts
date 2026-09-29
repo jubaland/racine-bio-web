@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { requirePerm } from '../../../../lib/admin-auth';
+import { monitored } from '../../../../lib/monitor';
 
 // Demandes d'annulation de commande — validées par un administrateur (/cancel-request/resolve).
 // Émetteurs : un gestionnaire (via PATCH /api/orders) ou le CLIENT lui-même (POST ici).
@@ -13,7 +14,7 @@ const userFromToken = async (request: Request) => {
 };
 
 // GET — admin / gestionnaire Commandes : demandes en attente.  GET ?mine=1 — client : ses demandes en attente.
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const url = new URL(request.url);
   if (url.searchParams.get('mine') === '1') {
     const user = await userFromToken(request);
@@ -49,7 +50,7 @@ export async function GET(request: Request) {
 }
 
 // POST { order_id } — le CLIENT demande l'annulation complète de sa commande (validation admin).
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   const user = await userFromToken(request);
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   let order_id: any;
@@ -85,3 +86,7 @@ export async function POST(request: Request) {
   } catch { /* ignore */ }
   return NextResponse.json({ ok: true, pending_validation: true });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/orders/cancel-request', GET_);
+export const POST = monitored('/api/orders/cancel-request', POST_);

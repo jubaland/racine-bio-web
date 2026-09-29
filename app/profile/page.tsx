@@ -11,6 +11,7 @@ import { useFavorites } from '../../context/FavoritesContext';
 import { useCart } from '../../context/CartContext';
 import Header from '../../components/Header';
 import CartDrawer from '../../components/CartDrawer';
+import ReorderDialog from '../../components/ReorderDialog';
 
 interface OrderItem {
   id: string;
@@ -522,28 +523,9 @@ export default function ProfilePage() {
     setReqBusy(null);
   };
 
-  const reorder = async (order: Order) => {
-    setReorderMsg('');
-    setReordering(order.id);
-    try {
-      const ids = (order.order_items || []).map(i => i.product_id);
-      const { data: prods } = await supabase.from('products').select('*').in('id', ids).eq('status', 'published');
-      const pmap: Record<number, any> = Object.fromEntries((prods || []).map((p: any) => [p.id, p]));
-      let added = 0;
-      for (const it of (order.order_items || [])) {
-        const p = pmap[it.product_id];
-        if (!p || (p.stock_qty ?? 0) <= 0) continue;
-        addItem(p);
-        updateQuantity(p.id, Math.min(it.quantity, p.stock_qty));
-        added++;
-      }
-      if (added === 0) { setReorderMsg(t('profile.reorder_none', 'Aucun article de cette commande n\'est disponible actuellement.')); setReordering(null); return; }
-      window.location.href = '/checkout';
-    } catch {
-      setReorderMsg(t('profile.reorder_err', 'Erreur, réessayez.'));
-      setReordering(null);
-    }
-  };
+  // Recommander : récapitulatif (disponibilité, quantités, prix du jour) avant d'aller au paiement
+  const [reorderOf, setReorderOf] = useState<Order | null>(null);
+  const reorder = (order: Order) => { setReorderMsg(''); setReorderOf(order); };
 
   // Télécharge le reçu PDF de la commande
   const downloadReceipt = async (order: Order) => {
@@ -1084,6 +1066,7 @@ export default function ProfilePage() {
         <div id="section-orders" className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">📦 {t('profile.my_orders', 'Mes commandes')}</h3>
           {reorderMsg && <p className="mb-3 text-xs text-[#f97316] bg-[#fff3e8] rounded-xl px-3 py-2">⚠️ {reorderMsg}</p>}
+          {reorderOf && <ReorderDialog orderId={reorderOf.id} items={(reorderOf.order_items || []) as any} onClose={() => setReorderOf(null)} />}
           {reqMsg && <p className={`mb-3 text-xs rounded-xl px-3 py-2 ${reqMsg.startsWith('✅') ? 'text-green-700 bg-green-50' : 'text-[#f97316] bg-[#fff3e8]'}`}>{reqMsg}</p>}
 
           {ordersError ? (

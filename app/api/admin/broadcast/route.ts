@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { requirePerm } from '../../../../lib/admin-auth';
 import { notifyAllUsers, previewAllUsers } from '../../../../lib/notify';
+import { monitored } from '../../../../lib/monitor';
 
 // GET — historique des annonces diffusées (admin)
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = await requirePerm(request, ['announcements'], 'view');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
@@ -19,7 +20,7 @@ export async function GET(request: Request) {
 }
 
 // POST — diffuse une annonce : bandeau sur le site + push PWA à tous les abonnés
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   const auth = await requirePerm(request, ['announcements'], 'create');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
@@ -69,7 +70,7 @@ export async function POST(request: Request) {
 }
 
 // DELETE — désactive l'annonce courante (retire le bandeau du site)
-export async function DELETE(request: Request) {
+async function DELETE_(request: Request) {
   const auth = await requirePerm(request, ['announcements'], 'create');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
@@ -77,3 +78,8 @@ export async function DELETE(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/admin/broadcast', GET_);
+export const POST = monitored('/api/admin/broadcast', POST_);
+export const DELETE = monitored('/api/admin/broadcast', DELETE_);

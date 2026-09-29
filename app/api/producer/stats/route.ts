@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { requireMerchant } from '../../../../lib/producer-auth';
+import { monitored } from '../../../../lib/monitor';
 
 // Espace marchand — statistiques de ventes par produit
 //   GET /api/producer/stats?period=30d|month|year|all
 // Ventes = commandes non annulées ; « livré » = commandes livrées. Montants = prix × quantité.
 
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = await requireMerchant(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const period = new URL(request.url).searchParams.get('period') || '30d';
@@ -46,3 +47,6 @@ export async function GET(request: Request) {
   const list = Object.values(rows).map((r: any) => ({ ...r, orders: r.orders.size })).sort((a: any, b: any) => b.revenue - a.revenue || a.name.localeCompare(b.name));
   return NextResponse.json({ period, totals, products: list, top: list.find((r: any) => r.qty > 0)?.name || null });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/producer/stats', GET_);

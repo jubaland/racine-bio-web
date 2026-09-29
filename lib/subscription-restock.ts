@@ -116,7 +116,7 @@ export async function remindTomorrow(todayStr: string, opts: { onlyUser?: string
     if (kind !== 'ok') {
       try {
         const email = await emailOf(userId);
-        if (email) { const { sendSubscriptionReminder } = await import('./emails'); await sendSubscriptionReminder(email, { label: labels, dateStr: fmtDate(tomorrow), total, balance, missing, stockNote, empty: kind === 'empty' }); }
+        if (email) { const { sendSubscriptionReminder } = await import('./emails'); const { langOfUser } = await import('./i18n-server'); await sendSubscriptionReminder(email, { label: labels, dateStr: fmtDate(tomorrow), total, balance, missing, stockNote, empty: kind === 'empty' }, { lang: await langOfUser(userId), labelParam: labelsP, noteParam: noteP, dateIso: tomorrow }); }
       } catch (e) { console.error('[restock] email:', e); }
     }
     for (const s of subs) await supabaseAdmin.from('subscriptions').update({ reminder_sent_for: tomorrow }).eq('user_id', userId).eq('frequency', s.frequency);
@@ -162,7 +162,7 @@ export async function resumeAfterTopUp(userId: string) {
         i18n: { key: next ? 'restock.resumed_next' : 'restock.resumed', params: { label: { key: `freq.${s.frequency}`, fr: label }, date: next ? { date: next, weekday: true } : null, total: fdj(total) } },
       });
       const email = await emailOf(userId);
-      if (email) { const { sendSubscriptionResumed } = await import('./emails'); await sendSubscriptionResumed(email, label, next ? fmtDate(next) : null, total); }
+      if (email) { const { sendSubscriptionResumed } = await import('./emails'); const { langOfUser } = await import('./i18n-server'); await sendSubscriptionResumed(email, label, next ? fmtDate(next) : null, total, { lang: await langOfUser(userId), labelParam: { key: `freq.${s.frequency}`, fr: label }, dateIso: next }); }
     } catch (e) { console.error('[restock] resume notify:', e); }
   }
   return resumed;

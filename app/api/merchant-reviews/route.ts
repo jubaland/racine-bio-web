@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabase-admin';
 import { canReviewMerchant, refreshMerchantRating } from '../../../lib/merchant-reviews';
+import { monitored } from '../../../lib/monitor';
 
 // Avis clients par marchand
 //   GET  ?owner=<uuid>                     → { avg, count, reviews: [{name, rating, comment, date}], mine, eligible }
@@ -13,7 +14,7 @@ async function getUser(request: Request) {
   return user || null;
 }
 
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const owner = new URL(request.url).searchParams.get('owner') || '';
   if (!/^[0-9a-f-]{36}$/i.test(owner)) return NextResponse.json({ error: 'owner requis' }, { status: 400 });
   const [{ data: profile }, { data: rows }] = await Promise.all([
@@ -28,7 +29,7 @@ export async function GET(request: Request) {
   return NextResponse.json({ ...base, mine: mine || null, eligible });
 }
 
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   const user = await getUser(request);
   if (!user) return NextResponse.json({ error: 'Connexion requise' }, { status: 401 });
   let body: any = {};
@@ -51,9 +52,14 @@ export async function POST(request: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     try {
       const { notifyUser } = await import('../../../lib/notify');
-      await notifyUser(owner, { title: `⭐ Nouvel avis client : ${rating}/5`, body: `${firstName || 'Un client'} a noté ${profile.shop_name} ${rating}/5${comment ? ` : « ${comment.slice(0, 120)}${comment.length > 120 ? '…' : ''} »` : ''}.`, url: '/producer/dashboard' });
+      await notifyUser(owner, { title: `⭐ Nouvel avis client : ${rating}/5`, body: `${firstName || 'Un client'} a noté ${profile.shop_name} ${rating}/5${comment ? ` : « ${comment.slice(0, 120)}${comment.length > 120 ? '…' : ''} »` : ''}.`, url: '/producer/dashboard',
+        i18n: { key: 'm.review', params: { rating, who: firstName ? String(firstName) : { key: 'm.a_customer', fr: 'Un client' }, shop: profile.shop_name, comment: comment ? ` : « ${comment.slice(0, 120)}${comment.length > 120 ? '…' : ''} »` : '' } } });
     } catch { /* ignore */ }
   }
   const agg = await refreshMerchantRating(owner);
   return NextResponse.json({ ok: true, updated: !!existing, ...agg });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/merchant-reviews', GET_);
+export const POST = monitored('/api/merchant-reviews', POST_);

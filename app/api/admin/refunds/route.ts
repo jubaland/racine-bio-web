@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { requirePerm } from '../../../../lib/admin-auth';
 import { notifyUser } from '../../../../lib/notify';
+import { monitored } from '../../../../lib/monitor';
 
 // GET — journal des remboursements (à effectuer + effectués)
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = await requirePerm(request, ['refunds', 'wallets'], 'view');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
@@ -30,7 +31,7 @@ export async function GET(request: Request) {
 //   action 'waafi'  → marqué remboursé par Waafi (effectué)
 //   action 'wallet' → crédite la cagnotte du client (avoir) puis effectué
 //   action 'reject' → rejeté (aucun remboursement dû)
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   const auth = await requirePerm(request, ['refunds', 'wallets'], 'edit');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
@@ -93,3 +94,7 @@ export async function POST(request: Request) {
   }
   return NextResponse.json({ ok: true, status: 'done', method: 'manual' });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/admin/refunds', GET_);
+export const POST = monitored('/api/admin/refunds', POST_);

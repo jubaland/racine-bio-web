@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { sendDepositApproved } from '../../../../lib/emails';
 import { requirePerm } from '../../../../lib/admin-auth';
+import { monitored } from '../../../../lib/monitor';
 
 // Liste des demandes de recharge — récentes d'abord, en attente en tête
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = await requirePerm(request, 'wallets', 'view');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { data, error } = await supabaseAdmin
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
 }
 
 // Valider ou refuser une demande
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   const auth = await requirePerm(request, 'wallets', 'edit');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { id, action, note } = await request.json();
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
     // Notifs client — awaitées (serverless)
     try {
       const { data: u } = await supabaseAdmin.auth.admin.getUserById(req.user_id);
-      if (u?.user?.email) await sendDepositApproved(u.user.email, Number(req.amount), Number(bal));
+      if (u?.user?.email) { const { langOfUser } = await import('../../../../lib/i18n-server'); await sendDepositApproved(u.user.email, Number(req.amount), Number(bal), await langOfUser(req.user_id)); }
     } catch (e) { console.error('[deposit approve] email error:', e); }
     try {
       const { notifyUser: sendPushToUser } = await import('../../../../lib/notify'); // cloche + push
@@ -69,3 +70,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ error: 'action invalide' }, { status: 400 });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/admin/deposit-requests', GET_);
+export const POST = monitored('/api/admin/deposit-requests', POST_);

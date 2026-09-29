@@ -1,5 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabase-admin';
+import { monitored } from '../../../lib/monitor';
 
 const CHARSET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -9,7 +10,7 @@ function generateCode(): string {
   return code;
 }
 
-export async function GET(request: NextRequest) {
+async function GET_(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   if (!authHeader?.startsWith('Bearer ')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -66,7 +67,7 @@ export async function GET(request: NextRequest) {
 }
 
 // Valider un code parrainage (pas d'auth requise)
-export async function POST(request: NextRequest) {
+async function POST_(request: NextRequest) {
   try {
     const { code, user_id } = await request.json();
     if (!code) return NextResponse.json({ valid: false, error: 'Code requis' });
@@ -87,3 +88,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ valid: false, error: 'Erreur serveur' }, { status: 500 });
   }
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/referral', GET_);
+export const POST = monitored('/api/referral', POST_);

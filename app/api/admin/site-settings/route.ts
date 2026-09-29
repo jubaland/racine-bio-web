@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { requirePerm } from '../../../../lib/admin-auth';
+import { monitored } from '../../../../lib/monitor';
 
 // Réglages d'affichage du site (admin / gestionnaire avec droit "Page d'accueil").
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = await requirePerm(request, 'homepage', 'view');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { data, error } = await supabaseAdmin.from('site_settings').select('key, value');
@@ -13,7 +14,7 @@ export async function GET(request: Request) {
   return NextResponse.json({ settings });
 }
 
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   const auth = await requirePerm(request, 'homepage', 'edit');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { key, value } = await request.json();
@@ -25,3 +26,7 @@ export async function POST(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/admin/site-settings', GET_);
+export const POST = monitored('/api/admin/site-settings', POST_);

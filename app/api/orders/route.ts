@@ -4,9 +4,11 @@ import { sendOrderConfirmation, sendNewOrderAlert, sendStatusUpdate, sendPrepSli
 import { requirePerm } from '../../../lib/admin-auth';
 import { executeCancellation } from '../../../lib/order-cancel';
 import { roleOf } from '../../../lib/permissions';
+import { cleanLang, langOfOrder } from '../../../lib/i18n-server';
+import { monitored } from '../../../lib/monitor';
 
 // POST — crée commande + articles avec vérification et décrémentation du stock
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   try {
     const body = await request.json();
     const { ref_code, use_referral_credit } = body;
@@ -30,6 +32,7 @@ export async function POST(request: Request) {
       special_instructions: rawOrder.special_instructions ?? null,
       status: 'pending',
       payment_method: rawOrder.payment_method,
+      lang: cleanLang(rawOrder.lang),                          // langue choisie à la commande (invités compris)
       phone: rawOrder.phone ?? null, email: rawOrder.email ?? null,
       address: rawOrder.address ?? null, customer_name: rawOrder.customer_name ?? null,
     };
@@ -321,24 +324,26 @@ export async function POST(request: Request) {
           if (p?.owner_id) (byOwner[p.owner_id] ||= []).push(`${item.quantity} ${p.unit || ''} ${p.name}`.replace(/\s+/g, ' ').trim());
         }
         if (Object.keys(byOwner).length) {
-          const { sendMerchantEmail } = await import('../../../lib/emails');
+          const { notifyWithEmail } = await import('../../../lib/notify');
           // Mode e-mail du marchand : 'instant' = un e-mail par commande ; 'daily' = récapitulatif du cron (cloche + push restent immédiats)
           const { data: modes } = await supabaseAdmin.from('merchant_profiles').select('user_id, email_mode').in('user_id', Object.keys(byOwner));
           const modeOf: Record<string, string> = Object.fromEntries((modes || []).map((m: any) => [m.user_id, m.email_mode || 'instant']));
           for (const [ownerId, lines] of Object.entries(byOwner)) {
             const title = `🛍️ Nouvelle commande #${createdOrder.id}`;
             const text = `À fournir à Hornafresh : ${lines.join(', ')}. Suivez la commande dans « Mes commandes ».`;
-            await notifyUser(ownerId, { title, body: text, url: '/producer/orders' });
-            if (modeOf[ownerId] === 'daily') continue;
-            const { data: mu } = await supabaseAdmin.auth.admin.getUserById(ownerId);
-            if (mu?.user?.email) await sendMerchantEmail(mu.user.email, `Nouvelle commande #${createdOrder.id} — Hornafresh`, title, text).catch(() => {});
+            // cloche + push toujours ; e-mail seulement en mode « un e-mail par commande »
+            await notifyWithEmail(ownerId, { title, body: text, url: '/producer/orders',
+              subject: modeOf[ownerId] === 'daily' ? null : `Nouvelle commande #${createdOrder.id} — Hornafresh`,
+              i18n: { key: 'm.new_order', params: { id: createdOrder.id, lines: lines.join(', ') } } }).catch(() => {});
           }
         }
       } catch (e) { console.error('[orders] merchant notify:', e); }
 
-      // Alertes stock bas (seuil : 5 unités) — Hornafresh pour ses produits, le marchand pour les siens.
+      // Alertes stock bas — Hornafresh pour ses produits, le marchand pour les siens. Seuil : réglage
+      // stock.low_threshold (sans réglage, seule la rupture est signalée).
       // Basées sur les variations réellement appliquées (composants d'un panier inclus).
-      const LOW = 5;
+      const { data: lowSetting } = await supabaseAdmin.from('app_settings').select('value_num').eq('key', 'stock.low_threshold').maybeSingle();
+      const LOW = lowSetting?.value_num != null ? Number(lowSetting.value_num) : 0;
       type StockItem = { name: string; newStock: number; wasAbove: boolean; owner: string | null };
       const lowAll: StockItem[] = stockChanges
         .map(c => ({ name: c.name, newStock: c.after, wasAbove: c.before > LOW, owner: c.owner_id }))
@@ -349,6 +354,7 @@ export async function POST(request: Request) {
             title: p.newStock === 0 ? `⛔ Rupture — ${p.name}` : `⚠️ Stock bas — ${p.name}`,
             body: p.newStock === 0 ? 'Votre produit est en rupture : il n\'est plus commandable. Mettez le stock à jour dans « Mes produits ».' : `Plus que ${p.newStock} en stock. Pensez à réapprovisionner dans « Mes produits ».`,
             url: '/producer/products',
+            i18n: { key: p.newStock === 0 ? 'm.stock_out' : 'm.stock_low', params: { name: p.name, n: p.newStock } },
           });
         } catch { /* ignore */ }
       }
@@ -388,7 +394,7 @@ export async function POST(request: Request) {
         await sendNewOrderAlert(createdOrder, emailItems, customerEmail);
         console.log('[email] admin alert sent');
         if (customerEmail) {
-          await sendOrderConfirmation(createdOrder, emailItems, customerEmail);
+          await sendOrderConfirmation(createdOrder, emailItems, customerEmail, await langOfOrder(createdOrder));
           console.log('[email] customer confirmation sent');
         }
         // Bordereau de préparation → tous les préparateurs actifs
@@ -409,7 +415,7 @@ export async function POST(request: Request) {
 }
 
 // GET — toutes les commandes avec articles (admin / gestionnaire "Commandes")
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = await requirePerm(request, 'orders', 'view');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { data, error } = await supabaseAdmin
@@ -429,7 +435,7 @@ export async function GET(request: Request) {
 }
 
 // PATCH — modifier le statut. Annulation : admin = immédiate ; gestionnaire = demande à valider.
-export async function PATCH(request: Request) {
+async function PATCH_(request: Request) {
   const auth = await requirePerm(request, 'orders', 'edit');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { id, status } = await request.json();
@@ -490,7 +496,7 @@ export async function PATCH(request: Request) {
     } else {
       customerEmail = updatedOrder?.email ?? null; // commande invité
     }
-    if (customerEmail) await sendStatusUpdate(updatedOrder, customerEmail);
+    if (customerEmail) await sendStatusUpdate(updatedOrder, customerEmail, await langOfOrder(updatedOrder));
 
     // Push — uniquement pour les utilisateurs connectés (les invités n'ont pas d'abonnement)
     if (updatedOrder?.user_id) {
@@ -517,3 +523,8 @@ export async function PATCH(request: Request) {
 
   return NextResponse.json({ ok: true });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const POST = monitored('/api/orders', POST_);
+export const GET = monitored('/api/orders', GET_);
+export const PATCH = monitored('/api/orders', PATCH_);

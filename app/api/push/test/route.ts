@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import webpush from 'web-push';
+import { monitored } from '../../../../lib/monitor';
 
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   try {
     const auth = request.headers.get('Authorization');
     const token = auth?.replace('Bearer ', '');
@@ -49,3 +50,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const POST = monitored('/api/push/test', POST_);

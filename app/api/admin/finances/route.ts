@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { commissionOf } from '../../../../lib/merchant-formula';
 import { requirePerm } from '../../../../lib/admin-auth';
+import { monitored } from '../../../../lib/monitor';
 
 // GET /api/admin/finances?period=month|30d|year|all
 // Indicateurs financiers basés sur les commandes LIVRÉES.
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = await requirePerm(request, ['finances'], 'view');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
@@ -128,3 +129,6 @@ export async function GET(request: Request) {
     missingCost,
   });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/admin/finances', GET_);

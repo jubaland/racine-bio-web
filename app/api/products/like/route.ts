@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
+import { monitored } from '../../../../lib/monitor';
 
 async function getUser(request: Request) {
   const token = (request.headers.get('authorization') || '').replace('Bearer ', '').trim();
@@ -27,7 +28,7 @@ async function countLikes(productId: number) {
 
 // GET ?mine=1 : { liked: number[], eligible: number[] } pour l'utilisateur courant.
 // Permet à l'accueil de connaître l'état de tous les produits en UNE requête.
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const url = new URL(request.url);
 
   if (url.searchParams.get('mine')) {
@@ -75,7 +76,7 @@ export async function GET(request: Request) {
 }
 
 // POST { product_id } : bascule le like (réservé aux clients éligibles)
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   const user = await getUser(request);
   if (!user) return NextResponse.json({ error: 'Connexion requise' }, { status: 401 });
 
@@ -101,3 +102,7 @@ export async function POST(request: Request) {
   await supabaseAdmin.from('products').update({ likes_count: count }).eq('id', productId);
   return NextResponse.json({ liked: !existing, count });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/products/like', GET_);
+export const POST = monitored('/api/products/like', POST_);

@@ -7,6 +7,7 @@ import { FavoritesProvider } from '../context/FavoritesContext';
 import ServiceWorkerRegister from '../components/ServiceWorkerRegister';
 import InstallAppPrompt from '../components/InstallAppPrompt';
 import AnnouncementBanner from '../components/AnnouncementBanner';
+import ErrorReporter from '../components/ErrorReporter';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -37,6 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <AnnouncementBanner />
               {children}
               <InstallAppPrompt />
+              <ErrorReporter />
             </FavoritesProvider>
           </CartProvider>
         </LanguageProvider>

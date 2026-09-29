@@ -2,13 +2,14 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { requirePerm } from '../../../../lib/admin-auth';
 import { todayStr, createPromotion, promoState } from '../../../../lib/promotions';
+import { monitored } from '../../../../lib/monitor';
 
 // Admin — promotions planifiées sur les produits (module Promotions → onglet « Prix promo produits »)
 //   GET  → { today, products (Hornafresh publiés), promotions (toutes, avec produit + enseigne + état) }
 //   POST { product_id, promo_price, starts_at, ends_at } → promotion Hornafresh (produit sans propriétaire)
 //   POST { action: 'cancel', id }                        → annulation (Hornafresh ou marchand — modération)
 
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = await requirePerm(request, ['promos', 'products'], 'view');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const day = todayStr();
@@ -30,7 +31,7 @@ export async function GET(request: Request) {
   });
 }
 
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   const auth = await requirePerm(request, ['promos', 'products'], 'edit');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   let body: any = {};
@@ -45,7 +46,8 @@ export async function POST(request: Request) {
       try {
         const { notifyUser } = await import('../../../../lib/notify');
         const { data: prod } = await supabaseAdmin.from('products').select('name').eq('id', p.product_id).maybeSingle();
-        await notifyUser(p.owner_id, { title: '🏷️ Promotion annulée par Hornafresh', body: `La promotion sur « ${prod?.name || 'votre produit'} » a été annulée${body.note ? ` : ${String(body.note).slice(0, 200)}` : ''}. Le prix normal s'applique.`, url: '/producer/promotions' });
+        await notifyUser(p.owner_id, { title: '🏷️ Promotion annulée par Hornafresh', body: `La promotion sur « ${prod?.name || 'votre produit'} » a été annulée${body.note ? ` : ${String(body.note).slice(0, 200)}` : ''}. Le prix normal s'applique.`, url: '/producer/promotions',
+          i18n: { key: 'm.promo_cancelled', params: { name: prod?.name ? String(prod.name) : { key: 'm.your_product', fr: 'votre produit' }, note: body.note ? ` : ${String(body.note).slice(0, 200)}` : '' } } });
       } catch { /* ignore */ }
     }
     return NextResponse.json({ ok: true });
@@ -54,3 +56,7 @@ export async function POST(request: Request) {
   if ('error' in r) return NextResponse.json({ error: r.error }, { status: r.status });
   return NextResponse.json({ ok: true, promotion: r.promotion });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/admin/promotions', GET_);
+export const POST = monitored('/api/admin/promotions', POST_);

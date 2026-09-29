@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { requirePerm } from '../../../../lib/admin-auth';
+import { monitored } from '../../../../lib/monitor';
 
 // Liste de tous les abonnements, enrichis client + panier + solde.
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = await requirePerm(request, 'subscriptions', 'view');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { data: subs, error } = await supabaseAdmin
@@ -64,7 +65,7 @@ export async function GET(request: Request) {
 }
 
 // Actions admin : pause / resume / delete / set_fee
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   const auth = await requirePerm(request, 'subscriptions', 'edit');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { user_id, frequency, action, fee } = await request.json();
@@ -96,3 +97,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ error: 'action invalide' }, { status: 400 });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/admin/subscriptions', GET_);
+export const POST = monitored('/api/admin/subscriptions', POST_);

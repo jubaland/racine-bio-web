@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabase-admin';
 import { cleanLang } from '../../../lib/i18n-server';
+import { monitored } from '../../../lib/monitor';
 
 // POST { lang, endpoint? } — enregistre la langue choisie par le client :
 //   • sur son compte s'il est connecté (user_prefs) → cloche et notifications ;
 //   • sur son appareil s'il est abonné aux notifications push (push_subscriptions.lang).
 // Appelé par le navigateur au changement de langue et à la connexion. Sans effet pour un visiteur
 // anonyme sans abonnement push.
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   try {
     const { lang, endpoint } = await request.json();
     const l = cleanLang(lang);
@@ -35,3 +36,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const POST = monitored('/api/lang', POST_);

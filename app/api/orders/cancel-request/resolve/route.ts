@@ -4,9 +4,10 @@ import { requirePerm } from '../../../../../lib/admin-auth';
 import { roleOf } from '../../../../../lib/permissions';
 import { executeCancellation } from '../../../../../lib/order-cancel';
 import { notifyUser } from '../../../../../lib/notify';
+import { monitored } from '../../../../../lib/monitor';
 
 // POST { request_id, action: 'approve' | 'reject' } — validation ADMIN uniquement.
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   const auth = await requirePerm(request, 'orders', 'edit');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   // Seul un administrateur peut valider une annulation (pas un gestionnaire).
@@ -65,3 +66,6 @@ export async function POST(request: Request) {
   }
   return NextResponse.json({ ok: true, status: 'rejected' });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const POST = monitored('/api/orders/cancel-request/resolve', POST_);

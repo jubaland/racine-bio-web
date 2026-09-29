@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { requirePerm } from '../../../../lib/admin-auth';
+import { monitored } from '../../../../lib/monitor';
 
 async function getUser(request: Request) {
   const token = (request.headers.get('authorization') || '').replace('Bearer ', '').trim();
@@ -10,7 +11,7 @@ async function getUser(request: Request) {
 }
 
 // POST { order_id, item_id, new_quantity } — le client demande un retrait/réduction.
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   const user = await getUser(request);
   if (!user) return NextResponse.json({ error: 'Connexion requise' }, { status: 401 });
 
@@ -69,7 +70,7 @@ export async function POST(request: Request) {
 }
 
 // GET — demandes en attente (admin / gestionnaire Commandes)
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = await requirePerm(request, 'orders', 'view');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
@@ -91,3 +92,7 @@ export async function GET(request: Request) {
   const requests = (reqs || []).map((r: any) => ({ ...r, order: orderMap[r.order_id] || null }));
   return NextResponse.json({ requests });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const POST = monitored('/api/orders/change-request', POST_);
+export const GET = monitored('/api/orders/change-request', GET_);

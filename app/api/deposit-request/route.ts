@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabase-admin';
 import { sendDepositRequestAlert } from '../../../lib/emails';
+import { monitored } from '../../../lib/monitor';
 
 // Le client crée une demande de recharge (validée ensuite par l'admin).
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   try {
     const token = (request.headers.get('authorization') || '').replace('Bearer ', '').trim();
     if (!token) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
@@ -38,3 +39,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: e?.message || 'Erreur serveur' }, { status: 500 });
   }
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const POST = monitored('/api/deposit-request', POST_);

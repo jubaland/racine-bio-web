@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { sendPasswordReset } from '../../../../lib/emails';
+import { monitored } from '../../../../lib/monitor';
 
 // Réinitialisation de mot de passe : génère le lien côté serveur et envoie un
 // e-mail localisé (Resend) dans la langue de l'utilisateur.
 // Réponse toujours générique (anti-énumération des comptes).
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   try {
     const { email, lang, origin } = await request.json();
     const addr = String(email || '').trim().toLowerCase();
@@ -34,3 +35,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   }
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const POST = monitored('/api/auth/reset', POST_);

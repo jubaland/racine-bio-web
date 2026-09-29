@@ -3,7 +3,9 @@ import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { sendPrepSlipToPreparers, sendOrderConfirmation, sendSubscriptionPaused, sendSubscriptionExpired } from '../../../../lib/emails';
 
 import { FREQ_LABEL, isDue } from '../../../../lib/subscription-schedule';
+import { langOfUser } from '../../../../lib/i18n-server';
 import { computeTemplateOrder, remindTomorrow } from '../../../../lib/subscription-restock';
+import { monitored } from '../../../../lib/monitor';
 
 // Génération automatique des livraisons d'abonnement + rappel de la veille (réassort intelligent).
 // Appelé chaque jour par Vercel Cron (voir vercel.json).
@@ -11,7 +13,7 @@ import { computeTemplateOrder, remindTomorrow } from '../../../../lib/subscripti
 //   ?user=<uuid>     → restreint le rappel J-1 à un client (tests)
 //   ?dry=1           → rappel J-1 calculé sans rien envoyer
 
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = request.headers.get('authorization');
   if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
@@ -102,7 +104,7 @@ async function expireOne(userId: string, frequency: string) {
   const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId);
   const email = userData?.user?.email || null;
   const label = FREQ_LABEL[frequency] || frequency;
-  try { if (email) await sendSubscriptionExpired(email, label); } catch {}
+  try { if (email) await sendSubscriptionExpired(email, label, { lang: await langOfUser(userId), labelParam: { key: `freq.${frequency}`, fr: label } }); } catch {}
   try {
     const { notifyUser: sendPushToUser } = await import('../../../../lib/notify'); // cloche + push
     await sendPushToUser(userId, { title: '⏳ Abonnement à renouveler', body: `Votre commande modèle ${label} est arrivée à échéance.`, url: '/abonnement', i18n: { key: 'sub.expired', params: { label: { key: `freq.${frequency}`, fr: label } } } });
@@ -131,7 +133,7 @@ async function processOne(userId: string, frequency: string, todayStr: string, f
     // Pause « solde insuffisant » : levée automatiquement à la prochaine recharge (resumeAfterTopUp)
     await supabaseAdmin.from('subscriptions').update({ paused: true, paused_reason: 'low_balance', updated_at: new Date().toISOString() })
       .eq('user_id', userId).eq('frequency', frequency);
-    try { if (email) await sendSubscriptionPaused(email, total, balance); } catch {}
+    try { if (email) await sendSubscriptionPaused(email, total, balance, await langOfUser(userId)); } catch {}
     try {
       const { notifyUser: sendPushToUser } = await import('../../../../lib/notify'); // cloche + push
       await sendPushToUser(userId, { title: '⏸️ Cagnotte à recharger', body: `Votre livraison ${label} est en pause (solde insuffisant).`, url: '/abonnement', i18n: { key: 'sub.paused', params: { label: { key: `freq.${frequency}`, fr: label } } } });
@@ -182,7 +184,7 @@ async function processOne(userId: string, frequency: string, todayStr: string, f
     const { data: preparers } = await supabaseAdmin.from('preparers').select('email').eq('is_active', true);
     const prepEmails = (preparers || []).map((p: any) => p.email).filter(Boolean);
     if (prepEmails.length) await sendPrepSlipToPreparers(order, emailItems, prepEmails);
-    if (email) await sendOrderConfirmation(order, emailItems, email);
+    if (email) await sendOrderConfirmation(order, emailItems, email, await langOfUser(userId));
   } catch {}
 
   // Push livraison
@@ -193,3 +195,6 @@ async function processOne(userId: string, frequency: string, todayStr: string, f
 
   return { ordered: order.id, total };
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/cron/deliveries', GET_);

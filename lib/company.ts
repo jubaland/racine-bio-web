@@ -70,7 +70,8 @@ export async function memberIds(companyId: number, roles: CompanyRole[] = ['mana
 }
 
 /** Notifie (cloche + push) les membres d'une société ayant l'un des rôles. */
-export async function notifyCompany(companyId: number, roles: CompanyRole[], payload: { title: string; body?: string; url?: string }) {
+// i18n : modèle traduit (srv.c.*) — chaque membre reçoit le message dans la langue de son compte
+export async function notifyCompany(companyId: number, roles: CompanyRole[], payload: { title: string; body?: string; url?: string; i18n?: { key: string; params?: Record<string, any> } }) {
   const { notifyUser } = await import('./notify');
   for (const id of await memberIds(companyId, roles)) {
     try { await notifyUser(id, { url: '/entreprise', ...payload }); } catch (e) { console.error('[company] notify:', e); }

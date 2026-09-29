@@ -13,6 +13,8 @@ import BundleMosaic from './BundleMosaic';
 import WhatsAppButton from './WhatsAppButton';
 import { HORNAFRESH_WHATSAPP } from '../lib/whatsapp';
 import { supabase } from '../lib/supabase';
+import { useProductSearch } from '../lib/useProductSearch';
+import ReorderLastOrder from './ReorderLastOrder';
 
 // Lit le rôle directement depuis le jeton stocké (synchrone, sans appel réseau)
 function localRole(): string | null {
@@ -78,6 +80,8 @@ export default function HomePage({ products, categories, promos, producers, sett
   }, []);
   const [activeOrigin, setActiveOrigin] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  // Recherche tolérante (fautes de frappe, accents) dans toutes les langues
+  const { filter: searchFilter } = useProductSearch(products);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [promoOnly, setPromoOnly] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
@@ -146,15 +150,13 @@ export default function HomePage({ products, categories, promos, producers, sett
     promos.filter((p: any) => p.active !== false && p.category).map((p: any) => p.category)
   );
 
-  const filteredProducts = products.filter(p => {
+  // Recherche d'abord (résultats classés par pertinence), puis filtres
+  const filteredProducts = searchFilter(products, searchQuery).filter(p => {
     const catMatch = activeCategory === 'all' || p.category === activeCategory;
     const typeMatch = activeType === 'all' || p.product_type === activeType;
     const originMatch = activeOrigin === 'all' || p.origin_country === activeOrigin;
-    const searchMatch = searchQuery === '' ||
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.farm && p.farm.toLowerCase().includes(searchQuery.toLowerCase()));
     const promoMatch = !promoOnly || promoCategories.has(p.category);
-    return catMatch && typeMatch && originMatch && searchMatch && promoMatch;
+    return catMatch && typeMatch && originMatch && promoMatch;
   });
 
   const localProducts = products.filter(p => p.is_local && !p.is_bundle); // les paniers ont leur propre bloc
@@ -199,6 +201,9 @@ export default function HomePage({ products, categories, promos, producers, sett
           </div>
         </Link>
       )}
+
+      {/* Raccourci : commander à nouveau la dernière commande (client connecté) */}
+      <ReorderLastOrder />
 
       {/* Hero */}
       <section className="bg-gradient-to-br from-[#1c3a05] via-[#2d6410] to-[#7a5800] text-white py-3 px-4 md:px-6">
@@ -525,10 +530,7 @@ export default function HomePage({ products, categories, promos, producers, sett
             >✕</button>
           )}
           {showSuggestions && searchQuery.trim().length >= 1 && (() => {
-            const sugg = products.filter(p =>
-              p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              (p.farm && p.farm.toLowerCase().includes(searchQuery.toLowerCase()))
-            ).slice(0, 6);
+            const sugg = searchFilter(products, searchQuery).slice(0, 6);
             return sugg.length > 0 ? (
               <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#d2e095] rounded-xl shadow-xl z-30 overflow-hidden">
                 {sugg.map((p: any) => (

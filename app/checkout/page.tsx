@@ -32,7 +32,7 @@ const ADDR_LABEL_TKEYS: Record<string, string> = {
 
 export default function CheckoutPage() {
   const { items, total, clearCart, updateQuantity, removeItem } = useCart();
-  const { ui, deliveryOptionTranslations } = useLanguage();
+  const { ui, deliveryOptionTranslations, currentLang } = useLanguage();
   const t = (key: string, fallback: string) => ui[key] || fallback;
   const addrLabelText = (lbl: string) => ADDR_LABEL_TKEYS[lbl] ? t(ADDR_LABEL_TKEYS[lbl], lbl) : lbl;
   // Affichage traduit des options de livraison (la valeur FR de la DB reste le fallback / la source)
@@ -327,6 +327,7 @@ export default function CheckoutPage() {
             delivery_option_name:  selectedDelivery?.name ?? null,
             special_instructions:  sentenceCase(specialInstructions) || null,
             status:               'pending',
+            lang:                 currentLang,                     // langue des e-mails et notifications de cette commande
             payment_method:       paymentMethod,
             phone:   '77' + phoneDigits,
             email:   isGuest && email.trim() ? email.trim().toLowerCase() : null,

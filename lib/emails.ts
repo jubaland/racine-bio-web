@@ -1,18 +1,32 @@
 import { Resend } from 'resend';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { buildPrepSlipPdf } from './pdf';
+import { mailer, type Mailer, type Param } from './i18n-server';
+
+// E-mails. Ceux adressés aux clients et aux marchands partent dans la langue du destinataire
+// (paramètre `lang` ; modèles mail.* dans ui_translations, le français écrit ici sert de repli).
+// Ceux adressés à l'équipe (admin, préparateurs) restent en français.
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+// Aperçu : dans previewEmails(), les e-mails sont capturés au lieu d'être envoyés (admin › aperçu, tests).
+type Mail = { from: string; to: string | string[]; subject: string; html: string; attachments?: { filename: string; content: Buffer }[] };
+const capture = new AsyncLocalStorage<Mail[]>();
+async function deliver(mail: Mail) {
+  const box = capture.getStore();
+  if (box) { box.push(mail); return; }
+  await resend.emails.send(mail);
+}
+/** Exécute `fn` sans rien envoyer et renvoie les e-mails qu'elle aurait envoyés. */
+export async function previewEmails(fn: () => Promise<unknown>): Promise<Mail[]> {
+  const box: Mail[] = [];
+  await capture.run(box, fn);
+  return box;
+}
+
 const FROM = 'Hornafresh <noreply@hornafresh.com>';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL!;
-
-const STATUS_LABELS: Record<string, string> = {
-  pending:    '⏳ En attente',
-  processing: '🚚 En cours de préparation',
-  shipping:   '📦 Expédié',
-  delivered:  '✅ Livré',
-  cancelled:  '❌ Annulé',
-};
+const SITE = 'https://www.hornafresh.com';
 
 const PAYMENT_LABELS: Record<string, string> = {
   waafi:  '📱 Waafi',
@@ -21,10 +35,13 @@ const PAYMENT_LABELS: Record<string, string> = {
   wallet: '💰 Cagnotte (prépayé)',
 };
 
-function baseLayout(content: string) {
+const fdjFr = (n: number) => `${Number(n).toLocaleString('fr-FR')} Fdj`;
+
+function baseLayout(content: string, M?: Mailer) {
+  const tagline = M ? M.m('tagline', 'Le marché bio de Djibouti') : 'Le marché bio de Djibouti';
   return `
     <!DOCTYPE html>
-    <html lang="fr">
+    <html lang="${M?.lang || 'fr'}">
     <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
     <body style="margin:0;padding:0;background:#f8faf0;font-family:Arial,sans-serif;">
       <div style="max-width:600px;margin:32px auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #dde8b0;">
@@ -32,7 +49,7 @@ function baseLayout(content: string) {
         <div style="background:#526500;padding:24px 32px;text-align:center;">
           <p style="margin:0;font-size:28px;">🌿</p>
           <h1 style="margin:8px 0 0;color:#ffffff;font-size:22px;font-weight:bold;letter-spacing:1px;">Hornafresh</h1>
-          <p style="margin:4px 0 0;color:#c5d87a;font-size:12px;">Le marché bio de Djibouti</p>
+          <p style="margin:4px 0 0;color:#c5d87a;font-size:12px;">${tagline}</p>
         </div>
         <!-- Content -->
         <div style="padding:32px;">
@@ -48,9 +65,10 @@ function baseLayout(content: string) {
   `;
 }
 
-function itemsTable(items: any[]) {
+function itemsTable(items: any[], M?: Mailer) {
+  const m = M ? M.m : ((_k: string, fr: string) => fr);
   const rows = items.map(item => {
-    const name  = item.product_name  || `Produit #${item.product_id}`;
+    const name  = item.product_name  || `${m('product', 'Produit')} #${item.product_id}`;
     const unit  = item.product_unit  || '';
     const pu    = `${Number(item.price).toLocaleString('fr-FR')} Fdj${unit}`;
     const subtotal = (item.price * item.quantity).toLocaleString('fr-FR');
@@ -70,10 +88,10 @@ function itemsTable(items: any[]) {
     <table style="width:100%;border-collapse:collapse;">
       <thead>
         <tr>
-          <th style="text-align:left;padding-bottom:8px;color:#6b7280;font-size:11px;font-weight:normal;border-bottom:2px solid #dde8b0;">Produit</th>
-          <th style="text-align:right;padding-bottom:8px;color:#6b7280;font-size:11px;font-weight:normal;border-bottom:2px solid #dde8b0;">P.U.</th>
-          <th style="text-align:center;padding-bottom:8px;color:#6b7280;font-size:11px;font-weight:normal;border-bottom:2px solid #dde8b0;">Qté</th>
-          <th style="text-align:right;padding-bottom:8px;color:#6b7280;font-size:11px;font-weight:normal;border-bottom:2px solid #dde8b0;">Sous-total</th>
+          <th style="text-align:left;padding-bottom:8px;color:#6b7280;font-size:11px;font-weight:normal;border-bottom:2px solid #dde8b0;">${m('col_product', 'Produit')}</th>
+          <th style="text-align:right;padding-bottom:8px;color:#6b7280;font-size:11px;font-weight:normal;border-bottom:2px solid #dde8b0;">${m('col_unit_price', 'P.U.')}</th>
+          <th style="text-align:center;padding-bottom:8px;color:#6b7280;font-size:11px;font-weight:normal;border-bottom:2px solid #dde8b0;">${m('col_qty', 'Qté')}</th>
+          <th style="text-align:right;padding-bottom:8px;color:#6b7280;font-size:11px;font-weight:normal;border-bottom:2px solid #dde8b0;">${m('col_subtotal', 'Sous-total')}</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -85,19 +103,26 @@ function itemsTable(items: any[]) {
 export async function sendOrderConfirmation(
   order: any,
   items: any[],
-  customerEmail: string
+  customerEmail: string,
+  lang?: string | null,
 ) {
+  const M = await mailer(lang); const m = M.m;
   const shortId = String(order.id).slice(0, 8).toUpperCase();
   const isWaafi = order.payment_method === 'waafi';
   const subtotal = items.reduce((s, it) => s + Number(it.price) * it.quantity, 0);
   const deliveryFee = order.delivery_fee != null ? order.delivery_fee : Math.max(0, Number(order.total) - subtotal);
-  const fmtDate = new Date(order.created_at).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' });
+  const fmtDate = M.date(order.created_at, { dateStyle: 'long', timeStyle: 'short' });
+  const pay: Record<string, string> = {
+    waafi: '📱 Waafi', dmoney: '💳 D-Money',
+    cash: `💵 ${m('pay_cash', 'Espèces (à la livraison)')}`, wallet: `💰 ${m('pay_wallet', 'Cagnotte (prépayé)')}`,
+    company_wallet: `🏢 ${m('pay_company_wallet', 'Cagnotte de la société')}`,
+  };
 
   const waafiBlock = isWaafi ? `
     <div style="background:#e8f5e0;border:1px solid #a8c800;border-radius:12px;padding:16px;margin:20px 0;">
-      <p style="margin:0 0 8px;font-weight:bold;color:#526500;">📱 Paiement Waafi à effectuer</p>
+      <p style="margin:0 0 8px;font-weight:bold;color:#526500;">📱 ${m('waafi_todo', 'Paiement Waafi à effectuer')}</p>
       <p style="margin:0 0 8px;color:#374151;font-size:14px;">
-        Envoyez <strong>${Number(order.total).toLocaleString('fr-FR')} Fdj</strong> au numéro :
+        ${m('waafi_send', 'Envoyez {amount} au numéro :', { amount: `<strong>${fdjFr(order.total)}</strong>` })}
       </p>
       <p style="margin:0;font-size:28px;font-weight:bold;color:#526500;text-align:center;letter-spacing:4px;">77432615</p>
       <p style="margin:8px 0 0;color:#6b7280;font-size:12px;text-align:center;">Hornafresh — Djibouti</p>
@@ -105,28 +130,28 @@ export async function sendOrderConfirmation(
   ` : '';
 
   const html = baseLayout(`
-    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">Commande confirmée 🎉</h2>
-    <p style="margin:0 0 24px;color:#6b7280;font-size:14px;">Référence : <strong>#${shortId}</strong> · ${fmtDate}</p>
+    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">${m('order_confirmed', 'Commande confirmée')} 🎉</h2>
+    <p style="margin:0 0 24px;color:#6b7280;font-size:14px;">${m('reference', 'Référence')} : <strong>#${shortId}</strong> · ${fmtDate}</p>
 
-    ${itemsTable(items)}
+    ${itemsTable(items, M)}
 
     <div style="background:#f8faf0;border-radius:12px;padding:8px 0;margin:20px 0;">
       <table style="width:100%;border-collapse:collapse;">
         <tr>
-          <td style="padding:8px 16px 4px;color:#6b7280;font-size:14px;">Sous-total</td>
-          <td style="padding:8px 16px 4px;text-align:right;color:#374151;font-size:14px;">${Number(subtotal).toLocaleString('fr-FR')} Fdj</td>
+          <td style="padding:8px 16px 4px;color:#6b7280;font-size:14px;">${m('col_subtotal', 'Sous-total')}</td>
+          <td style="padding:8px 16px 4px;text-align:right;color:#374151;font-size:14px;">${fdjFr(subtotal)}</td>
         </tr>
         <tr>
-          <td style="padding:4px 16px;color:#6b7280;font-size:14px;">🚚 Livraison${order.delivery_option_name ? ` (${order.delivery_option_name})` : ''}</td>
-          <td style="padding:4px 16px;text-align:right;font-size:14px;color:${deliveryFee === 0 ? '#16a34a' : '#374151'};">${deliveryFee === 0 ? 'Offerte' : `${Number(deliveryFee).toLocaleString('fr-FR')} Fdj`}</td>
+          <td style="padding:4px 16px;color:#6b7280;font-size:14px;">🚚 ${m('delivery', 'Livraison')}${order.delivery_option_name ? ` (${order.delivery_option_name})` : ''}</td>
+          <td style="padding:4px 16px;text-align:right;font-size:14px;color:${deliveryFee === 0 ? '#16a34a' : '#374151'};">${deliveryFee === 0 ? m('free', 'Offerte') : fdjFr(deliveryFee)}</td>
         </tr>
         <tr>
-          <td style="padding:4px 16px;color:#6b7280;font-size:14px;">Mode de paiement</td>
-          <td style="padding:4px 16px;text-align:right;color:#374151;font-size:14px;">${PAYMENT_LABELS[order.payment_method] || order.payment_method}</td>
+          <td style="padding:4px 16px;color:#6b7280;font-size:14px;">${m('payment_method', 'Mode de paiement')}</td>
+          <td style="padding:4px 16px;text-align:right;color:#374151;font-size:14px;">${pay[order.payment_method] || order.payment_method}</td>
         </tr>
         <tr>
-          <td style="padding:10px 16px 8px;border-top:1px solid #dde8b0;color:#1f2937;font-weight:bold;font-size:16px;">Total</td>
-          <td style="padding:10px 16px 8px;border-top:1px solid #dde8b0;text-align:right;color:#526500;font-weight:bold;font-size:18px;">${Number(order.total).toLocaleString('fr-FR')} Fdj</td>
+          <td style="padding:10px 16px 8px;border-top:1px solid #dde8b0;color:#1f2937;font-weight:bold;font-size:16px;">${m('total', 'Total')}</td>
+          <td style="padding:10px 16px 8px;border-top:1px solid #dde8b0;text-align:right;color:#526500;font-weight:bold;font-size:18px;">${fdjFr(order.total)}</td>
         </tr>
       </table>
     </div>
@@ -135,26 +160,26 @@ export async function sendOrderConfirmation(
 
     ${order.special_instructions ? `
     <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:12px;padding:14px;margin:20px 0;">
-      <p style="margin:0 0 4px;font-weight:bold;color:#b45309;font-size:13px;">📝 Demande spéciale</p>
+      <p style="margin:0 0 4px;font-weight:bold;color:#b45309;font-size:13px;">📝 ${m('special_request', 'Demande spéciale')}</p>
       <p style="margin:0;color:#92400e;font-size:14px;">${order.special_instructions}</p>
     </div>` : ''}
 
     <div style="background:#f0f7e0;border-radius:12px;padding:16px;margin:20px 0;">
-      <p style="margin:0 0 4px;color:#6b7280;font-size:12px;">Livraison à</p>
+      <p style="margin:0 0 4px;color:#6b7280;font-size:12px;">${m('deliver_to', 'Livraison à')}</p>
       <p style="margin:0;color:#374151;font-size:14px;font-weight:bold;">${order.customer_name}</p>
       <p style="margin:4px 0 0;color:#374151;font-size:13px;">📍 ${order.address}</p>
       <p style="margin:4px 0 0;color:#374151;font-size:13px;">📞 ${order.phone}</p>
     </div>
 
     <p style="color:#6b7280;font-size:13px;margin:24px 0 0;">
-      Notre équipe vous contactera pour confirmer la livraison. Merci pour votre confiance !
+      ${m('order_thanks', 'Notre équipe vous contactera pour confirmer la livraison. Merci pour votre confiance !')}
     </p>
-  `);
+  `, M);
 
-  await resend.emails.send({
+  await deliver({
     from: FROM,
     to: customerEmail,
-    subject: `✅ Commande #${shortId} confirmée — Hornafresh`,
+    subject: `✅ ${m('subject_order_confirmed', 'Commande #{id} confirmée — Hornafresh', { id: shortId })}`,
     html,
   });
 }
@@ -207,7 +232,7 @@ export async function sendNewOrderAlert(order: any, items: any[], customerEmail:
     </p>
   `);
 
-  await resend.emails.send({
+  await deliver({
     from: FROM,
     to: ADMIN_EMAIL,
     subject: `🛍️ Nouvelle commande #${shortId} — ${Number(order.total).toLocaleString('fr-FR')} Fdj`,
@@ -216,28 +241,28 @@ export async function sendNewOrderAlert(order: any, items: any[], customerEmail:
 }
 
 // ── 3. Mise à jour statut → client ────────────────────────────────────────────
-export async function sendStatusUpdate(order: any, customerEmail: string) {
+export async function sendStatusUpdate(order: any, customerEmail: string, lang?: string | null) {
+  const M = await mailer(lang); const m = M.m;
   const shortId = String(order.id).slice(0, 8).toUpperCase();
-  const statusLabel = STATUS_LABELS[order.status] || order.status;
-  // Sépare l'emoji du texte au PREMIER espace (les emojis ont des longueurs
-  // variables en JS : ✅/⏳/❌ = 1 caractère, 🚚/📦 = 2). Un slice fixe coupait
-  // la 1ʳᵉ lettre du libellé (« ✅ Livré » → « ivré »).
-  const _sp = statusLabel.indexOf(' ');
-  const statusEmoji = _sp > 0 ? statusLabel.slice(0, _sp) : '';
-  const statusText  = _sp > 0 ? statusLabel.slice(_sp + 1) : statusLabel;
+  const EMOJI: Record<string, string> = { pending: '⏳', processing: '🚚', shipping: '📦', delivered: '✅', cancelled: '❌' };
+  const LABEL: Record<string, string> = {
+    pending: m('status_pending', 'En attente'), processing: m('status_processing', 'En cours de préparation'),
+    shipping: m('status_shipping', 'Expédié'), delivered: m('status_delivered', 'Livré'), cancelled: m('status_cancelled', 'Annulé'),
+  };
+  const statusEmoji = EMOJI[order.status] || '';
+  const statusText = LABEL[order.status] || order.status;
 
   const messages: Record<string, string> = {
-    processing: "Votre commande est en cours de préparation. Nous vous contacterons dès qu'elle est prête.",
-    shipping:   'Votre commande est en route ! Notre livreur vous contactera pour la remise.',
-    delivered:  'Votre commande a été livrée. Merci pour votre confiance et à bientôt !',
-    cancelled:  'Votre commande a été annulée. Contactez-nous si vous avez des questions.',
+    processing: m('status_msg_processing', "Votre commande est en cours de préparation. Nous vous contacterons dès qu'elle est prête."),
+    shipping:   m('status_msg_shipping', 'Votre commande est en route ! Notre livreur vous contactera pour la remise.'),
+    delivered:  m('status_msg_delivered', 'Votre commande a été livrée. Merci pour votre confiance et à bientôt !'),
+    cancelled:  m('status_msg_cancelled', 'Votre commande a été annulée. Contactez-nous si vous avez des questions.'),
   };
-
-  const message = messages[order.status] || 'Le statut de votre commande a été mis à jour.';
+  const message = messages[order.status] || m('status_msg_default', 'Le statut de votre commande a été mis à jour.');
 
   const html = baseLayout(`
-    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">Mise à jour de votre commande</h2>
-    <p style="margin:0 0 24px;color:#6b7280;font-size:14px;">Référence : <strong>#${shortId}</strong></p>
+    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">${m('status_title', 'Mise à jour de votre commande')}</h2>
+    <p style="margin:0 0 24px;color:#6b7280;font-size:14px;">${m('reference', 'Référence')} : <strong>#${shortId}</strong></p>
 
     <div style="text-align:center;padding:24px;background:#f0f7e0;border-radius:12px;margin-bottom:24px;">
       <p style="margin:0;font-size:32px;">${statusEmoji}</p>
@@ -247,14 +272,14 @@ export async function sendStatusUpdate(order: any, customerEmail: string) {
     <p style="color:#374151;font-size:14px;line-height:1.6;">${message}</p>
 
     <p style="color:#6b7280;font-size:13px;margin-top:24px;">
-      Pour toute question, contactez-nous au <strong>77432615</strong>.
+      ${m('contact_us', 'Pour toute question, contactez-nous au {phone}.', { phone: '<strong>77432615</strong>' })}
     </p>
-  `);
+  `, M);
 
-  await resend.emails.send({
+  await deliver({
     from: FROM,
     to: customerEmail,
-    subject: `${statusLabel} — Commande #${shortId} Hornafresh`,
+    subject: `${statusEmoji} ${statusText} — ${m('subject_order', 'Commande #{id} Hornafresh', { id: shortId })}`,
     html,
   });
 }
@@ -334,7 +359,7 @@ export async function sendPrepSlipToPreparers(order: any, items: any[], emails: 
     console.error('[pdf] bordereau generation failed:', e);
   }
 
-  await resend.emails.send({
+  await deliver({
     from: FROM,
     to: emails,
     subject: isUpdate ? `🔄 Commande modifiée — #${shortId}` : `🧑‍🍳 À préparer — Commande #${shortId}`,
@@ -354,54 +379,59 @@ export async function sendOrderCancelledToPreparers(order: any, emails: string[]
     </div>
     <p style="margin:0;color:#374151;font-size:14px;">Client : <strong>${order.customer_name || '—'}</strong></p>
   `);
-  await resend.emails.send({ from: FROM, to: emails, subject: `❌ Commande annulée — #${shortId}`, html });
+  await deliver({ from: FROM, to: emails, subject: `❌ Commande annulée — #${shortId}`, html });
 }
 
-// ── 4c. Email générique → marchand (abonnement, adhésion) ────────────────────
-export async function sendMerchantEmail(email: string, subject: string, title: string, text: string) {
+// ── 4c. Email générique → marchand ou membre d'entreprise (titre et texte déjà dans sa langue) ─
+export async function sendMerchantEmail(email: string, subject: string, title: string, text: string, lang?: string | null) {
+  const M = await mailer(lang); const m = M.m;
   const html = baseLayout(`
     <h2 style="margin:0 0 12px;color:#1f2937;font-size:20px;">${title}</h2>
     <p style="margin:0 0 20px;color:#374151;font-size:14px;line-height:1.6;">${text}</p>
     <p style="text-align:center;margin:0 0 20px;">
-      <a href="https://www.hornafresh.com/producer/dashboard" style="display:inline-block;background:#a8c800;color:#ffffff;text-decoration:none;padding:12px 26px;border-radius:9999px;font-weight:bold;font-size:14px;">Ouvrir mon espace marchand</a>
+      <a href="${SITE}/producer/dashboard" style="display:inline-block;background:#a8c800;color:#ffffff;text-decoration:none;padding:12px 26px;border-radius:9999px;font-weight:bold;font-size:14px;">${m('open_merchant_space', 'Ouvrir mon espace marchand')}</a>
     </p>
-    <p style="margin:0;color:#6b7280;font-size:13px;">Une question ? <strong>77 43 26 15</strong> — L'équipe Hornafresh</p>
-  `);
-  await resend.emails.send({ from: FROM, to: email, subject, html });
+    <p style="margin:0;color:#6b7280;font-size:13px;">${m('question', 'Une question ?')} <strong>77 43 26 15</strong> — ${m('team', "L'équipe Hornafresh")}</p>
+  `, M);
+  await deliver({ from: FROM, to: email, subject, html });
 }
 
 // ── 4c. Récapitulatif quotidien → marchand (mode e-mail « daily ») ──────────
 export async function sendMerchantDigest(email: string, d: {
   shop: string; new_orders: { id: number; status: string; customer: string; lines: string[]; amount: number }[];
   delivered: number; cancelled: number; amount_new: number; low_stock: { name: string; stock: number; unit: string }[]; due: number; sub_days_left: number | null; commission_rate?: number | null; visible?: boolean;
-}) {
-  const fdj = (n: number) => `${Number(n).toLocaleString('fr-FR')} Fdj`;
-  const STATUS: Record<string, string> = { pending: '⏳ En attente', processing: '🚚 En préparation', shipping: '📦 Expédiée', delivered: '✅ Livrée', cancelled: '❌ Annulée' };
+}, lang?: string | null) {
+  const M = await mailer(lang); const m = M.m;
+  const STATUS: Record<string, string> = {
+    pending: `⏳ ${m('status_pending', 'En attente')}`, processing: `🚚 ${m('status_processing', 'En cours de préparation')}`,
+    shipping: `📦 ${m('status_shipping', 'Expédié')}`, delivered: `✅ ${m('status_delivered', 'Livré')}`, cancelled: `❌ ${m('status_cancelled', 'Annulé')}`,
+  };
   const ordersHtml = d.new_orders.length ? `
-    <h3 style="margin:18px 0 8px;font-size:15px;color:#1f2937;">🛍️ Commandes reçues (${d.new_orders.length}) — ${fdj(d.amount_new)} hors annulées</h3>
+    <h3 style="margin:18px 0 8px;font-size:15px;color:#1f2937;">🛍️ ${m('digest_orders', 'Commandes reçues ({n}) — {amount} hors annulées', { n: d.new_orders.length, amount: fdjFr(d.amount_new) })}</h3>
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
-      ${d.new_orders.map(o => `<tr style="border-bottom:1px solid #eef2e0;"><td style="padding:6px 4px;white-space:nowrap;"><strong>#${o.id}</strong> · ${o.customer}</td><td style="padding:6px 4px;color:#374151;">${o.lines.join(', ')}</td><td style="padding:6px 4px;text-align:right;white-space:nowrap;">${fdj(o.amount)}</td><td style="padding:6px 4px;white-space:nowrap;">${STATUS[o.status] || o.status}</td></tr>`).join('')}
-    </table>` : '<p style="margin:16px 0 0;color:#6b7280;font-size:14px;">Aucune nouvelle commande sur la période.</p>';
+      ${d.new_orders.map(o => `<tr style="border-bottom:1px solid #eef2e0;"><td style="padding:6px 4px;white-space:nowrap;"><strong>#${o.id}</strong> · ${o.customer}</td><td style="padding:6px 4px;color:#374151;">${o.lines.join(', ')}</td><td style="padding:6px 4px;text-align:right;white-space:nowrap;">${fdjFr(o.amount)}</td><td style="padding:6px 4px;white-space:nowrap;">${STATUS[o.status] || o.status}</td></tr>`).join('')}
+    </table>` : `<p style="margin:16px 0 0;color:#6b7280;font-size:14px;">${m('digest_none', 'Aucune nouvelle commande sur la période.')}</p>`;
   const lowHtml = d.low_stock.length ? `
-    <h3 style="margin:18px 0 8px;font-size:15px;color:#b45309;">⚠️ Stock bas</h3>
-    <ul style="margin:0;padding-left:18px;color:#374151;font-size:13px;">${d.low_stock.map(p => `<li>${p.name} : <strong>${p.stock === 0 ? 'rupture' : `${p.stock} ${p.unit}`}</strong></li>`).join('')}</ul>` : '';
+    <h3 style="margin:18px 0 8px;font-size:15px;color:#b45309;">⚠️ ${m('digest_low', 'Stock bas')}</h3>
+    <ul style="margin:0;padding-left:18px;color:#374151;font-size:13px;">${d.low_stock.map(p => `<li>${p.name} : <strong>${p.stock === 0 ? m('digest_out', 'rupture') : `${p.stock} ${p.unit}`}</strong></li>`).join('')}</ul>` : '';
   const html = baseLayout(`
-    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">📬 Votre récapitulatif Hornafresh — ${d.shop}</h2>
-    <p style="margin:0 0 12px;color:#6b7280;font-size:13px;">Depuis votre dernier récapitulatif.</p>
+    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">📬 ${m('digest_title', 'Votre récapitulatif Hornafresh')} — ${d.shop}</h2>
+    <p style="margin:0 0 12px;color:#6b7280;font-size:13px;">${m('digest_since', 'Depuis votre dernier récapitulatif.')}</p>
     ${ordersHtml}
     ${lowHtml}
     <div style="background:#f8faf0;border-radius:12px;padding:14px;margin:18px 0;font-size:13px;color:#374151;">
-      <p style="margin:0;">💸 À vous reverser : <strong>${fdj(d.due)}</strong></p>
-      ${d.sub_days_left != null ? `<p style="margin:6px 0 0;">💳 Abonnement : <strong>${d.sub_days_left} jour(s)</strong> restant(s)</p>`
-        : d.commission_rate != null ? `<p style="margin:6px 0 0;">🤝 Formule commission : <strong>${d.commission_rate} %</strong> retenus sur vos ventes livrées</p>`
-        : '<p style="margin:6px 0 0;color:#b91c1c;">💳 Aucune formule active — vos produits ne sont pas visibles.</p>'}
+      <p style="margin:0;">💸 ${m('digest_due', 'À vous reverser')} : <strong>${fdjFr(d.due)}</strong></p>
+      ${d.sub_days_left != null ? `<p style="margin:6px 0 0;">💳 ${m('digest_sub', 'Abonnement : {n} jour(s) restant(s)', { n: `<strong>${d.sub_days_left}</strong>` })}</p>`
+        : d.commission_rate != null ? `<p style="margin:6px 0 0;">🤝 ${m('digest_com', 'Formule commission : {rate} % retenus sur vos ventes livrées', { rate: `<strong>${d.commission_rate}</strong>` })}</p>`
+        : `<p style="margin:6px 0 0;color:#b91c1c;">💳 ${m('digest_no_formula', 'Aucune formule active — vos produits ne sont pas visibles.')}</p>`}
     </div>
     <p style="text-align:center;margin:0 0 20px;">
-      <a href="https://www.hornafresh.com/producer/orders" style="display:inline-block;background:#a8c800;color:#ffffff;text-decoration:none;padding:12px 26px;border-radius:9999px;font-weight:bold;font-size:14px;">Ouvrir mes commandes</a>
+      <a href="${SITE}/producer/orders" style="display:inline-block;background:#a8c800;color:#ffffff;text-decoration:none;padding:12px 26px;border-radius:9999px;font-weight:bold;font-size:14px;">${m('digest_open', 'Ouvrir mes commandes')}</a>
     </p>
-    <p style="margin:0;color:#9ca3af;font-size:12px;">Vous recevez un récapitulatif quotidien. Pour un e-mail à chaque commande, changez le réglage dans votre tableau de bord marchand.</p>
-  `);
-  await resend.emails.send({ from: FROM, to: email, subject: `📬 Récapitulatif Hornafresh — ${d.new_orders.length} commande(s)${d.low_stock.length ? ` · ${d.low_stock.length} stock(s) bas` : ''}`, html });
+    <p style="margin:0;color:#9ca3af;font-size:12px;">${m('digest_footer', 'Vous recevez un récapitulatif quotidien. Pour un e-mail à chaque commande, changez le réglage dans votre tableau de bord marchand.')}</p>
+  `, M);
+  const low = d.low_stock.length ? ` · ${m('digest_subject_low', '{n} stock(s) bas', { n: d.low_stock.length })}` : '';
+  await deliver({ from: FROM, to: email, subject: `📬 ${m('digest_subject', 'Récapitulatif Hornafresh — {n} commande(s)', { n: d.new_orders.length })}${low}`, html });
 }
 
 // ── 4b. Paiement d'abonnement déclaré par un marchand → admin ────────────────
@@ -417,76 +447,87 @@ export async function sendMerchantPaymentAlert(p: { shop: string; email: string 
     </div>
     <p style="color:#6b7280;font-size:13px;">Vérifiez le paiement reçu, puis confirmez-le dans Admin → Marchands → À traiter.</p>
   `);
-  await resend.emails.send({ from: FROM, to: ADMIN_EMAIL, subject: `💳 Abonnement marchand à confirmer — ${p.shop} (${amt} Fdj)`, html });
+  await deliver({ from: FROM, to: ADMIN_EMAIL, subject: `💳 Abonnement marchand à confirmer — ${p.shop} (${amt} Fdj)`, html });
 }
 
+// Paramètres traduisibles des e-mails de commande modèle (libellé de fréquence, note de stock, date).
+// Absents, les textes français fournis par l'appelant sont utilisés tels quels.
+type SubExtra = { lang?: string | null; labelParam?: Param; noteParam?: Param; dateIso?: string | null };
+
 // ── 5. Abonnement mis en pause (solde insuffisant) → client ──────────────────
-export async function sendSubscriptionPaused(email: string, needed: number, balance: number) {
+export async function sendSubscriptionPaused(email: string, needed: number, balance: number, lang?: string | null) {
+  const M = await mailer(lang); const m = M.m;
   const html = baseLayout(`
-    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">⏸️ Livraison hebdomadaire en pause</h2>
-    <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">Votre cagnotte est insuffisante pour la livraison de cette semaine.</p>
+    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">⏸️ ${m('paused_title', 'Livraison automatique en pause')}</h2>
+    <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">${m('paused_intro', 'Votre cagnotte est insuffisante pour cette livraison.')}</p>
     <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:12px;padding:16px;margin:16px 0;">
-      <p style="margin:0 0 4px;color:#92400e;font-size:14px;">Montant nécessaire : <strong>${Number(needed).toLocaleString('fr-FR')} Fdj</strong></p>
-      <p style="margin:0;color:#92400e;font-size:14px;">Solde actuel : <strong>${Number(balance).toLocaleString('fr-FR')} Fdj</strong></p>
+      <p style="margin:0 0 4px;color:#92400e;font-size:14px;">${m('needed', 'Montant nécessaire')} : <strong>${fdjFr(needed)}</strong></p>
+      <p style="margin:0;color:#92400e;font-size:14px;">${m('balance_now', 'Solde actuel')} : <strong>${fdjFr(balance)}</strong></p>
     </div>
     <p style="color:#374151;font-size:14px;line-height:1.6;">
-      Rechargez votre cagnotte auprès de notre équipe (Waafi / espèces) pour reprendre vos livraisons automatiques.
-      Votre commande modèle est conservée et reprendra dès le rechargement.
+      ${m('paused_text', 'Rechargez votre cagnotte auprès de notre équipe (Waafi / espèces) pour reprendre vos livraisons automatiques. Votre commande modèle est conservée et reprendra dès le rechargement.')}
     </p>
-    <p style="color:#6b7280;font-size:13px;margin-top:24px;">Pour recharger, contactez-nous au <strong>77432615</strong>.</p>
-  `);
-  await resend.emails.send({ from: FROM, to: email, subject: '⏸️ Cagnotte à recharger — Hornafresh', html });
+    <p style="color:#6b7280;font-size:13px;margin-top:24px;">${m('topup_contact', 'Pour recharger, contactez-nous au {phone}.', { phone: '<strong>77432615</strong>' })}</p>
+  `, M);
+  await deliver({ from: FROM, to: email, subject: `⏸️ ${m('subject_paused', 'Cagnotte à recharger — Hornafresh')}`, html });
 }
 
 // ── 5a bis. Rappel de la veille : solde insuffisant ou panier indisponible ─────
-export async function sendSubscriptionReminder(email: string, p: { label: string; dateStr: string; total: number; balance: number; missing: number; stockNote: string; empty: boolean }) {
-  const f = (n: number) => `${Number(n).toLocaleString('fr-FR')} Fdj`;
+export async function sendSubscriptionReminder(email: string, p: { label: string; dateStr: string; total: number; balance: number; missing: number; stockNote: string; empty: boolean }, x: SubExtra = {}) {
+  const M = await mailer(x.lang); const m = M.m;
+  const label = x.labelParam && M.lang !== 'fr' ? m('_p', '{v}', { v: x.labelParam }) : p.label;
+  const note = x.noteParam && M.lang !== 'fr' ? m('_p', '{v}', { v: x.noteParam }) : p.stockNote;
+  const date = x.dateIso && M.lang !== 'fr' ? M.date(x.dateIso, { weekday: 'long', day: 'numeric', month: 'long' }) : p.dateStr;
   const html = baseLayout(p.empty ? `
-    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">⚠️ Livraison de demain : aucun article disponible</h2>
-    <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">Votre commande modèle <strong>${p.label}</strong> est prévue le ${p.dateStr}, mais aucun de ses articles n'est disponible pour le moment.</p>
-    ${p.stockNote ? `<p style="color:#92400e;font-size:14px;">${p.stockNote}</p>` : ''}
-    <p style="color:#374151;font-size:14px;line-height:1.6;">Ajustez votre panier dans « Ma commande modèle » pour recevoir votre livraison.</p>
+    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">⚠️ ${m('remind_empty_title', 'Livraison de demain : aucun article disponible')}</h2>
+    <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">${m('remind_empty_intro', "Votre commande modèle {label} est prévue le {date}, mais aucun de ses articles n'est disponible pour le moment.", { label: `<strong>${label}</strong>`, date })}</p>
+    ${note ? `<p style="color:#92400e;font-size:14px;">${note}</p>` : ''}
+    <p style="color:#374151;font-size:14px;line-height:1.6;">${m('remind_empty_text', 'Ajustez votre panier dans « Ma commande modèle » pour recevoir votre livraison.')}</p>
   ` : `
-    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">⏳ Livraison de demain : il manque ${f(p.missing)}</h2>
-    <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">Votre commande modèle <strong>${p.label}</strong> part le ${p.dateStr}.</p>
+    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">⏳ ${m('remind_missing_title', 'Livraison de demain : il manque {amount}', { amount: fdjFr(p.missing) })}</h2>
+    <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">${m('remind_missing_intro', 'Votre commande modèle {label} part le {date}.', { label: `<strong>${label}</strong>`, date })}</p>
     <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:12px;padding:16px;margin:16px 0;">
-      <p style="margin:0 0 4px;color:#92400e;font-size:14px;">Montant de la livraison : <strong>${f(p.total)}</strong></p>
-      <p style="margin:0 0 4px;color:#92400e;font-size:14px;">Solde de votre cagnotte : <strong>${f(p.balance)}</strong></p>
-      <p style="margin:0;color:#92400e;font-size:15px;">À recharger aujourd'hui : <strong>${f(p.missing)}</strong></p>
+      <p style="margin:0 0 4px;color:#92400e;font-size:14px;">${m('delivery_amount', 'Montant de la livraison')} : <strong>${fdjFr(p.total)}</strong></p>
+      <p style="margin:0 0 4px;color:#92400e;font-size:14px;">${m('wallet_balance', 'Solde de votre cagnotte')} : <strong>${fdjFr(p.balance)}</strong></p>
+      <p style="margin:0;color:#92400e;font-size:15px;">${m('topup_today', "À recharger aujourd'hui")} : <strong>${fdjFr(p.missing)}</strong></p>
     </div>
-    ${p.stockNote ? `<p style="color:#6b7280;font-size:13px;">${p.stockNote}</p>` : ''}
-    <p style="color:#374151;font-size:14px;line-height:1.6;">Rechargez votre cagnotte depuis votre espace (Waafi ou espèces) : dès validation, la livraison partira normalement. Sans recharge, la commande modèle sera mise en pause et reprendra automatiquement au prochain rechargement.</p>
-    <p style="color:#6b7280;font-size:13px;margin-top:24px;">Une question ? Contactez-nous au <strong>77432615</strong>.</p>
-  `);
-  await resend.emails.send({ from: FROM, to: email, subject: p.empty ? '⚠️ Livraison de demain : panier indisponible — Hornafresh' : `⏳ Il manque ${f(p.missing)} pour votre livraison de demain — Hornafresh`, html });
+    ${note ? `<p style="color:#6b7280;font-size:13px;">${note}</p>` : ''}
+    <p style="color:#374151;font-size:14px;line-height:1.6;">${m('remind_missing_text', 'Rechargez votre cagnotte depuis votre espace (Waafi ou espèces) : dès validation, la livraison partira normalement. Sans recharge, la commande modèle sera mise en pause et reprendra automatiquement au prochain rechargement.')}</p>
+    <p style="color:#6b7280;font-size:13px;margin-top:24px;">${m('question_contact', 'Une question ? Contactez-nous au {phone}.', { phone: '<strong>77432615</strong>' })}</p>
+  `, M);
+  await deliver({ from: FROM, to: email, subject: p.empty ? `⚠️ ${m('subject_remind_empty', 'Livraison de demain : panier indisponible — Hornafresh')}` : `⏳ ${m('subject_remind_missing', 'Il manque {amount} pour votre livraison de demain — Hornafresh', { amount: fdjFr(p.missing) })}`, html });
 }
 
 // ── 5a ter. Reprise automatique après recharge ───────────────────────────────
-export async function sendSubscriptionResumed(email: string, freqLabel: string, nextDateStr: string | null, total: number) {
+export async function sendSubscriptionResumed(email: string, freqLabel: string, nextDateStr: string | null, total: number, x: SubExtra = {}) {
+  const M = await mailer(x.lang); const m = M.m;
+  const label = x.labelParam && M.lang !== 'fr' ? m('_p', '{v}', { v: x.labelParam }) : freqLabel;
+  const date = x.dateIso && M.lang !== 'fr' ? M.date(x.dateIso, { weekday: 'long', day: 'numeric', month: 'long' }) : nextDateStr;
   const html = baseLayout(`
-    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">▶️ Votre commande modèle reprend</h2>
-    <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">Votre cagnotte a été rechargée : la commande modèle <strong>${freqLabel}</strong> est de nouveau active.</p>
+    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">▶️ ${m('resumed_title', 'Votre commande modèle reprend')}</h2>
+    <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">${m('resumed_intro', 'Votre cagnotte a été rechargée : la commande modèle {label} est de nouveau active.', { label: `<strong>${label}</strong>` })}</p>
     <div style="background:#ecf4d5;border:1px solid #d2e095;border-radius:12px;padding:16px;margin:16px 0;">
-      ${nextDateStr ? `<p style="margin:0 0 4px;color:#526500;font-size:14px;">Prochaine livraison : <strong>${nextDateStr}</strong></p>` : ''}
-      <p style="margin:0;color:#526500;font-size:14px;">Montant : <strong>${Number(total).toLocaleString('fr-FR')} Fdj</strong> (débité de votre cagnotte le jour de la livraison)</p>
+      ${date ? `<p style="margin:0 0 4px;color:#526500;font-size:14px;">${m('next_delivery', 'Prochaine livraison')} : <strong>${date}</strong></p>` : ''}
+      <p style="margin:0;color:#526500;font-size:14px;">${m('resumed_amount', 'Montant : {amount} (débité de votre cagnotte le jour de la livraison)', { amount: `<strong>${fdjFr(total)}</strong>` })}</p>
     </div>
-    <p style="color:#6b7280;font-size:13px;margin-top:24px;">Vous pouvez modifier votre panier à tout moment dans « Ma commande modèle ».</p>
-  `);
-  await resend.emails.send({ from: FROM, to: email, subject: '▶️ Votre commande modèle reprend — Hornafresh', html });
+    <p style="color:#6b7280;font-size:13px;margin-top:24px;">${m('resumed_footer', 'Vous pouvez modifier votre panier à tout moment dans « Ma commande modèle ».')}</p>
+  `, M);
+  await deliver({ from: FROM, to: email, subject: `▶️ ${m('subject_resumed', 'Votre commande modèle reprend — Hornafresh')}`, html });
 }
 
 // ── 5b. Abonnement arrivé à expiration ───────────────────────────────────────
-export async function sendSubscriptionExpired(email: string, freqLabel: string) {
+export async function sendSubscriptionExpired(email: string, freqLabel: string, x: SubExtra = {}) {
+  const M = await mailer(x.lang); const m = M.m;
+  const label = x.labelParam && M.lang !== 'fr' ? m('_p', '{v}', { v: x.labelParam }) : freqLabel;
   const html = baseLayout(`
-    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">⏳ Abonnement arrivé à échéance</h2>
-    <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">Votre commande modèle <strong>${freqLabel}</strong> a atteint sa date de validité et a été mise en pause.</p>
+    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">⏳ ${m('expired_title', 'Abonnement arrivé à échéance')}</h2>
+    <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">${m('expired_intro', 'Votre commande modèle {label} a atteint sa date de validité et a été mise en pause.', { label: `<strong>${label}</strong>` })}</p>
     <p style="color:#374151;font-size:14px;line-height:1.6;">
-      Pour reprendre vos livraisons automatiques, il vous suffit de renouveler votre commande modèle
-      depuis votre espace : elle repartira pour une nouvelle année.
+      ${m('expired_text', 'Pour reprendre vos livraisons automatiques, il vous suffit de renouveler votre commande modèle depuis votre espace : elle repartira pour une nouvelle année.')}
     </p>
-    <p style="color:#6b7280;font-size:13px;margin-top:24px;">Une question ? Contactez-nous au <strong>77432615</strong>.</p>
-  `);
-  await resend.emails.send({ from: FROM, to: email, subject: '⏳ Renouvelez votre commande modèle — Hornafresh', html });
+    <p style="color:#6b7280;font-size:13px;margin-top:24px;">${m('question_contact', 'Une question ? Contactez-nous au {phone}.', { phone: '<strong>77432615</strong>' })}</p>
+  `, M);
+  await deliver({ from: FROM, to: email, subject: `⏳ ${m('subject_expired', 'Renouvelez votre commande modèle — Hornafresh')}`, html });
 }
 
 // ── 5c. Réinitialisation de mot de passe (e-mail localisé via Resend) ─────────
@@ -510,7 +551,7 @@ export async function sendPasswordReset(email: string, link: string, lang: strin
     <p style="margin:0;color:#6b7280;font-size:13px;line-height:1.6;">${i.expire}</p>
     <p style="margin:16px 0 0;color:#6b7280;font-size:13px;">— ${i.sign}</p>
   `);
-  await resend.emails.send({ from: FROM, to: email, subject: i.subject, html });
+  await deliver({ from: FROM, to: email, subject: i.subject, html });
 }
 
 // ── 6. Nouvelle demande de recharge → admin ──────────────────────────────────
@@ -525,20 +566,35 @@ export async function sendDepositRequestAlert(req: any, customer: { name?: strin
     </div>
     <p style="color:#6b7280;font-size:13px;">Vérifiez le paiement reçu, puis validez la demande dans Admin → Cagnottes.</p>
   `);
-  await resend.emails.send({ from: FROM, to: ADMIN_EMAIL, subject: `💰 Demande de recharge — ${Number(req.amount).toLocaleString('fr-FR')} Fdj`, html });
+  await deliver({ from: FROM, to: ADMIN_EMAIL, subject: `💰 Demande de recharge — ${Number(req.amount).toLocaleString('fr-FR')} Fdj`, html });
 }
 
 // ── 7. Recharge validée → client ─────────────────────────────────────────────
-export async function sendDepositApproved(email: string, amount: number, balance: number) {
+export async function sendDepositApproved(email: string, amount: number, balance: number, lang?: string | null) {
+  const M = await mailer(lang); const m = M.m;
   const html = baseLayout(`
-    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">✅ Cagnotte rechargée</h2>
-    <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">Votre recharge a été validée.</p>
+    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">✅ ${m('topup_title', 'Cagnotte rechargée')}</h2>
+    <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">${m('topup_intro', 'Votre recharge a été validée.')}</p>
     <div style="background:#ecf4d5;border:1px solid #a8c800;border-radius:12px;padding:16px;margin:16px 0;text-align:center;">
-      <p style="margin:0;color:#6b7280;font-size:13px;">Montant crédité</p>
-      <p style="margin:2px 0 8px;color:#526500;font-size:22px;font-weight:bold;">+${Number(amount).toLocaleString('fr-FR')} Fdj</p>
-      <p style="margin:0;color:#6b7280;font-size:13px;">Nouveau solde : <strong>${Number(balance).toLocaleString('fr-FR')} Fdj</strong></p>
+      <p style="margin:0;color:#6b7280;font-size:13px;">${m('topup_credited', 'Montant crédité')}</p>
+      <p style="margin:2px 0 8px;color:#526500;font-size:22px;font-weight:bold;">+${fdjFr(amount)}</p>
+      <p style="margin:0;color:#6b7280;font-size:13px;">${m('topup_new_balance', 'Nouveau solde')} : <strong>${fdjFr(balance)}</strong></p>
     </div>
-    <p style="color:#374151;font-size:14px;">Merci ! Vous pouvez l'utiliser au paiement ou pour vos livraisons automatiques.</p>
+    <p style="color:#374151;font-size:14px;">${m('topup_text', "Merci ! Vous pouvez l'utiliser au paiement ou pour vos livraisons automatiques.")}</p>
+  `, M);
+  await deliver({ from: FROM, to: email, subject: `✅ ${m('subject_topup', 'Cagnotte rechargée — Hornafresh')}`, html });
+}
+
+// ── 8. Alerte de surveillance → admin (erreur sur le site) ───────────────────
+export async function sendErrorAlert(p: { title: string; where: string; message: string; count: number; source: string }) {
+  const esc = (x: string) => x.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const html = baseLayout(`
+    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">${esc(p.title)}</h2>
+    <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">${esc(p.where)}${p.count > 1 ? ` · ${p.count} fois` : ''}</p>
+    <div style="background:#fff1f2;border:1px solid #fca5a5;border-radius:12px;padding:14px;margin:16px 0;">
+      <p style="margin:0;color:#991b1b;font-size:14px;font-family:monospace;word-break:break-word;">${esc(p.message)}</p>
+    </div>
+    <p style="color:#6b7280;font-size:13px;">Détail et résolution : Admin → Surveillance.</p>
   `);
-  await resend.emails.send({ from: FROM, to: email, subject: '✅ Cagnotte rechargée — Hornafresh', html });
+  await deliver({ from: FROM, to: ADMIN_EMAIL, subject: `${p.title} — ${p.where}`.slice(0, 150), html });
 }

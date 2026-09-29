@@ -4,6 +4,7 @@ import { requireMerchant } from '../../../../lib/producer-auth';
 import { notifyUser } from '../../../../lib/notify';
 import { WAAFI_MERCHANT_NUMBER, WAAFI_ACCOUNT_HOLDER } from '../../../../lib/payments';
 import { merchantState, formulasOf, commissionSettings, switchToCommission } from '../../../../lib/merchant-formula';
+import { monitored } from '../../../../lib/monitor';
 
 // Espace marchand — « Ma formule » (abonnement ou commission)
 // Le marchand ne fait que DÉCLARER un paiement (ligne pending_payment) ; l'activation
@@ -43,13 +44,13 @@ async function overview(userId: string) {
   };
 }
 
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const m = await merchantFromRequest(request);
   if ('error' in m) return NextResponse.json({ error: m.error }, { status: m.status });
   return NextResponse.json(await overview(m.user.id));
 }
 
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   const m = await merchantFromRequest(request);
   if ('error' in m) return NextResponse.json({ error: m.error }, { status: m.status });
   const user = m.user;
@@ -89,11 +90,11 @@ export async function POST(request: Request) {
             ? await supabaseAdmin.from('merchant_formulas').update({ pending_kind: 'commission', updated_at: now }).eq('user_id', user.id)
             : await supabaseAdmin.from('merchant_formulas').insert({ user_id: user.id, kind: 'subscription', pending_kind: 'commission' });
           if (error) throw error;
-          try { await notifyUser(user.id, { title: '🤝 Formule commission programmée', body: 'Votre passage à la formule commission prendra effet à la fin de votre abonnement en cours. Vos produits restent visibles sans interruption.', url: '/producer/subscription' }); } catch { /* ignore */ }
+          try { await notifyUser(user.id, { title: '🤝 Formule commission programmée', body: 'Votre passage à la formule commission prendra effet à la fin de votre abonnement en cours. Vos produits restent visibles sans interruption.', url: '/producer/subscription', i18n: { key: 'm.com_scheduled' } }); } catch { /* ignore */ }
         } else {
           const r = await switchToCommission(user.id, { note: 'Choix du marchand' });
           if (!r.ok) return NextResponse.json({ error: r.error }, { status: 409 });
-          try { await notifyUser(user.id, { title: '🤝 Formule commission activée', body: `Vous êtes en formule commission : ${r.rate} % retenus sur vos ventes livrées, rien à payer d'avance. Vos produits validés sont visibles.`, url: '/producer/subscription' }); } catch { /* ignore */ }
+          try { await notifyUser(user.id, { title: '🤝 Formule commission activée', body: `Vous êtes en formule commission : ${r.rate} % retenus sur vos ventes livrées, rien à payer d'avance. Vos produits validés sont visibles.`, url: '/producer/subscription', i18n: { key: 'm.com_activated', params: { rate: r.rate } } }); } catch { /* ignore */ }
           try {
             const { sendPushToAdmin } = await import('../../../../lib/push');
             const { data: profile } = await supabaseAdmin.from('merchant_profiles').select('shop_name').eq('user_id', user.id).maybeSingle();
@@ -143,7 +144,7 @@ export async function POST(request: Request) {
       await sendMerchantPaymentAlert({ shop, email: user.email || null, plan: plan.name, amount: plan.price_fdj, method, reference: ref || null });
     } catch (e) { console.error('[producer/subscription] email admin:', e); }
     try {
-      await notifyUser(user.id, { title: '💳 Paiement déclaré', body: `Votre paiement de ${amt} Fdj (${plan.name}) est en attente de confirmation par Hornafresh.`, url: '/producer/subscription' });
+      await notifyUser(user.id, { title: '💳 Paiement déclaré', body: `Votre paiement de ${amt} Fdj (${plan.name}) est en attente de confirmation par Hornafresh.`, url: '/producer/subscription', i18n: { key: 'm.payment_declared', params: { amount: `${amt} Fdj`, plan: plan.name } } });
     } catch { /* ignore */ }
 
     return NextResponse.json({ ok: true, ...(await overview(user.id)) });
@@ -152,3 +153,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: e.message || 'Erreur' }, { status: 500 });
   }
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/producer/subscription', GET_);
+export const POST = monitored('/api/producer/subscription', POST_);

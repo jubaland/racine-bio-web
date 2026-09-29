@@ -136,6 +136,7 @@ try {
   ok(r.status === 401 || r.status === 403, 'un client ne voit pas l\'éditeur de traductions', String(r.status));
   r = await api(`/api/admin/product-translations?product_id=${MP.id}`, adminToken);
   ok(r.status === 200 && r.j.suggestions?.en === refTr.en.name && r.j.suggestions?.zh === refTr.zh.name && Object.keys(r.j.translations).length === 0, 'nom proposé par le catalogue (produit homonyme), rien d\'enregistré', JSON.stringify(r.j.suggestions));
+  await api('/api/lang', M.token, { lang: 'en' });
   r = await api('/api/admin/merchants', adminToken, { action: 'approve_product', product_id: MP.id });
   let tr = await trOf(MP.id);
   ok(r.status === 200 && r.j.translated === 4 && tr.en?.name === refTr.en.name && tr.so?.name === refTr.so.name && tr.aa?.name === refTr.so.name, 'validation : quatre langues remplies, afar aligné sur le somali', JSON.stringify({ t: r.j.translated, k: Object.keys(tr) }));
@@ -153,6 +154,70 @@ try {
   await admin.from('product_translations').insert({ product_id: P.id, language_code: 'en', name: 'TEST product', description: '' });
   await admin.from('products').update({ name: 'TEST Langue produit corrigé' }).eq('id', P.id);
   ok((await trOf(P.id)).en?.name === 'TEST product', 'produit Hornafresh renommé : traductions conservées');
+
+  console.log('\n7) Messages aux marchands dans leur langue');
+  n = await notifs(M.id);
+  ok(n.some(x => /approved/i.test(x.title)) && n.every(x => !/Produit|validé|publié/.test(x.title + ' ' + (x.body || ''))), 'produit validé : message en anglais pour un marchand anglophone', JSON.stringify(n));
+  ok(n.every(x => !/\{\w+\}/.test(x.title + ' ' + (x.body || ''))), 'aucun paramètre non remplacé ({…})', JSON.stringify(n));
+
+  console.log('\n8) Langue de la commande (invité compris)');
+  r = await api('/api/orders', null, {
+    order: { user_id: null, payment_method: 'cash', delivery_fee: 0, customer_name: 'Test Langue Invité', phone: '77000000', address: 'Test', lang: 'so' },
+    items: [{ product_id: P.id, quantity: 1, price: 1500, product_name: 'TEST Langue produit', product_unit: 'kg' }],
+  });
+  const guestId = r.j.order?.id;
+  const { data: go } = guestId ? await admin.from('orders').select('lang').eq('id', guestId).single() : { data: null };
+  ok(!!guestId && go?.lang === 'so', 'commande d\'un invité : langue enregistrée sur la commande', JSON.stringify({ s: r.status, l: go?.lang }));
+  r = await api('/api/orders', EN.token, {
+    order: { user_id: EN.id, payment_method: 'cash', delivery_fee: 0, customer_name: 'Test Langue', phone: '77000000', address: 'Test', lang: 'pirate' },
+    items: [{ product_id: P.id, quantity: 1, price: 1500, product_name: 'TEST Langue produit', product_unit: 'kg' }],
+  });
+  const { data: bo } = r.j.order?.id ? await admin.from('orders').select('lang').eq('id', r.j.order.id).single() : { data: { lang: 'x' } };
+  ok(r.status === 200 && bo?.lang === null, 'langue inconnue ignorée (commande acceptée, langue du compte utilisée)', JSON.stringify({ s: r.status, l: bo?.lang }));
+
+  console.log('\n9) E-mails : aperçu dans chaque langue (rien n\'est envoyé)');
+  const prev = async (kind, lang, token = adminToken) => api(`/api/admin/email-preview?kind=${encodeURIComponent(kind)}&lang=${lang}`, token);
+  r = await prev('order', 'en', EN.token);
+  ok(r.status === 401 || r.status === 403, 'aperçu réservé à l\'équipe', String(r.status));
+  r = await prev('inconnu', 'en');
+  ok(r.status === 400, 'type d\'e-mail inconnu refusé', String(r.status));
+  // Mots français qui ne doivent plus apparaître (les données d'exemple — Tomate, Boutique Exemple… — sont exclues)
+  const FR_WORDS = /\b(Commande|commande|Livraison|livraison|Cagnotte|cagnotte|Référence|Sous-total|Votre|votre|Abonnement|abonnement|Montant|Solde|Paiement|Rechargez|Merci|Reversement|Produit|Aucune|Depuis|Ouvrir|question|équipe|marché|hebdomadaire|mensuelle|Indisponible|omis|espèces|rupture|septembre|mardi)\b/;
+  const text = (html) => html.replace(/<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  const KINDS = ['order', 'status_processing', 'status_shipping', 'status_delivered', 'status_cancelled', 'topup', 'paused', 'remind_missing', 'remind_empty', 'resumed', 'expired', 'digest'];
+  const frRef = {};
+  for (const k of KINDS) { const x = await prev(k, 'fr'); frRef[k] = x.j; }
+  ok(KINDS.every(k => frRef[k].subject && FR_WORDS.test(text(frRef[k].html))), 'français : les douze e-mails sont produits');
+  ok(/Commande #1234 confirmée/.test(frRef.order.subject) && /Tomate/.test(frRef.order.html) && /3.500 Fdj/.test(frRef.order.html), 'français : confirmation de commande inchangée (objet, articles, total)', frRef.order.subject);
+  for (const lang of ['en', 'zh', 'am', 'so']) {
+    const bad = [];
+    for (const k of KINDS) {
+      const x = await prev(k, lang);
+      const t = x.j.html ? text(x.j.html) : '';
+      if (x.status !== 200) bad.push(`${k}: ${x.status}`);
+      else if (x.j.subject === frRef[k].subject) bad.push(`${k}: objet resté en français`);
+      else if (/\{\w+\}/.test(x.j.subject + t)) bad.push(`${k}: paramètre non remplacé`);
+      else if (FR_WORDS.test(x.j.subject + ' ' + t)) bad.push(`${k}: mot français « ${(x.j.subject + ' ' + t).match(FR_WORDS)[0]} »`);
+      else if (!x.j.html.includes(`<html lang="${lang}">`)) bad.push(`${k}: langue de l'e-mail non déclarée`);
+      else if (x.j.sent !== false) bad.push(`${k}: envoi non désactivé`);
+    }
+    ok(bad.length === 0, `${lang} : les douze e-mails clients et marchands sont traduits`, JSON.stringify(bad));
+  }
+  const { data: keys } = await admin.from('ui_translations').select('key').eq('language_code', 'en').or('key.like.srv.m.%.title,key.like.srv.c.%.title');
+  const msgKeys = (keys || []).map(k => k.key.replace(/^srv\./, '').replace(/\.title$/, ''));
+  ok(msgKeys.length >= 40, 'modèles de messages marchands et entreprise présents', String(msgKeys.length));
+  for (const lang of ['en', 'zh', 'am', 'so']) {
+    const bad = [];
+    for (const k of msgKeys) {
+      const x = await prev(`merchant:${k}`, lang);
+      const t = x.j.html ? text(x.j.html) : '';
+      if (x.status !== 200) bad.push(`${k}: ${x.status}`);
+      else if (/\{\w+\}/.test(x.j.subject + t)) bad.push(`${k}: paramètre non remplacé`);
+      else if (x.j.subject.includes(`[${k}]`) || t.includes(`[${k}]`)) bad.push(`${k}: modèle absent`);
+      else if (FR_WORDS.test(x.j.subject + ' ' + t)) bad.push(`${k}: mot français « ${(x.j.subject + ' ' + t).match(FR_WORDS)[0]} »`);
+    }
+    ok(bad.length === 0, `${lang} : ${msgKeys.length} messages marchands et entreprise traduits, paramètres remplis`, JSON.stringify(bad));
+  }
 } catch (e) {
   fail++; console.error('\n💥 Erreur inattendue :', e);
 } finally {

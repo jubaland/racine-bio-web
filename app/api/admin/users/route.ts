@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { roleOf } from '../../../../lib/permissions';
 import { requirePerm } from '../../../../lib/admin-auth';
+import { monitored } from '../../../../lib/monitor';
 
 // Vérifie que l'appelant est administrateur (via son JWT).
 async function requireAdmin(request: Request): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
@@ -14,7 +15,7 @@ async function requireAdmin(request: Request): Promise<{ ok: true } | { ok: fals
 }
 
 // Liste des comptes — admin, gestionnaire "Utilisateurs" ou "Cagnottes" (annuaire).
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = await requirePerm(request, ['users', 'wallets'], 'view');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
@@ -44,7 +45,7 @@ export async function GET(request: Request) {
 }
 
 // Modifier un compte (admin uniquement) : rôle, droits, blocage, ambassadeur, civilité.
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   const auth = await requireAdmin(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
@@ -77,3 +78,7 @@ export async function POST(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/admin/users', GET_);
+export const POST = monitored('/api/admin/users', POST_);

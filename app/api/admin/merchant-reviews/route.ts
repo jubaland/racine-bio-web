@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { requirePerm } from '../../../../lib/admin-auth';
 import { refreshMerchantRating } from '../../../../lib/merchant-reviews';
+import { monitored } from '../../../../lib/monitor';
 
 // Admin — modération des avis marchands : GET (liste) ; POST { action: 'hide' | 'show', id }
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = await requirePerm(request, 'merchants', 'view');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const [{ data: rows }, { data: profiles }] = await Promise.all([
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
   });
 }
 
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   const auth = await requirePerm(request, 'merchants', 'edit');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   let body: any = {};
@@ -30,3 +31,7 @@ export async function POST(request: Request) {
   const agg = await refreshMerchantRating(r.owner_id);
   return NextResponse.json({ ok: true, ...agg });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/admin/merchant-reviews', GET_);
+export const POST = monitored('/api/admin/merchant-reviews', POST_);

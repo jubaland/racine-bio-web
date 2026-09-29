@@ -3,6 +3,7 @@ import { supabaseAdmin } from '../../../lib/supabase-admin';
 import { userFromRequest, membershipOf, requireCompany, companyBalance, minTopupFor, notifyCompany, fdj, ROLE_LABEL, type CompanyRole } from '../../../lib/company';
 import { toIntlPhone } from '../../../lib/whatsapp';
 import { nextDeliveryDate } from '../../../lib/subscription-schedule';
+import { monitored } from '../../../lib/monitor';
 
 // Espace entreprise — GET : tout l'état utile à la page ; POST { action, … } : une action.
 // Écritures par service role après contrôle du rôle (gérant / acheteur / comptable).
@@ -11,7 +12,7 @@ const ROLES: CompanyRole[] = ['manager', 'buyer', 'accountant'];
 const bad = (error: string, status = 400, extra: any = {}) => NextResponse.json({ error, ...extra }, { status });
 const clean = (v: any, max = 200) => String(v ?? '').trim().slice(0, max);
 
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const user = await userFromRequest(request);
   if (!user) return bad('unauthorized', 401);
   const m = await membershipOf(user.id);
@@ -57,7 +58,7 @@ export async function GET(request: Request) {
   });
 }
 
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   let body: any = {};
   try { body = await request.json(); } catch { /* ignore */ }
   const action = String(body.action || '');
@@ -81,7 +82,7 @@ export async function POST(request: Request) {
       const { sendPushToAdmin } = await import('../../../lib/push');
       const { notifyUser } = await import('../../../lib/notify');
       await sendPushToAdmin({ title: '🏢 Nouvelle demande de compte entreprise', body: `${name}${body.activity ? ` (${clean(body.activity, 80)})` : ''} — ${contact}`, url: '/admin' });
-      await notifyUser(user.id, { title: '📝 Demande de compte entreprise reçue', body: `Nous étudions la demande de « ${name} » et revenons vers vous rapidement.`, url: '/entreprise' });
+      await notifyUser(user.id, { title: '📝 Demande de compte entreprise reçue', body: `Nous étudions la demande de « ${name} » et revenons vers vous rapidement.`, url: '/entreprise', i18n: { key: 'c.request_received', params: { name } } });
     } catch (e) { console.error('[company] request notify:', e); }
     return NextResponse.json({ ok: true, company });
   }
@@ -94,7 +95,8 @@ export async function POST(request: Request) {
     const { error } = await supabaseAdmin.from('company_members').insert({ company_id: inv.company_id, user_id: user.id, role: inv.role, email: user.email, full_name: user.user_metadata?.full_name || null });
     if (error) return bad(error.message);
     await supabaseAdmin.from('company_invites').update({ status: 'accepted' }).eq('id', inv.id);
-    await notifyCompany(inv.company_id, ['manager'], { title: '👤 Nouveau membre', body: `${user.user_metadata?.full_name || user.email} a rejoint ${(inv as any).companies?.name} (${ROLE_LABEL[inv.role as CompanyRole]}).` });
+    await notifyCompany(inv.company_id, ['manager'], { title: '👤 Nouveau membre', body: `${user.user_metadata?.full_name || user.email} a rejoint ${(inv as any).companies?.name} (${ROLE_LABEL[inv.role as CompanyRole]}).`,
+      i18n: { key: 'c.new_member', params: { who: String(user.user_metadata?.full_name || user.email), company: (inv as any).companies?.name, role: { key: `c.role_${inv.role}`, fr: ROLE_LABEL[inv.role as CompanyRole] } } } });
     return NextResponse.json({ ok: true });
   }
 
@@ -208,7 +210,8 @@ export async function POST(request: Request) {
         delivery: { fee: Number(body.delivery?.fee) || 0, option_name: body.delivery?.option_name ?? null, special_instructions: clean(body.delivery?.special_instructions, 500) || null },
       }).select().single();
       if (error) return bad(error.message);
-      await notifyCompany(cid, ['manager'], { title: `🧾 Commande à valider — ${fdj(total)}`, body: `${guard.user.user_metadata?.full_name || guard.user.email} demande une commande de ${items.length} article(s) pour ${m.company.name}.` });
+      await notifyCompany(cid, ['manager'], { title: `🧾 Commande à valider — ${fdj(total)}`, body: `${guard.user.user_metadata?.full_name || guard.user.email} demande une commande de ${items.length} article(s) pour ${m.company.name}.`,
+        i18n: { key: 'c.order_to_validate', params: { total: fdj(total), who: String(guard.user.user_metadata?.full_name || guard.user.email), n: items.length, company: m.company.name } } });
       return NextResponse.json({ ok: true, request: row });
     }
     case 'cancel_request': {
@@ -223,7 +226,7 @@ export async function POST(request: Request) {
       const { notifyUser } = await import('../../../lib/notify');
       if (body.decision === 'reject') {
         await supabaseAdmin.from('company_order_requests').update({ status: 'rejected', decided_by: guard.user.id, decided_at: new Date().toISOString(), decision_note: clean(body.note, 300) || null }).eq('id', row.id);
-        try { await notifyUser(row.user_id, { title: '❌ Commande refusée par le gérant', body: `Votre demande de ${fdj(row.total)} n'a pas été validée${body.note ? ` : ${clean(body.note, 200)}` : ''}.`, url: '/entreprise' }); } catch { /* ignore */ }
+        try { await notifyUser(row.user_id, { title: '❌ Commande refusée par le gérant', body: `Votre demande de ${fdj(row.total)} n'a pas été validée${body.note ? ` : ${clean(body.note, 200)}` : ''}.`, url: '/entreprise', i18n: { key: 'c.order_rejected', params: { total: fdj(row.total), note: body.note ? ` : ${clean(body.note, 200)}` : '' } } }); } catch { /* ignore */ }
         return NextResponse.json({ ok: true });
       }
       // Validation : la vraie commande est créée par l'API commande (prix serveur, stock, débit atomique)
@@ -235,7 +238,7 @@ export async function POST(request: Request) {
       }));
       const j = await res.json();
       if (!res.ok) return bad(j.error || 'order_failed', res.status, j);
-      try { await notifyUser(row.user_id, { title: '✅ Commande validée par le gérant', body: `Votre commande #${j.order?.id} (${fdj(j.order?.total)}) est confirmée.`, url: '/entreprise' }); } catch { /* ignore */ }
+      try { await notifyUser(row.user_id, { title: '✅ Commande validée par le gérant', body: `Votre commande #${j.order?.id} (${fdj(j.order?.total)}) est confirmée.`, url: '/entreprise', i18n: { key: 'c.order_validated', params: { id: j.order?.id, total: fdj(j.order?.total) } } }); } catch { /* ignore */ }
       return NextResponse.json({ ok: true, order: j.order });
     }
 
@@ -261,3 +264,7 @@ export async function POST(request: Request) {
   }
   return bad('action_invalid');
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/company', GET_);
+export const POST = monitored('/api/company', POST_);

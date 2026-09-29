@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { createClient } from '@supabase/supabase-js';
+import { monitored } from '../../../../lib/monitor';
 
 // GET /api/orders/mine — commandes de l'utilisateur authentifié avec leurs articles
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   // Récupérer le JWT depuis le header Authorization
   const authHeader = request.headers.get('authorization') ?? '';
   const token = authHeader.replace('Bearer ', '').trim();
@@ -41,3 +42,6 @@ export async function GET(request: Request) {
 
   return NextResponse.json({ orders: data });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/orders/mine', GET_);

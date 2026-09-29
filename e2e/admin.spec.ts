@@ -23,6 +23,8 @@ const MODULES: [RegExp, RegExp][] = [
   [/Promotions/, /Promotions/],
   [/Entreprises/, /Entreprises/],
   [/Fidélité/, /Fidélité/],
+  [/Surveillance/, /Surveillance/],
+  [/Aperçu des e-mails/, /Aperçu des e-mails/],
 ];
 
 for (const [button, heading] of MODULES) {
@@ -102,5 +104,38 @@ test('admin › Produits : éditeur de traductions (sans enregistrer)', async ({
   await expectNoOverflow(page, 'Produits › Traductions');
   await page.getByRole('button', { name: /Annuler/ }).click();
   await expect(page.getByRole('heading', { name: /Traductions du produit/ })).toHaveCount(0);
+});
+
+test('admin › accueil : tableau de bord du jour', async ({ page }) => {
+  const errors = trackErrors(page);
+  await page.goto('/admin'); await settle(page);
+  const today = page.getByRole('region', { name: /À traiter aujourd'hui/ });
+  await expect(today).toBeVisible();
+  // Soit des éléments à traiter, soit le message « rien à traiter » : jamais un panneau vide ou en erreur
+  await expect(today.getByText(/Rien à traiter pour le moment|›/).first()).toBeVisible({ timeout: 30_000 });
+  await expect(today.getByText(/n'a pas pu être chargé/)).toHaveCount(0);
+  await expectNoOverflow(page, 'admin › accueil');
+  expect(errors).toEqual([]);
+});
+
+test('admin › Surveillance : onglets et réglages (sans enregistrer)', async ({ page }) => {
+  await openModule(page, /Surveillance/, /Surveillance/);
+  for (const tab of ['Résolues', 'Réglages', 'À traiter']) {
+    await page.getByRole('button', { name: new RegExp(tab) }).first().click();
+    await page.waitForTimeout(800);
+    await expectNoOverflow(page, `Surveillance › ${tab}`);
+  }
+  await page.getByRole('button', { name: /Réglages/ }).first().click();
+  await expect(page.getByText(/Délai entre deux alertes/)).toBeVisible();
+  await expect(page.getByText(/Conservation du journal/)).toBeVisible();
+});
+
+test('admin › Aperçu des e-mails : e-mail affiché, changement de langue', async ({ page }) => {
+  await openModule(page, /Aperçu des e-mails/, /Aperçu des e-mails/);
+  await expect(page.getByText(/Commande #1234 confirmée/)).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('iframe')).toBeVisible();
+  await page.getByRole('button', { name: /English/ }).click();
+  await expect(page.getByText(/Order #1234 confirmed/)).toBeVisible({ timeout: 30_000 });
+  await expectNoOverflow(page, 'Aperçu des e-mails');
 });
 

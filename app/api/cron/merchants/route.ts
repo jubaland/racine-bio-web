@@ -3,6 +3,7 @@ import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { notifyUser } from '../../../../lib/notify';
 import { sendMerchantEmail } from '../../../../lib/emails';
 import { sendPushToAdmin } from '../../../../lib/push';
+import { monitored } from '../../../../lib/monitor';
 
 // Cron quotidien — abonnements marchands (voir vercel.json).
 //  1. Abonnements échus  → statut `expired` + notification/e-mail au marchand (sauf renouvellement déjà enchaîné)
@@ -28,7 +29,7 @@ const fmt = (d: string | null) => d ? new Date(d + 'T00:00:00').toLocaleDateStri
 
 type Sub = { id: number; user_id: string; status: string; starts_at: string | null; ends_at: string | null; amount: number; payment_method: string | null; payment_reference: string | null; created_at: string; reminder_7_sent_at: string | null; reminder_1_sent_at: string | null; expired_notified_at: string | null; stale_alerted_at: string | null };
 
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = request.headers.get('authorization');
   if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
@@ -101,10 +102,11 @@ export async function GET(request: Request) {
   report.expired_bundles = (expiredBundles || []).map((b: any) => ({ id: b.id, name: b.name }));
   if (dry) return NextResponse.json(report);
 
-  const merchantNotify = async (s: Sub, title: string, text: string, subject: string) => {
-    try { await notifyUser(s.user_id, { title, body: text, url: '/producer/subscription' }); } catch (e: any) { report.errors.push(`notify ${s.id}: ${e.message}`); }
-    const to = emails[s.user_id];
-    if (to) { try { await sendMerchantEmail(to, subject, title, text); } catch (e: any) { report.errors.push(`email ${s.id}: ${e.message}`); } }
+  // Cloche + push + e-mail, dans la langue du compte du marchand (modèles srv.m.*)
+  const { notifyWithEmail } = await import('../../../../lib/notify');
+  const merchantNotify = async (s: Sub, title: string, text: string, subject: string, i18n?: { key: string; params?: Record<string, any> }) => {
+    try { await notifyWithEmail(s.user_id, { title, body: text, url: '/producer/subscription', subject, email: emails[s.user_id], i18n }); }
+    catch (e: any) { report.errors.push(`notify ${s.id}: ${e.message}`); }
   };
 
   // 1. Expirations
@@ -118,14 +120,14 @@ export async function GET(request: Request) {
       if (r.ok) {
         await merchantNotify(s, '🤝 Formule commission activée',
           `Votre abonnement a pris fin le ${fmt(s.ends_at)} : vous êtes maintenant en formule commission (${r.rate} % retenus sur vos ventes livrées, rien à payer d'avance). Vos produits restent visibles.`,
-          'Hornafresh — vous passez en formule commission');
+          'Hornafresh — vous passez en formule commission', { key: 'm.com_switched', params: { date: { date: s.ends_at! }, rate: r.rate } });
         continue;
       }
       report.errors.push(`commission ${s.id}: ${r.error}`);
     }
     await merchantNotify(s, '🔒 Abonnement expiré',
       `Votre abonnement Hornafresh a pris fin le ${fmt(s.ends_at)}. Vos produits ne sont plus visibles sur le site. Renouvelez-le ou changez de formule depuis « Ma formule » pour les réafficher.`,
-      'Votre abonnement Hornafresh a expiré');
+      'Votre abonnement Hornafresh a expiré', { key: 'm.sub_expired', params: { date: { date: s.ends_at! } } });
   }
 
   // 2. Rappels
@@ -134,14 +136,14 @@ export async function GET(request: Request) {
     if (e) { report.errors.push(`remind7 ${s.id}: ${e.message}`); continue; }
     await merchantNotify(s, `⏳ Abonnement : ${FIRST} jour(s) restant(s)`,
       `Votre abonnement Hornafresh expire le ${fmt(s.ends_at)}. Renouvelez-le dès maintenant depuis « Ma formule » : la nouvelle période s'enchaînera sans interruption.`,
-      `Votre abonnement Hornafresh expire dans ${FIRST} jour(s)`);
+      `Votre abonnement Hornafresh expire dans ${FIRST} jour(s)`, { key: 'm.remind_first', params: { n: FIRST, date: { date: s.ends_at! } } });
   }
   for (const s of plan.remind1) {
     const { error: e } = await supabaseAdmin.from('merchant_subscriptions').update({ reminder_1_sent_at: nowIso }).eq('id', s.id).is('reminder_1_sent_at', null);
     if (e) { report.errors.push(`remind1 ${s.id}: ${e.message}`); continue; }
     await merchantNotify(s, `⚠️ Abonnement : plus que ${LAST} jour(s)`,
       `Votre abonnement Hornafresh expire le ${fmt(s.ends_at)}, dans ${LAST} jour(s). Sans renouvellement, vos produits seront masqués du site après cette date.`,
-      `Votre abonnement Hornafresh expire dans ${LAST} jour(s)`);
+      `Votre abonnement Hornafresh expire dans ${LAST} jour(s)`, { key: 'm.remind_last', params: { n: LAST, date: { date: s.ends_at! } } });
   }
 
   // 3. Paiements déclarés non traités
@@ -155,7 +157,8 @@ export async function GET(request: Request) {
     try {
       if (digestHasContent(d) && d.email) {
         const { sendMerchantDigest } = await import('../../../../lib/emails');
-        await sendMerchantDigest(d.email, d);
+        const { langOfUser } = await import('../../../../lib/i18n-server');
+        await sendMerchantDigest(d.email, d, await langOfUser(d.user_id));
       }
       await supabaseAdmin.from('merchant_profiles').update({ digest_sent_at: nowIso }).eq('user_id', d.user_id);
     } catch (e: any) { report.errors.push(`digest ${d.shop}: ${e.message}`); }
@@ -165,6 +168,19 @@ export async function GET(request: Request) {
   for (const b of report.expired_bundles) {
     const { error: e } = await supabaseAdmin.from('products').update({ status: 'archived' }).eq('id', b.id).eq('status', 'published');
     if (e) report.errors.push(`bundle ${b.id}: ${e.message}`);
+  }
+
+  // 7. Surveillance : purge du journal des erreurs au-delà de la durée de conservation (réglage)
+  if (!onlyUser) {
+    try {
+      const { monitorSettings } = await import('../../../../lib/monitor');
+      const days = (await monitorSettings()).retention_days;
+      if (days != null) {
+        const limit = new Date(Date.now() - days * 86400000).toISOString();
+        const { data: purged } = await supabaseAdmin.from('error_logs').delete().lt('last_seen', limit).select('id');
+        (report as any).errors_purged = purged?.length || 0;
+      }
+    } catch (e: any) { report.errors.push(`purge journal: ${e.message}`); }
   }
 
   // 4. Résumé admin
@@ -185,3 +201,6 @@ export async function GET(request: Request) {
 
   return NextResponse.json(report);
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/cron/merchants', GET_);

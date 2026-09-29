@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { requirePerm } from '../../../../lib/admin-auth';
 import { adjustCompanyWallet, globalMinTopup, notifyCompany, fdj } from '../../../../lib/company';
+import { monitored } from '../../../../lib/monitor';
 
 // Admin › Entreprises — GET : sociétés (solde, membres, encours), recharges à valider, réglage global.
 // POST { action } : approve | reject | suspend | reactivate | confirm_deposit | reject_deposit |
@@ -9,7 +10,7 @@ import { adjustCompanyWallet, globalMinTopup, notifyCompany, fdj } from '../../.
 
 const bad = (error: string, status = 400) => NextResponse.json({ error }, { status });
 
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = await requirePerm(request, 'companies', 'view');
   if (!auth.ok) return bad(auth.error!, auth.status);
   const [{ data: companies }, { data: members }, { data: wallets }, { data: deposits }, { data: orders }, minTopup] = await Promise.all([
@@ -34,7 +35,7 @@ export async function GET(request: Request) {
   });
 }
 
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   const auth = await requirePerm(request, 'companies', 'edit');
   if (!auth.ok) return bad(auth.error!, auth.status);
   let body: any = {};
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
     if (d.status !== 'pending') return bad('déjà traité', 409);
     if (action === 'reject_deposit') {
       await supabaseAdmin.from('company_deposit_requests').update({ status: 'rejected', note, reviewed_at: now }).eq('id', d.id).eq('status', 'pending');
-      await notifyCompany(d.company_id, ['manager'], { title: '❌ Recharge entreprise refusée', body: `La recharge de ${fdj(d.amount)} n'a pas été validée${note ? ` : ${note}` : ''}.` });
+      await notifyCompany(d.company_id, ['manager'], { title: '❌ Recharge entreprise refusée', body: `La recharge de ${fdj(d.amount)} n'a pas été validée${note ? ` : ${note}` : ''}.`, i18n: { key: 'c.deposit_rejected', params: { amount: fdj(d.amount), note: note ? ` : ${note}` : '' } } });
       return NextResponse.json({ ok: true });
     }
     // Verrou d'idempotence : on ne crédite que si la ligne passe réellement de pending à approved
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
     if (!locked?.length) return bad('déjà traité', 409);
     const r = await adjustCompanyWallet(d.company_id, Number(d.amount), 'deposit', { userId: auth.user?.id, note: `Recharge validée (${d.method}${d.reference ? `, réf. ${d.reference}` : ''})` });
     if (!r.ok) { await supabaseAdmin.from('company_deposit_requests').update({ status: 'pending', reviewed_at: null }).eq('id', d.id); return bad(r.error || 'wallet_error'); }
-    await notifyCompany(d.company_id, ['manager', 'accountant'], { title: '✅ Cagnotte société rechargée', body: `+${fdj(d.amount)} — nouveau solde : ${fdj(r.balance || 0)}.` });
+    await notifyCompany(d.company_id, ['manager', 'accountant'], { title: '✅ Cagnotte société rechargée', body: `+${fdj(d.amount)} — nouveau solde : ${fdj(r.balance || 0)}.`, i18n: { key: 'c.deposit_ok', params: { amount: fdj(d.amount), balance: fdj(r.balance || 0) } } });
     let resumed: any[] = [];
     try { const { resumeCompanyAfterTopUp } = await import('../../../../lib/company-orders'); resumed = await resumeCompanyAfterTopUp(d.company_id); } catch (e) { console.error('[companies] resume:', e); }
     return NextResponse.json({ ok: true, balance: r.balance, resumed });
@@ -78,16 +79,16 @@ export async function POST(request: Request) {
     case 'reactivate': {
       await supabaseAdmin.from('companies').update({ status: 'active', admin_note: null, resolved_at: now }).eq('id', company.id);
       await notifyCompany(company.id, ['manager'], action === 'approve'
-        ? { title: '🎉 Compte entreprise activé', body: `« ${company.name} » est ouvert : ajoutez vos sites, invitez vos collaborateurs et rechargez la cagnotte pour commander.` }
-        : { title: '✅ Compte entreprise réactivé', body: `« ${company.name} » peut de nouveau commander.` });
+        ? { title: '🎉 Compte entreprise activé', body: `« ${company.name} » est ouvert : ajoutez vos sites, invitez vos collaborateurs et rechargez la cagnotte pour commander.`, i18n: { key: 'c.activated', params: { name: company.name } } }
+        : { title: '✅ Compte entreprise réactivé', body: `« ${company.name} » peut de nouveau commander.`, i18n: { key: 'c.reactivated', params: { name: company.name } } });
       return NextResponse.json({ ok: true });
     }
     case 'reject':
     case 'suspend': {
       await supabaseAdmin.from('companies').update({ status: action === 'reject' ? 'rejected' : 'suspended', admin_note: note, resolved_at: now }).eq('id', company.id);
       await notifyCompany(company.id, ['manager'], action === 'reject'
-        ? { title: '❌ Demande de compte entreprise refusée', body: `La demande de « ${company.name} » n'a pas été retenue${note ? ` : ${note}` : ''}.` }
-        : { title: '⏸️ Compte entreprise suspendu', body: `« ${company.name} » ne peut plus commander pour le moment${note ? ` : ${note}` : ''}. Le solde de la cagnotte est conservé.` });
+        ? { title: '❌ Demande de compte entreprise refusée', body: `La demande de « ${company.name} » n'a pas été retenue${note ? ` : ${note}` : ''}.`, i18n: { key: 'c.rejected', params: { name: company.name, note: note ? ` : ${note}` : '' } } }
+        : { title: '⏸️ Compte entreprise suspendu', body: `« ${company.name} » ne peut plus commander pour le moment${note ? ` : ${note}` : ''}. Le solde de la cagnotte est conservé.`, i18n: { key: 'c.suspended', params: { name: company.name, note: note ? ` : ${note}` : '' } } });
       return NextResponse.json({ ok: true });
     }
     case 'adjust_wallet': {
@@ -107,3 +108,7 @@ export async function POST(request: Request) {
   }
   return bad('action invalide');
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/admin/companies', GET_);
+export const POST = monitored('/api/admin/companies', POST_);

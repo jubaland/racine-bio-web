@@ -96,3 +96,20 @@ export async function previewAllUsers(payload: Payload, translations?: Record<st
   }
   return { recipients: ids.length, accounts, devices, texts };
 }
+
+/**
+ * Notifie un marchand ou un membre d'entreprise : cloche + push, et e-mail si `subject` est fourni.
+ * Tout part dans la langue du compte (modèles srv.<clé>.title / .body / .subject), le français à défaut.
+ * `email` : adresse déjà connue de l'appelant (sinon lue sur le compte).
+ */
+export async function notifyWithEmail(userId: string, payload: Payload & { subject?: string | null; email?: string | null }) {
+  await notifyUser(userId, payload);
+  if (!payload.subject) return;
+  let to = payload.email ?? null;
+  if (!to) { const { data } = await supabaseAdmin.auth.admin.getUserById(userId); to = data?.user?.email || null; }
+  if (!to) return;
+  const lang = payload.i18n ? await langOfUser(userId) : 'fr';
+  const t = await localize(payload.i18n, lang, { title: payload.title, body: payload.body ?? null, subject: payload.subject });
+  const { sendMerchantEmail } = await import('./emails');
+  await sendMerchantEmail(to, t.subject || payload.subject, t.title, t.body || '', lang);
+}

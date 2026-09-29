@@ -89,13 +89,16 @@ export async function createPayout(userId: string, opts: { method: string; refer
   const methodLabel = payout.method === 'cash' ? 'en espèces' : payout.method === 'waafi' ? 'par Waafi' : '';
   const text = `Hornafresh vous a reversé ${Number(payout.amount).toLocaleString('fr-FR')} Fdj ${methodLabel}${payout.reference ? ` (réf. ${payout.reference})` : ''} pour ${payout.lines_count} article(s) livré(s)${Number(payout.commission_amount) > 0 ? ` (ventes ${Number(payout.gross_amount).toLocaleString('fr-FR')} Fdj, commission ${Number(payout.commission_amount).toLocaleString('fr-FR')} Fdj)` : ''}. Le détail est dans « Mes reversements ».`;
   try {
-    const { notifyUser } = await import('./notify');
-    await notifyUser(userId, { title: '💸 Reversement effectué', body: text, url: '/producer/statement' });
-    const { data: u } = await supabaseAdmin.auth.admin.getUserById(userId);
-    if (u?.user?.email) {
-      const { sendMerchantEmail } = await import('./emails');
-      await sendMerchantEmail(u.user.email, `Reversement de ${Number(payout.amount).toLocaleString('fr-FR')} Fdj — Hornafresh`, '💸 Reversement effectué', text);
-    }
+    const { notifyWithEmail } = await import('./notify');
+    const f = (n: any) => `${Number(n).toLocaleString('fr-FR')} Fdj`;
+    await notifyWithEmail(userId, { title: '💸 Reversement effectué', body: text, url: '/producer/statement',
+      subject: `Reversement de ${f(payout.amount)} — Hornafresh`,
+      i18n: { key: 'm.payout', params: {
+        amount: f(payout.amount), n: payout.lines_count,
+        method: payout.method === 'cash' ? { key: 'm.by_cash', fr: 'en espèces' } : payout.method === 'waafi' ? { key: 'm.by_waafi', fr: 'par Waafi' } : null,
+        ref: payout.reference ? { key: 'm.ref', params: { ref: payout.reference }, fr: `(réf. ${payout.reference})` } : null,
+        detail: Number(payout.commission_amount) > 0 ? { key: 'm.payout_detail', params: { gross: f(payout.gross_amount), commission: f(payout.commission_amount) }, fr: `(ventes ${f(payout.gross_amount)}, commission ${f(payout.commission_amount)})` } : null,
+      } } });
   } catch (e) { console.error('[payout] notify failed:', e); }
   return { ok: true as const, payout };
 }

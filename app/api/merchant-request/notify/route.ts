@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
+import { monitored } from '../../../../lib/monitor';
 
 // Après le dépôt d'une demande d'adhésion marchand : alerte admin (cloche + push) + accusé au demandeur.
 // Le dépôt lui-même est fait par le client (RLS : e-mail du jeton). Cette route ne fait que notifier.
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   const token = (request.headers.get('authorization') || '').replace('Bearer ', '').trim();
   if (!token) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   const { data: { user } } = await supabaseAdmin.auth.getUser(token);
@@ -21,7 +22,10 @@ export async function POST(request: Request) {
   } catch { /* ignore */ }
   try {
     const { notifyUser } = await import('../../../../lib/notify');
-    await notifyUser(user.id, { title: '📝 Demande d\'adhésion reçue', body: `Votre demande pour « ${req.farm_name} » est en cours d'examen. Réponse sous 48 h.`, url: '/become-producer' });
+    await notifyUser(user.id, { title: '📝 Demande d\'adhésion reçue', body: `Votre demande pour « ${req.farm_name} » est en cours d'examen. Réponse sous 48 h.`, url: '/become-producer', i18n: { key: 'm.join_received', params: { shop: req.farm_name } } });
   } catch { /* ignore */ }
   return NextResponse.json({ ok: true });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const POST = monitored('/api/merchant-request/notify', POST_);

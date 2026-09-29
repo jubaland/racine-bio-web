@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { requireMerchant } from '../../../../lib/producer-auth';
+import { monitored } from '../../../../lib/monitor';
 
 // Espace marchand — commandes contenant ses produits.
 // Les tables orders / order_items ne sont pas lisibles par un marchand (RLS) : cette route lit en
@@ -14,7 +15,7 @@ import { requireMerchant } from '../../../../lib/producer-auth';
 
 const firstName = (full: string | null) => (full || '').trim().split(/\s+/)[0] || 'Client';
 
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = await requireMerchant(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const url = new URL(request.url);
@@ -63,3 +64,6 @@ export async function GET(request: Request) {
   }
   return NextResponse.json({ stats, orders: all.slice(0, limit) });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/producer/orders', GET_);

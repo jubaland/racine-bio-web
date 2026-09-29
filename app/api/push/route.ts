@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabase-admin';
 import { cleanLang } from '../../../lib/i18n-server';
+import { monitored } from '../../../lib/monitor';
 
 // GET ?endpoint= — l'abonnement est-il connu du serveur ? (auto-réparation côté client :
 // un abonnement gardé par le navigateur mais absent ici a été expiré/supprimé → à renouveler)
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const endpoint = new URL(request.url).searchParams.get('endpoint');
   if (!endpoint) return NextResponse.json({ registered: false });
   const { data } = await supabaseAdmin
@@ -13,7 +14,7 @@ export async function GET(request: Request) {
 }
 
 // POST — enregistre ou supprime un abonnement push
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   try {
     const { subscription, action, lang } = await request.json();
 
@@ -56,3 +57,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/push', GET_);
+export const POST = monitored('/api/push', POST_);

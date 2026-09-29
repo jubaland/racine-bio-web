@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { requireMerchant } from '../../../../lib/producer-auth';
 import { unsettledLines, payoutHistory } from '../../../../lib/merchant-settlement';
+import { monitored } from '../../../../lib/monitor';
 
 // Espace marchand — « Mes reversements » : lignes livrées en attente de reversement + historique
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = await requireMerchant(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const [lines, payouts] = await Promise.all([unsettledLines(auth.user.id), payoutHistory(auth.user.id)]);
@@ -16,3 +17,6 @@ export async function GET(request: Request) {
     total_paid: payouts.reduce((s: number, p: any) => s + Number(p.amount), 0),
   });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/producer/statement', GET_);

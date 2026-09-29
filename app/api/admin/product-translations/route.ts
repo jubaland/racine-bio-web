@@ -2,13 +2,14 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { requirePerm } from '../../../../lib/admin-auth';
 import { PRODUCT_LANGS, translationsOf, suggestNames, saveTranslations } from '../../../../lib/product-translations';
+import { monitored } from '../../../../lib/monitor';
 
 // Traductions d'un produit (nom + description par langue) — admin › Produits et Marchands › À traiter.
 // GET  ?product_id=…  → texte français, traductions enregistrées, suggestions de nom (produits homonymes)
 // POST { product_id, translations: { en: { name, description }, … } } → enregistre
 // Ne repasse pas le produit en validation : une traduction n'est pas une modification sensible.
 
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = await requirePerm(request, ['products', 'merchants'], 'view');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const id = Number(new URL(request.url).searchParams.get('product_id'));
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
   });
 }
 
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   const auth = await requirePerm(request, ['products', 'merchants'], 'edit');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   let body: any = {};
@@ -37,3 +38,7 @@ export async function POST(request: Request) {
   if (!r.ok) return NextResponse.json({ error: r.error }, { status: 500 });
   return NextResponse.json({ ok: true, saved: r.saved, removed: r.removed, translations: (await translationsOf([id]))[id] || {} });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/admin/product-translations', GET_);
+export const POST = monitored('/api/admin/product-translations', POST_);

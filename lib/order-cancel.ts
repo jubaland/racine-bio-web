@@ -56,7 +56,7 @@ export async function executeCancellation(orderId: any): Promise<{ ok: boolean; 
       const { data: userData } = await supabaseAdmin.auth.admin.getUserById(order.user_id);
       customerEmail = userData?.user?.email ?? null;
     }
-    if (customerEmail && updated) await sendStatusUpdate(updated, customerEmail);
+    if (customerEmail && updated) { const { langOfOrder } = await import('./i18n-server'); await sendStatusUpdate(updated, customerEmail, await langOfOrder(updated)); }
     if (order.user_id) {
       const { notifyUser } = await import('./notify'); // cloche + push
       await notifyUser(order.user_id, {
@@ -81,13 +81,11 @@ export async function executeCancellation(orderId: any): Promise<{ ok: boolean; 
   // 7) Marchands concernés : cloche + push + e-mail (leurs articles ne seront pas vendus, stock remis)
   for (const [ownerId, lines] of Object.entries(merchantLines)) {
     try {
-      const { notifyUser } = await import('./notify');
-      const { sendMerchantEmail } = await import('./emails');
+      const { notifyWithEmail } = await import('./notify');
       const title = `❌ Commande #${String(orderId)} annulée`;
       const text = `La commande #${String(orderId)} contenant ${lines.join(', ')} a été annulée. Le stock a été remis à disposition.`;
-      await notifyUser(ownerId, { title, body: text, url: '/producer/orders' });
-      const { data: u } = await supabaseAdmin.auth.admin.getUserById(ownerId);
-      if (u?.user?.email) await sendMerchantEmail(u.user.email, `Commande #${String(orderId)} annulée — Hornafresh`, title, text);
+      await notifyWithEmail(ownerId, { title, body: text, url: '/producer/orders', subject: `Commande #${String(orderId)} annulée — Hornafresh`,
+        i18n: { key: 'm.order_cancelled', params: { id: String(orderId), lines: lines.join(', ') } } });
     } catch (e) { console.error('[cancel] merchant notify failed:', e); }
   }
   return { ok: true };

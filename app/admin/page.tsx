@@ -24,10 +24,13 @@ import AdminWallets from '../../components/admin/AdminWallets';
 import AdminSubscriptions from '../../components/admin/AdminSubscriptions';
 import AdminHomepage from '../../components/admin/AdminHomepage';
 import AdminForecast from '../../components/admin/AdminForecast';
+import AdminMonitoring from '../../components/admin/AdminMonitoring';
+import AdminEmailPreview from '../../components/admin/AdminEmailPreview';
+import AdminToday from '../../components/admin/AdminToday';
 import { canAccessAdmin, hasPerm, roleOf } from '../../lib/permissions';
 import { AdminPermsProvider } from '../../context/AdminPermsContext';
 
-type Section = 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'preparers' | 'wallets' | 'subscriptions' | 'forecast' | 'requests' | 'users' | 'delivery' | 'notifications' | 'homepage' | 'announcements' | 'finances' | 'refunds' | 'merchants' | 'companies' | 'loyalty';
+type Section = 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'preparers' | 'wallets' | 'subscriptions' | 'forecast' | 'requests' | 'users' | 'delivery' | 'notifications' | 'homepage' | 'announcements' | 'finances' | 'refunds' | 'merchants' | 'companies' | 'loyalty' | 'monitoring' | 'emails';
 
 export default function AdminPage() {
   const [user, setUser] = useState<any>(null);
@@ -63,6 +66,8 @@ export default function AdminPage() {
     { id: 'merchants', emoji: '🏪', label: t('admin.nav_merchants', 'Marchands') },
     { id: 'companies', emoji: '🏢', label: t('admin.nav_companies', 'Entreprises') },
     { id: 'loyalty', emoji: '🎁', label: t('admin.nav_loyalty', 'Fidélité') },
+    { id: 'monitoring', emoji: '🚨', label: t('admin.nav_monitoring', 'Surveillance') },
+    { id: 'emails', emoji: '✉️', label: t('admin.nav_emails', 'Aperçu des e-mails') },
   ];
   // Onglets visibles selon le rôle/droits (admin = tout)
   const visibleNav = NAV_ITEMS.filter(i => hasPerm(meta, i.id, 'view'));
@@ -157,6 +162,8 @@ export default function AdminPage() {
       case 'merchants': return <AdminMerchants />;
       case 'companies': return <AdminCompanies />;
       case 'loyalty': return <AdminLoyalty />;
+      case 'monitoring': return <AdminMonitoring />;
+      case 'emails': return <AdminEmailPreview />;
     }
   };
 
@@ -221,7 +228,10 @@ export default function AdminPage() {
         </div>
 
         {activeSection === null ? (
-          /* Accueil : grille de cartes (modules autorisés) */
+          <>
+          {/* Ce qu'il y a à traiter maintenant ; un clic ouvre le module concerné */}
+          <AdminToday onOpen={(m) => { if (hasPerm(meta, m, 'view')) setActiveSection(m as Section); }} />
+          {/* Accueil : grille de cartes (modules autorisés) */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 animate-tabfade">
             <Link
               href="/"
@@ -251,6 +261,7 @@ export default function AdminPage() {
               </button>
             ))}
           </div>
+          </>
         ) : (
           <>
             <button

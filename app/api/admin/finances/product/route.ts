@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../lib/supabase-admin';
 import { requirePerm } from '../../../../../lib/admin-auth';
+import { monitored } from '../../../../../lib/monitor';
 
 // GET ?product_id=&from=YYYY-MM-DD&to=YYYY-MM-DD
 // Détail des ventes d'un produit sur une période (hors commandes annulées).
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = await requirePerm(request, ['finances'], 'view');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
@@ -102,3 +103,6 @@ export async function GET(request: Request) {
 
   return NextResponse.json({ product: { id: productId, name: prod?.name || `#${productId}`, unit: prod?.unit || '', merchant: shop }, rows, summary });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/admin/finances/product', GET_);

@@ -17,6 +17,8 @@ interface CartItem {
 interface CartContextType {
   items: CartItem[];
   addItem: (product: any) => void;
+  // Pose plusieurs articles avec leur quantité (recommander une commande) ; replace = vide d'abord le panier
+  setLines: (lines: { product: any; quantity: number }[], replace?: boolean) => void;
   removeItem: (id: number) => void;
   updateQuantity: (id: number, quantity: number) => void;
   clearCart: () => void;
@@ -27,6 +29,7 @@ interface CartContextType {
 const CartContext = createContext<CartContextType>({
   items: [],
   addItem: () => {},
+  setLines: () => {},
   removeItem: () => {},
   updateQuantity: () => {},
   clearCart: () => {},
@@ -92,6 +95,28 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const toItem = (product: any, quantity: number) => ({
+    id: product.id, name: product.name, price: Number(product.price), unit: product.unit,
+    image_url: product.image_url || (Array.isArray(product.bundle_items) ? product.bundle_items.find((c: any) => c.image_url)?.image_url ?? null : null),
+    farm: product.farm, quantity, stock_qty: Number(product.stock_qty ?? 0),
+  });
+  const setLines = (lines: { product: any; quantity: number }[], replace = false) => {
+    setItems(prev => {
+      const next: CartItem[] = replace ? [] : prev.map(i => ({ ...i }));
+      for (const l of lines) {
+        const stock = Number(l.product?.stock_qty ?? 0);
+        if (!l.product || stock <= 0 || !(l.quantity > 0)) continue;
+        const cur = next.find(i => i.id === l.product.id);
+        // Ajout à un panier existant : les quantités s'additionnent, toujours plafonnées au stock
+        if (cur) { Object.assign(cur, toItem(l.product, Math.min(cur.quantity + l.quantity, stock))); }
+        else next.push(toItem(l.product, Math.min(l.quantity, stock)));
+      }
+      // Écriture immédiate : la page suivante (checkout) lit le panier dès son chargement
+      saveCart(next);
+      return next;
+    });
+  };
+
   const removeItem = (id: number) => {
     setItems(prev => prev.filter(i => i.id !== id));
   };
@@ -110,7 +135,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
   return (
-    <CartContext.Provider value={{ items, addItem, removeItem, updateQuantity, clearCart, count, total }}>
+    <CartContext.Provider value={{ items, addItem, setLines, removeItem, updateQuantity, clearCart, count, total }}>
       {children}
     </CartContext.Provider>
   );

@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { requirePerm } from '../../../../../lib/admin-auth';
 import { applyItemChange } from '../../../../../lib/order-edit';
+import { monitored } from '../../../../../lib/monitor';
 
 // POST { order_id, item_id, new_quantity? } — retrait/réduction direct par l'admin.
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   const auth = await requirePerm(request, 'orders', 'edit');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
@@ -15,3 +16,6 @@ export async function POST(request: Request) {
   if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status });
   return NextResponse.json(r);
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const POST = monitored('/api/admin/orders/remove-item', POST_);

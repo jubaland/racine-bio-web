@@ -7,6 +7,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import Header from '../../components/Header';
 import CartDrawer from '../../components/CartDrawer';
 import { nextDeliveryDate } from '../../lib/subscription-schedule';
+import { useProductSearch } from '../../lib/useProductSearch';
 
 type Freq = 'weekly' | 'fortnightly' | 'monthly';
 const FREQS: Freq[] = ['weekly', 'fortnightly', 'monthly'];
@@ -40,6 +41,7 @@ export default function SubscriptionPage() {
   const [error, setError] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [addSearch, setAddSearch] = useState('');
+  const { filter: searchFilter } = useProductSearch(products);   // recherche tolérante, toutes langues
 
   const DAYS = [
     t('sub.day_0', 'Dimanche'), t('sub.day_1', 'Lundi'), t('sub.day_2', 'Mardi'),
@@ -392,7 +394,7 @@ export default function SubscriptionPage() {
             </div>
             <div className="overflow-y-auto p-2">
               {(() => {
-                const list = products.filter(p => getName(p).toLowerCase().includes(addSearch.toLowerCase()));
+                const list = searchFilter(products, addSearch);
                 if (list.length === 0) return <p className="text-center text-sm text-gray-400 py-6">{t('sub.no_match', 'Aucun produit trouvé.')}</p>;
                 return list.map(p => {
                   const q = qty[p.id] || 0;

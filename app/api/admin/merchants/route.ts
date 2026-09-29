@@ -5,6 +5,9 @@ import { notifyUser } from '../../../../lib/notify';
 import { sendMerchantEmail } from '../../../../lib/emails';
 import { roleOf } from '../../../../lib/permissions';
 import { merchantState, formulasOf, commissionSettings, saveCommissionSettings, effectiveRate, switchToCommission, switchToSubscription, merchantDelays, saveMerchantDelays, MERCHANT_DELAY_KEYS, MERCHANT_DELAY_MAX } from '../../../../lib/merchant-formula';
+import { notifyWithEmail } from '../../../../lib/notify';
+import type { I18n } from '../../../../lib/i18n-server';
+import { monitored } from '../../../../lib/monitor';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const addDays = (d: string, n: number) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
@@ -23,7 +26,7 @@ async function allUsers() {
 const nameOf = (u: any) => u?.user_metadata?.full_name || u?.email || '—';
 
 // ── GET : vue d'ensemble ──────────────────────────────────────────────────
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = await requirePerm(request, 'merchants', 'view');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
@@ -74,7 +77,7 @@ export async function GET(request: Request) {
 }
 
 // ── POST : actions ────────────────────────────────────────────────────────
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   let body: any = {};
   try { body = await request.json(); } catch { /* ignore */ }
   const { action } = body;
@@ -91,15 +94,11 @@ export async function POST(request: Request) {
     return { starts_at, ends_at: addDays(starts_at, durationDays - 1) };
   }
   // url : page ouverte au clic sur la notification (abonnement par défaut ; produits / tableau de bord selon le cas)
-  async function notifyMerchant(userId: string, title: string, text: string, emailSubject?: string, url: string = '/producer/subscription') {
-    try { await notifyUser(userId, { title, body: text, url }); } catch { /* ignore */ }
-    if (emailSubject) {
-      try {
-        const { data } = await supabaseAdmin.auth.admin.getUserById(userId);
-        if (data?.user?.email) await sendMerchantEmail(data.user.email, emailSubject, title, text);
-      } catch { /* ignore */ }
-    }
+  // i18n : modèle traduit du message (srv.m.*) ; le marchand le reçoit dans la langue de son compte
+  async function notifyMerchant(userId: string, title: string, text: string, emailSubject?: string, url: string = '/producer/subscription', i18n?: I18n) {
+    try { await notifyWithEmail(userId, { title, body: text, url, subject: emailSubject || null, i18n }); } catch { /* ignore */ }
   }
+  const noteP = (note: string | null | undefined) => (note ? ` : ${note}` : '');
 
   // Enseigne : source unique (merchant_profiles) + instantané `farm` sur les fiches du marchand
   async function setShopName(userId: string, shopName: string) {
@@ -131,7 +130,8 @@ export async function POST(request: Request) {
       });
       if (error) throw error;
       await switchToSubscription(user_id);          // une période payée remet le marchand en formule abonnement
-      await notifyMerchant(user_id, '✅ Abonnement activé', `Votre abonnement « ${plan.name} » est actif du ${fmt(p.starts_at)} au ${fmt(p.ends_at)}. Vos produits validés sont visibles sur Hornafresh.`, 'Votre abonnement Hornafresh est actif');
+      await notifyMerchant(user_id, '✅ Abonnement activé', `Votre abonnement « ${plan.name} » est actif du ${fmt(p.starts_at)} au ${fmt(p.ends_at)}. Vos produits validés sont visibles sur Hornafresh.`, 'Votre abonnement Hornafresh est actif', undefined,
+        { key: 'm.sub_activated_plan', params: { plan: plan.name, from: { date: p.starts_at }, to: { date: p.ends_at } } });
       return NextResponse.json({ ok: true, ...p });
     }
 
@@ -142,7 +142,7 @@ export async function POST(request: Request) {
       if (!sub || sub.status !== 'pending_payment') return NextResponse.json({ error: 'already_resolved' }, { status: 409 });
       if (action === 'reject_payment') {
         await supabaseAdmin.from('merchant_subscriptions').update({ status: 'rejected', notes: note || null }).eq('id', subscription_id);
-        await notifyMerchant(sub.user_id, '❌ Paiement non confirmé', `Nous n'avons pas pu confirmer votre paiement${note ? ` : ${note}` : ''}. Contactez-nous au 77 43 26 15.`, 'Hornafresh — paiement non confirmé');
+        await notifyMerchant(sub.user_id, '❌ Paiement non confirmé', `Nous n'avons pas pu confirmer votre paiement${note ? ` : ${note}` : ''}. Contactez-nous au 77 43 26 15.`, 'Hornafresh — paiement non confirmé', undefined, { key: 'm.payment_rejected', params: { note: noteP(note) } });
         return NextResponse.json({ ok: true });
       }
       const duration = Number(sub.merchant_plans?.duration_days);
@@ -150,7 +150,8 @@ export async function POST(request: Request) {
       const p = await periodFor(sub.user_id, duration);
       await supabaseAdmin.from('merchant_subscriptions').update({ status: 'active', starts_at: p.starts_at, ends_at: p.ends_at, paid_at: new Date().toISOString(), confirmed_by: auth.user.id, notes: note || null }).eq('id', subscription_id);
       await switchToSubscription(sub.user_id);      // une période payée remet le marchand en formule abonnement
-      await notifyMerchant(sub.user_id, '✅ Abonnement activé', `Paiement confirmé. Votre abonnement est actif du ${fmt(p.starts_at)} au ${fmt(p.ends_at)}.`, 'Votre abonnement Hornafresh est actif');
+      await notifyMerchant(sub.user_id, '✅ Abonnement activé', `Paiement confirmé. Votre abonnement est actif du ${fmt(p.starts_at)} au ${fmt(p.ends_at)}.`, 'Votre abonnement Hornafresh est actif', undefined,
+        { key: 'm.sub_activated', params: { from: { date: p.starts_at }, to: { date: p.ends_at } } });
       return NextResponse.json({ ok: true, ...p });
     }
 
@@ -168,13 +169,15 @@ export async function POST(request: Request) {
         await notifyMerchant(user_id,
           action === 'suspend' ? '⏸️ Boutique suspendue' : '▶️ Boutique réactivée',
           action === 'suspend' ? `Votre boutique est suspendue${note ? ` : ${note}` : ''}. Vos produits ne sont plus visibles. Contactez-nous au 77 43 26 15.` : 'Votre boutique est de nouveau active : vos produits validés sont visibles.',
-          action === 'suspend' ? 'Hornafresh — boutique suspendue' : 'Hornafresh — boutique réactivée');
+          action === 'suspend' ? 'Hornafresh — boutique suspendue' : 'Hornafresh — boutique réactivée', undefined,
+          { key: action === 'suspend' ? 'm.shop_suspended' : 'm.shop_reactivated', params: { note: noteP(note) } });
         return NextResponse.json({ ok: true });
       }
       await notifyMerchant(user_id,
         action === 'suspend' ? '⏸️ Abonnement suspendu' : '▶️ Abonnement réactivé',
         action === 'suspend' ? `Votre abonnement est suspendu${note ? ` : ${note}` : ''}. Vos produits ne sont plus visibles. Contactez-nous au 77 43 26 15.` : 'Votre abonnement est de nouveau actif : vos produits validés sont visibles.',
-        action === 'suspend' ? 'Hornafresh — abonnement suspendu' : 'Hornafresh — abonnement réactivé');
+        action === 'suspend' ? 'Hornafresh — abonnement suspendu' : 'Hornafresh — abonnement réactivé', undefined,
+        { key: action === 'suspend' ? 'm.sub_suspended' : 'm.sub_reactivated', params: { note: noteP(note) } });
       return NextResponse.json({ ok: true });
     }
 
@@ -189,7 +192,8 @@ export async function POST(request: Request) {
       if (!cur) return NextResponse.json({ error: 'no_active' }, { status: 409 });
       const ends_at = addDays(cur.ends_at, n);
       await supabaseAdmin.from('merchant_subscriptions').update({ ends_at }).eq('id', cur.id);
-      await notifyMerchant(user_id, '🎁 Abonnement prolongé', `Votre abonnement est prolongé de ${n} jour(s), jusqu'au ${fmt(ends_at)}.`);
+      await notifyMerchant(user_id, '🎁 Abonnement prolongé', `Votre abonnement est prolongé de ${n} jour(s), jusqu'au ${fmt(ends_at)}.`, undefined, undefined,
+        { key: 'm.sub_extended', params: { n, to: { date: ends_at } } });
       return NextResponse.json({ ok: true, ends_at });
     }
 
@@ -211,7 +215,8 @@ export async function POST(request: Request) {
       if (prod.owner_id) await notifyMerchant(prod.owner_id,
         approve ? `✅ Produit validé : ${prod.name}` : `❌ Produit refusé : ${prod.name}`,
         approve ? 'Votre produit est publié sur Hornafresh (visible tant que votre formule est active).' : `Motif : ${note || 'non précisé'}. Modifiez-le pour le soumettre à nouveau.`,
-        undefined, '/producer/products');
+        undefined, '/producer/products',
+        { key: approve ? 'm.product_approved' : 'm.product_rejected', params: { name: prod.name, note: note ? String(note) : { key: 'm.note_none', fr: 'non précisé' } } });
       return NextResponse.json({ ok: true, translated });
     }
 
@@ -283,11 +288,11 @@ export async function POST(request: Request) {
       if (kind === 'commission') {
         const r = await switchToCommission(user_id, { force: true, note: 'Décision Hornafresh' });
         if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
-        await notifyMerchant(user_id, '🤝 Formule commission activée', `Vous êtes en formule commission : ${r.rate} % retenus sur vos ventes livrées, rien à payer d'avance. Vos produits validés sont visibles.`, 'Hornafresh — formule commission');
+        await notifyMerchant(user_id, '🤝 Formule commission activée', `Vous êtes en formule commission : ${r.rate} % retenus sur vos ventes livrées, rien à payer d'avance. Vos produits validés sont visibles.`, 'Hornafresh — formule commission', undefined, { key: 'm.com_activated', params: { rate: r.rate } });
         return NextResponse.json({ ok: true, rate: r.rate });
       }
       await switchToSubscription(user_id);
-      await notifyMerchant(user_id, '💳 Formule abonnement', 'Vous êtes en formule abonnement : vos produits sont visibles pendant les périodes réglées. Activez une période depuis « Ma formule ».', 'Hornafresh — formule abonnement');
+      await notifyMerchant(user_id, '💳 Formule abonnement', 'Vous êtes en formule abonnement : vos produits sont visibles pendant les périodes réglées. Activez une période depuis « Ma formule ».', 'Hornafresh — formule abonnement', undefined, { key: 'm.formula_sub' });
       return NextResponse.json({ ok: true });
     }
 
@@ -313,11 +318,12 @@ export async function POST(request: Request) {
           if (!existing) await setShopName(user.id, (req.farm_name || '').trim() || `Boutique ${nameOf(user)}`);
           await notifyMerchant(user.id, '🎉 Adhésion acceptée',
             `Bienvenue chez Hornafresh, ${req.farm_name} ! Prochaines étapes : 1) choisissez votre formule, abonnement ou commission (Ma formule), 2) ajoutez vos produits (validés par Hornafresh), 3) recevez vos commandes et vos reversements.`,
-            'Bienvenue chez Hornafresh — votre espace marchand', '/producer/subscription');
+            'Bienvenue chez Hornafresh — votre espace marchand', '/producer/subscription', { key: 'm.join_accepted', params: { shop: req.farm_name } });
         } else {
           await notifyMerchant(user.id, 'Adhésion non retenue',
             `Votre demande pour « ${req.farm_name} » n'a pas été retenue pour le moment.${note ? ` Motif : ${note}.` : ''} Vous pouvez déposer une nouvelle demande ou nous appeler au 77 43 26 15.`,
-            'Hornafresh — votre demande d\'adhésion', '/become-producer');
+            'Hornafresh — votre demande d\'adhésion', '/become-producer',
+            { key: 'm.join_rejected', params: { shop: req.farm_name, reason: note ? { key: 'm.reason', params: { note: String(note) }, fr: ` Motif : ${note}.` } : null } });
         }
       }
       return NextResponse.json({ ok: true, user_found: !!user });
@@ -328,3 +334,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: e.message || 'Erreur' }, { status: 500 });
   }
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/admin/merchants', GET_);
+export const POST = monitored('/api/admin/merchants', POST_);

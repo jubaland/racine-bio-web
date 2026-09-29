@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { buildReceiptPdf } from '../../../../lib/pdf';
+import { monitored } from '../../../../lib/monitor';
 
 // Reçu PDF d'une commande — réservé au propriétaire (vérif. via JWT).
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const id = new URL(request.url).searchParams.get('id');
   const token = (request.headers.get('authorization') || '').replace('Bearer ', '').trim();
   if (!id) return NextResponse.json({ error: 'id requis' }, { status: 400 });
@@ -29,3 +30,6 @@ export async function GET(request: Request) {
     },
   });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/orders/receipt', GET_);

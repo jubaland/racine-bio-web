@@ -2,17 +2,18 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { requireMerchant } from '../../../../lib/producer-auth';
 import { toIntlPhone } from '../../../../lib/whatsapp';
+import { monitored } from '../../../../lib/monitor';
 
 // Préférences du marchand — GET → { email_mode, digest_sent_at, whatsapp }
 // POST { email_mode?: 'instant' | 'daily', whatsapp?: string | null } (numéro Djibouti 8 chiffres ou international)
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = await requireMerchant(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { data } = await supabaseAdmin.from('merchant_profiles').select('email_mode, digest_sent_at, whatsapp').eq('user_id', auth.user.id).maybeSingle();
   return NextResponse.json({ email_mode: data?.email_mode || 'instant', digest_sent_at: data?.digest_sent_at || null, whatsapp: data?.whatsapp || null });
 }
 
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   const auth = await requireMerchant(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   let body: any = {};
@@ -33,3 +34,7 @@ export async function POST(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true, ...patch });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/producer/settings', GET_);
+export const POST = monitored('/api/producer/settings', POST_);

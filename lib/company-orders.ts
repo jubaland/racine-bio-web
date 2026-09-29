@@ -51,7 +51,7 @@ export async function processCompanyDeliveries(todayStr: string, opts: { onlyCom
     const balance = await companyBalance(s.company_id);
     if (balance < total) {
       await supabaseAdmin.from('company_subscriptions').update({ paused: true, paused_reason: 'low_balance', updated_at: new Date().toISOString() }).eq('company_id', s.company_id).eq('frequency', s.frequency);
-      await notifyCompany(s.company_id, ['manager'], { title: '⏸️ Commande récurrente en pause', body: `Livraison ${label} non passée : il faut ${fdj(total)}, solde ${fdj(balance)}. Elle reprendra à la prochaine recharge.` });
+      await notifyCompany(s.company_id, ['manager'], { title: '⏸️ Commande récurrente en pause', body: `Livraison ${label} non passée : il faut ${fdj(total)}, solde ${fdj(balance)}. Elle reprendra à la prochaine recharge.`, i18n: { key: 'c.sub_paused', params: { label: { key: `freq.${s.frequency}`, fr: label }, total: fdj(total), balance: fdj(balance) } } });
       results.push({ company: s.company_id, frequency: s.frequency, paused: 'low_balance', needed: total, balance });
       continue;
     }
@@ -87,7 +87,7 @@ export async function processCompanyDeliveries(todayStr: string, opts: { onlyCom
       const { sendPushToAdmin } = await import('./push');
       await sendPushToAdmin({ title: '🏢 Commande récurrente entreprise', body: `#${order.id} — ${s.companies.name} — ${fdj(total)}`, url: '/admin' });
     } catch (e) { console.error('[company-orders] notify:', e); }
-    await notifyCompany(s.company_id, ['manager'], { title: `📦 Livraison ${label}`, body: `Commande #${order.id} en préparation pour ${site.recipient_name} — ${fdj(total)}. Solde : ${fdj(debit.balance || 0)}.` });
+    await notifyCompany(s.company_id, ['manager'], { title: `📦 Livraison ${label}`, body: `Commande #${order.id} en préparation pour ${site.recipient_name} — ${fdj(total)}. Solde : ${fdj(debit.balance || 0)}.`, i18n: { key: 'c.sub_delivery', params: { label: { key: `freq.${s.frequency}`, fr: label }, id: order.id, site: site.recipient_name, total: fdj(total), balance: fdj(debit.balance || 0) } } });
     results.push({ company: s.company_id, frequency: s.frequency, ordered: order.id, total });
   }
   return results;
@@ -109,11 +109,15 @@ export async function remindCompaniesTomorrow(todayStr: string, opts: { onlyComp
     const kind = !lines.length ? 'empty' : missing > 0 ? 'missing' : 'ok';
     report.push({ company: s.company_id, frequency: s.frequency, kind, total, balance, missing });
     if (opts.dry) continue;
+    const i18n = { key: `c.remind_${kind}`, params: {
+      label: { key: `freq.${s.frequency}`, fr: label }, company: s.companies.name, total: fdj(total), balance: fdj(balance), missing: fdj(missing),
+      note: omitted.length ? { key: 'c.note_omitted', params: { list: omitted.join(', ') }, fr: `Indisponible(s), omis : ${omitted.join(', ')}.` } : null,
+    } };
     await notifyCompany(s.company_id, ['manager'], kind === 'empty'
-      ? { title: '⚠️ Livraison demain : aucun article disponible', body: `La commande récurrente ${label} de ${s.companies.name} part demain, mais aucun article n'est disponible.${stockNote}` }
+      ? { title: '⚠️ Livraison demain : aucun article disponible', body: `La commande récurrente ${label} de ${s.companies.name} part demain, mais aucun article n'est disponible.${stockNote}`, i18n }
       : kind === 'missing'
-      ? { title: `⏳ Livraison demain : il manque ${fdj(missing)}`, body: `Commande récurrente ${label} de ${s.companies.name} : ${fdj(total)}, solde ${fdj(balance)}. Rechargez aujourd'hui pour ne pas la manquer.${stockNote}` }
-      : { title: `📦 Livraison demain — ${fdj(total)}`, body: `Commande récurrente ${label} de ${s.companies.name} : ${fdj(total)} seront débités de la cagnotte société (solde ${fdj(balance)}).${stockNote}` });
+      ? { title: `⏳ Livraison demain : il manque ${fdj(missing)}`, body: `Commande récurrente ${label} de ${s.companies.name} : ${fdj(total)}, solde ${fdj(balance)}. Rechargez aujourd'hui pour ne pas la manquer.${stockNote}`, i18n }
+      : { title: `📦 Livraison demain — ${fdj(total)}`, body: `Commande récurrente ${label} de ${s.companies.name} : ${fdj(total)} seront débités de la cagnotte société (solde ${fdj(balance)}).${stockNote}`, i18n });
     await supabaseAdmin.from('company_subscriptions').update({ reminder_sent_for: tomorrow }).eq('company_id', s.company_id).eq('frequency', s.frequency);
   }
   return { tomorrow, reminders: report };
@@ -135,7 +139,8 @@ export async function resumeCompanyAfterTopUp(companyId: number) {
     await supabaseAdmin.from('company_subscriptions').update({ paused: false, paused_reason: null, updated_at: now.toISOString() }).eq('company_id', companyId).eq('frequency', s.frequency);
     const next = nextDeliveryDate(s, from);
     resumed.push({ frequency: s.frequency, next, total });
-    await notifyCompany(companyId, ['manager'], { title: '▶️ Commande récurrente reprise', body: `Cagnotte rechargée : la commande ${FREQ_LABEL[s.frequency] || s.frequency} reprend${next ? `, prochaine livraison le ${fmtDate(next)}` : ''} (${fdj(total)}).` });
+    await notifyCompany(companyId, ['manager'], { title: '▶️ Commande récurrente reprise', body: `Cagnotte rechargée : la commande ${FREQ_LABEL[s.frequency] || s.frequency} reprend${next ? `, prochaine livraison le ${fmtDate(next)}` : ''} (${fdj(total)}).`,
+      i18n: { key: next ? 'c.resumed_next' : 'c.resumed', params: { label: { key: `freq.${s.frequency}`, fr: FREQ_LABEL[s.frequency] || s.frequency }, date: next ? { date: next, weekday: true } : null, total: fdj(total) } } });
   }
   return resumed;
 }

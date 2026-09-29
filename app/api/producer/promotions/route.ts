@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { requireMerchant } from '../../../../lib/producer-auth';
 import { todayStr, createPromotion } from '../../../../lib/promotions';
+import { monitored } from '../../../../lib/monitor';
 
 // Espace marchand — promotions planifiées sur ses produits
 //   GET  → { promotions: [...avec produit, état], products: [ses produits publiés] }
@@ -12,7 +13,7 @@ import { todayStr, createPromotion } from '../../../../lib/promotions';
 
 const stateOf = (p: any, day: string) => p.status === 'cancelled' ? 'cancelled' : p.ends_at < day ? 'ended' : p.starts_at > day ? 'upcoming' : 'active';
 
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = await requireMerchant(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const day = todayStr();
@@ -28,7 +29,7 @@ export async function GET(request: Request) {
   });
 }
 
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   const auth = await requireMerchant(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   let body: any = {};
@@ -48,3 +49,7 @@ export async function POST(request: Request) {
   if ('error' in r) return NextResponse.json({ error: r.error }, { status: r.status });
   return NextResponse.json({ ok: true, promotion: r.promotion });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/producer/promotions', GET_);
+export const POST = monitored('/api/producer/promotions', POST_);

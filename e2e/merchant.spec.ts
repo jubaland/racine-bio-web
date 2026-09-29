@@ -73,3 +73,22 @@ test('client : carte de fidélité visible dans le profil', async ({ page }) => 
   await expect(page.getByText(/Ma carte de fidélité/)).toBeVisible();
   await expectNoOverflow(page, 'profil › carte de fidélité');
 });
+
+test('client : recommander une commande ouvre le récapitulatif (sans commander)', async ({ page }) => {
+  const errors = trackErrors(page);
+  await page.goto('/profile'); await settle(page);
+  await page.getByRole('button', { name: /Commandes/ }).first().click();
+  await page.waitForTimeout(1500);
+  const again = page.getByRole('button', { name: /Recommander/ }).first();
+  test.skip(!(await again.isVisible().catch(() => false)), 'ce compte de test n\'a aucune commande');
+  await again.click();
+  const dialog = page.getByRole('dialog', { name: /Commander à nouveau/ });
+  await expect(dialog).toBeVisible();
+  // Le récapitulatif se charge : un total, ou le message « aucun article disponible »
+  await expect(dialog.getByText(/hors livraison|n'est disponible actuellement/).first()).toBeVisible({ timeout: 30_000 });
+  await expectNoOverflow(page, 'profil › recommander');
+  await dialog.getByRole('button', { name: /Fermer/ }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+

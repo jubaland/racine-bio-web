@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabase-admin';
 import { requirePerm } from '../../../lib/admin-auth';
+import { monitored } from '../../../lib/monitor';
 
 // Préparateurs de commandes — admin / gestionnaire avec droit "Préparateurs".
 
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = await requirePerm(request, 'preparers', 'view');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { data, error } = await supabaseAdmin
@@ -15,7 +16,7 @@ export async function GET(request: Request) {
   return NextResponse.json({ preparers: data });
 }
 
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   const auth = await requirePerm(request, 'preparers', 'create');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { name, email } = await request.json();
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
   return NextResponse.json({ preparer: data });
 }
 
-export async function PATCH(request: Request) {
+async function PATCH_(request: Request) {
   const auth = await requirePerm(request, 'preparers', 'edit');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { id, name, email, is_active } = await request.json();
@@ -44,7 +45,7 @@ export async function PATCH(request: Request) {
   return NextResponse.json({ ok: true });
 }
 
-export async function DELETE(request: Request) {
+async function DELETE_(request: Request) {
   const auth = await requirePerm(request, 'preparers', 'delete');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { id } = await request.json();
@@ -52,3 +53,9 @@ export async function DELETE(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/preparers', GET_);
+export const POST = monitored('/api/preparers', POST_);
+export const PATCH = monitored('/api/preparers', PATCH_);
+export const DELETE = monitored('/api/preparers', DELETE_);

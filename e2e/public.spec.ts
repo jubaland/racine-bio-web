@@ -114,3 +114,19 @@ test("titre de l'onglet et langue de la page suivent la langue choisie", async (
   await expect(page).toHaveTitle(/The premium, fresh/, { timeout: 20_000 });   // conservé après navigation
 });
 
+test('recherche tolérante : faute de frappe et autre langue', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('hf_install_dismissed', '1'));
+  await page.goto('/'); await settle(page);
+  const box = page.getByPlaceholder(/Rechercher/).first();
+  const cards = page.locator('a[href^="/product/"]');
+  const all = await cards.count();
+  await box.fill('tomatte');                                  // faute de frappe
+  await expect(page.getByText('Tomate', { exact: true }).first()).toBeVisible({ timeout: 20_000 });
+  expect(await cards.count()).toBeLessThan(all);
+  await box.fill('watermelon');                               // mot anglais, site en français
+  await expect(page.getByText('Pastèque', { exact: true }).first()).toBeVisible({ timeout: 20_000 });
+  await box.fill('zzzzqqqq');
+  await expect(page.getByText('Tomate', { exact: true })).toHaveCount(0);
+  await expectNoOverflow(page, 'accueil (recherche)');
+});
+

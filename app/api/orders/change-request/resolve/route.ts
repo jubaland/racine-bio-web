@@ -3,9 +3,10 @@ import { supabaseAdmin } from '../../../../../lib/supabase-admin';
 import { requirePerm } from '../../../../../lib/admin-auth';
 import { applyItemChange } from '../../../../../lib/order-edit';
 import { notifyUser } from '../../../../../lib/notify';
+import { monitored } from '../../../../../lib/monitor';
 
 // POST { request_id, action: 'approve' | 'reject' } — l'admin valide/refuse une demande.
-export async function POST(request: Request) {
+async function POST_(request: Request) {
   const auth = await requirePerm(request, 'orders', 'edit');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
@@ -53,3 +54,6 @@ export async function POST(request: Request) {
   }
   return NextResponse.json({ ok: true });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const POST = monitored('/api/orders/change-request/resolve', POST_);

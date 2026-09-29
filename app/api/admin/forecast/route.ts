@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { requirePerm } from '../../../../lib/admin-auth';
+import { monitored } from '../../../../lib/monitor';
 
 // Projection des livraisons d'abonnement des 7 prochains jours (sans créer de commandes).
 // Rejoue la logique du cron : jour de livraison + fréquence + validité.
@@ -23,7 +24,7 @@ function isDue(frequency: string, lastDelivery: string | null, dayStr: string): 
   return false;
 }
 
-export async function GET(request: Request) {
+async function GET_(request: Request) {
   const auth = await requirePerm(request, 'forecast', 'view');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   // Abonnements éligibles (actifs, non suspendus)
@@ -129,3 +130,6 @@ export async function GET(request: Request) {
 
   return NextResponse.json({ from: days[0].date, to: days[6].date, totalDeliveries, days, aggregate });
 }
+
+// Surveillance : exceptions et réponses 5xx enregistrées (lib/monitor.ts)
+export const GET = monitored('/api/admin/forecast', GET_);
