@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
+import AutoTranslateButton from './AutoTranslateButton';
 
 // Traductions d'un produit : nom et description par langue. Les noms déjà connus du catalogue
 // (produit portant le même nom français) sont proposés ; rien n'est enregistré avant « Enregistrer ».
@@ -74,6 +75,10 @@ export default function ProductTranslationsModal({ productId, canEdit, onClose, 
               {fr.description ? <p className="text-xs text-gray-500 mt-0.5">{fr.description}</p> : <p className="text-xs text-gray-400 mt-0.5 italic">{t('ptr.no_desc', 'Sans description')}</p>}
             </div>
             <p className="text-xs text-gray-500 mb-3">{t('ptr.hint', 'Une langue sans nom affiche le nom français. La description est facultative.')}</p>
+            {canEdit && (
+              <AutoTranslateButton className="mb-3" source={{ name: fr.name, description: fr.description }} current={form}
+                onTranslated={(l, f) => { setForm(p => ({ ...p, [l]: { name: f.name ?? p[l]?.name ?? '', description: f.description ?? p[l]?.description ?? '' } })); if (f.name) setSuggested(p => ({ ...p, [l]: false })); }} />
+            )}
             <div className="space-y-3">
               {langs.map(l => (
                 <div key={l} className="border border-[#e3eebf] rounded-xl p-3">

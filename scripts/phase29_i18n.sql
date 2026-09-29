@@ -1323,3 +1323,33 @@ select v.key, v.lang, v.value from (values
  ('today.campaigns_to_order','aa','wada-iibsi(yo) laga dalbayo soo-saaraha')
 ) as v(key, lang, value)
 where not exists (select 1 from public.ui_translations u where u.key = v.key and u.language_code = v.lang);
+-- Traductions d'interface générées par scripts/i18n_import.mjs (2 clés × 5 langues ; fr = fallback dans le code)
+insert into public.ui_translations (key, language_code, value)
+select v.key, v.lang, v.value from (values
+ ('ag.closes_hint','en','End of reservations. It must be in the future.'),
+ ('ag.draft_past','en','Deadline has passed: change it to be able to open the campaign.'),
+ ('ag.closes_hint','zh','预订截止时间，必须晚于当前时间。'),
+ ('ag.draft_past','zh','截止日期已过：请修改后才能开启活动。'),
+ ('ag.closes_hint','am','የማስያዣ ማብቂያ ጊዜ። ወደፊት ያለ ጊዜ መሆን አለበት።'),
+ ('ag.draft_past','am','የመጨረሻ ቀኑ አልፏል፦ ዘመቻውን ለመክፈት ቀኑን ይቀይሩ።'),
+ ('ag.closes_hint','so','Dhammaadka dalabyada. Waa inuu noqdaa waqti soo socda.'),
+ ('ag.closes_hint','aa','Dhammaadka dalabyada. Waa inuu noqdaa waqti soo socda.'),
+ ('ag.draft_past','so','Waqtigii kama dambaysta ahaa wuu dhaafay: beddel si aad u furi karto ololaha.'),
+ ('ag.draft_past','aa','Waqtigii kama dambaysta ahaa wuu dhaafay: beddel si aad u furi karto ololaha.')
+) as v(key, lang, value)
+where not exists (select 1 from public.ui_translations u where u.key = v.key and u.language_code = v.lang);
+-- Traductions d'interface générées par scripts/i18n_import.mjs (2 clés × 5 langues ; fr = fallback dans le code)
+insert into public.ui_translations (key, language_code, value)
+select v.key, v.lang, v.value from (values
+ ('ag.err_load','en','Unable to load'),
+ ('ag.err_session','en','Your session has expired. Please sign in again.'),
+ ('ag.err_load','zh','无法加载'),
+ ('ag.err_session','zh','您的会话已过期，请重新登录。'),
+ ('ag.err_load','am','መጫን አልተቻለም'),
+ ('ag.err_session','am','ክፍለ ጊዜዎ አብቅቷል። እንደገና ይግቡ።'),
+ ('ag.err_load','so','Lama soo rari karo'),
+ ('ag.err_load','aa','Lama soo rari karo'),
+ ('ag.err_session','so','Fadhigaagu wuu dhacay. Mar kale gal.'),
+ ('ag.err_session','aa','Fadhigaagu wuu dhacay. Mar kale gal.')
+) as v(key, lang, value)
+where not exists (select 1 from public.ui_translations u where u.key = v.key and u.language_code = v.lang);

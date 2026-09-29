@@ -102,6 +102,7 @@ test('admin › Produits : éditeur de traductions (sans enregistrer)', async ({
   await expect(page.getByRole('heading', { name: /Traductions du produit/ })).toBeVisible();
   await expect(page.getByText(/Texte français \(référence\)/)).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText('🇬🇧 English')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Traduire automatiquement/ })).toBeVisible();   // non cliqué : quota du service préservé
   await expectNoOverflow(page, 'Produits › Traductions');
   await page.getByRole('button', { name: /Annuler/ }).click();
   await expect(page.getByRole('heading', { name: /Traductions du produit/ })).toHaveCount(0);
@@ -142,6 +143,12 @@ test('admin › Aperçu des e-mails : e-mail affiché, changement de langue', as
 
 test('admin › Achats groupés : onglets, fiche de coût calculée (sans enregistrer)', async ({ page }) => {
   await openModule(page, /Achats groupés/, /Achats groupés/);
+  // La liste se charge vraiment (ni sablier sans fin, ni erreur), et un brouillon dont la date limite
+  // est passée est signalé au lieu de proposer un bouton « Ouvrir » sans effet
+  await expect(page.getByText(/Nouvelle campagne|Ajoutez d'abord un producteur/).first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/Chargement impossible|session a expiré/)).toHaveCount(0);
+  const stale = page.getByText(/Date limite dépassée/);
+  if (await stale.count()) await expect(stale.first()).toBeVisible();
   for (const tab of ['Producteurs', 'Réglages', 'Campagnes']) {
     await page.getByRole('button', { name: new RegExp(tab) }).first().click();
     await page.waitForTimeout(600);
@@ -162,6 +169,8 @@ test('admin › Achats groupés : onglets, fiche de coût calculée (sans enregi
   await page.getByLabel(/Taux de change/).fill('178');
   await page.getByLabel(/Transport/).fill('400');
   await expect(page.getByText(/coût de revient/)).toBeVisible();
+  await page.getByText(/Traductions \(facultatif\)/).click();
+  await expect(page.getByRole('button', { name: /Traduire automatiquement/ })).toBeVisible();
   await page.getByLabel(/Marge visée/).fill('20');
   await expect(page.getByText(/Prix conseillé/)).toBeVisible();
   await expectNoOverflow(page, 'Achats groupés › nouvelle campagne');

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
+import AutoTranslateButton from './AutoTranslateButton';
 import { useCan } from '../../context/AdminPermsContext';
 
 type Announcement = {
@@ -157,6 +158,10 @@ export default function AdminBroadcast() {
           {showTr && (
             <div className="px-4 pb-4 space-y-3">
               <p className="text-[11px] text-gray-400">{t('admin.bc_tr_hint2', 'Sans traduction, le bandeau et la notification sont en français pour les clients de cette langue.')}</p>
+              {canSend && (
+                <AutoTranslateButton source={{ title, body }} current={tr}
+                  onTranslated={(l, f) => setTr(p => ({ ...p, [l]: { title: f.title ?? p[l]?.title ?? '', body: f.body ?? p[l]?.body ?? '' } }))} />
+              )}
               {TR_LANGS.map(([lang, label]) => (
                 <div key={lang}>
                   <p className="text-xs font-semibold text-gray-600 mb-1">{label}</p>

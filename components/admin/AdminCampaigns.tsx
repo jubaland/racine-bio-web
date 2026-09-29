@@ -5,6 +5,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { useCan } from '../../context/AdminPermsContext';
 import { unitCost, suggestedPrice, marginOf } from '../../lib/campaign-math';
+import AutoTranslateButton from './AutoTranslateButton';
 
 // Admin › Achats groupés : producteurs étrangers, campagnes de précommande (fiche de coût, seuil,
 // date limite), suivi jusqu'à la distribution, paiements au producteur.
@@ -30,6 +31,7 @@ export default function AdminCampaigns() {
   const [tab, setTab] = useState<'campaigns' | 'suppliers' | 'settings'>('campaigns');
   const [data, setData] = useState<Data | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');   // chargement impossible : affiché, jamais un sablier sans fin
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
   const [form, setForm] = useState<Record<string, any> | null>(null);         // campagne en cours de saisie
@@ -50,8 +52,9 @@ export default function AdminCampaigns() {
     try {
       const res = await fetch('/api/admin/campaigns', { headers: { Authorization: `Bearer ${await token()}` } });
       const j = await res.json();
-      if (res.ok) { setData(j); setSettings(Object.fromEntries(Object.entries(j.settings).map(([k, v]) => [k, v ?? '']))); }
-    } catch { /* ignore */ }
+      if (res.ok) { setData(j); setLoadError(''); setSettings(Object.fromEntries(Object.entries(j.settings).map(([k, v]) => [k, v ?? '']))); }
+      else setLoadError(res.status === 401 ? 'session' : (j.error || String(res.status)));
+    } catch (e: any) { setLoadError(e.message || 'network'); }
     setLoading(false);
   }, []);
   const openDetail = useCallback(async (id: number) => {
@@ -139,9 +142,20 @@ export default function AdminCampaigns() {
           ))}
         </div>
       </div>
-      {msg && <p className="text-sm text-gray-700 bg-[#f7fbe9] border border-[#e3eebf] rounded-xl px-3 py-2 mb-3">{msg}</p>}
+      {/* Message toujours visible, où que l'on soit dans la page (une erreur en haut de liste passait inaperçue) */}
+      {msg && (
+        <div role="alert" className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] w-[calc(100%-2rem)] max-w-md rounded-2xl shadow-xl px-4 py-3 text-sm flex items-start gap-3 ${msg.startsWith('✅') ? 'bg-[#526500] text-white' : 'bg-red-600 text-white'}`}>
+          <span className="flex-1 min-w-0 break-words">{msg}</span>
+          <button onClick={() => setMsg('')} aria-label={t('install.close', 'Fermer')} className="flex-none text-white/80 hover:text-white text-lg leading-none">✕</button>
+        </div>
+      )}
 
-      {loading || !data ? <p className="text-center text-gray-400 py-16">⏳</p> : (
+      {loadError && !data ? (
+        <div className="bg-white rounded-2xl border border-red-200 px-4 py-6 text-center">
+          <p className="text-sm text-red-600">⚠️ {loadError === 'session' ? t('ag.err_session', 'Votre session a expiré. Reconnectez-vous.') : `${t('ag.err_load', 'Chargement impossible')} : ${loadError}`}</p>
+          <button onClick={load} className="mt-3 text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5]">🔄 {t('today.refresh', 'Actualiser')}</button>
+        </div>
+      ) : loading || !data ? <p className="text-center text-gray-400 py-16">⏳</p> : (
         <>
           {/* ── Campagnes : liste ── */}
           {tab === 'campaigns' && !detail && (
@@ -175,13 +189,14 @@ export default function AdminCampaigns() {
                         <p className="font-semibold text-gray-800">{c.title} <span className={`ml-1 text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${st.cls}`}>{st.label}</span></p>
                         <p className="text-xs text-gray-500">👨‍🌾 {c.suppliers?.name} · {fdj(c.price_djf)} / {c.unit_label} · {t('ag.cost', 'coût')} {fdj(c.cost.cost)} · {t('ag.margin', 'marge')} {fdj(c.margin.amount)}{c.margin.pct != null ? ` (${c.margin.pct} %)` : ''}</p>
                         <p className="text-xs text-gray-500">{t('ag.closes', 'Clôture')} {dateTimeFr(c.closes_at)}{c.eta_date ? ` · ${t('ag.eta', 'arrivée')} ${dateFr(c.eta_date)}` : ''}</p>
+                        {c.status === 'draft' && new Date(c.closes_at).getTime() <= Date.now() && <p className="text-xs font-semibold text-red-500 mt-0.5">⚠️ {t('ag.draft_past', 'Date limite dépassée : modifiez-la pour pouvoir ouvrir la campagne.')}</p>}
                         <div className="mt-1.5 h-2 rounded-full bg-[#ecf4d5] overflow-hidden max-w-xs"><div className={`h-full ${pct >= 100 ? 'bg-[#526500]' : 'bg-[#a8c800]'}`} style={{ width: `${pct}%` }} /></div>
                         <p className="text-[11px] text-gray-500 mt-0.5">{c.units.paid} / {c.min_units} {c.unit_label}{c.max_units ? ` · ${t('ag.max', 'plafond')} ${c.max_units}` : ''}{c.units.pending ? ` · ${c.units.pending} ${t('ag.pending_units', 'en attente de paiement')}` : ''} · {c.units.buyers} {t('ag.buyers', 'acheteur(s)')}</p>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         <button onClick={() => openDetail(c.id)} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5]">📋 {t('ag.follow', 'Suivi')}</button>
                         {canEdit && ['draft', 'open'].includes(c.status) && <button onClick={() => editCampaign(c)} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5]">✏️ {t('admin.edit', 'Modifier')}</button>}
-                        {canEdit && c.status === 'draft' && <button disabled={busy === 'o' + c.id} onClick={() => act({ action: 'open', id: c.id }, 'o' + c.id, t('ag.open_confirm', 'Ouvrir cette campagne aux réservations ?'))} className="text-xs font-semibold bg-[#a8c800] text-white rounded-lg px-3 py-1.5 hover:bg-[#7d9800] disabled:opacity-50">🟢 {t('ag.open', 'Ouvrir')}</button>}
+                        {canEdit && c.status === 'draft' && new Date(c.closes_at).getTime() > Date.now() && <button disabled={busy === 'o' + c.id} onClick={() => act({ action: 'open', id: c.id }, 'o' + c.id, t('ag.open_confirm', 'Ouvrir cette campagne aux réservations ?'))} className="text-xs font-semibold bg-[#a8c800] text-white rounded-lg px-3 py-1.5 hover:bg-[#7d9800] disabled:opacity-50">🟢 {t('ag.open', 'Ouvrir')}</button>}
                       </div>
                     </div>
                   </div>
@@ -298,7 +313,6 @@ export default function AdminCampaigns() {
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-3" onClick={() => setForm(null)}>
           <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto p-5 space-y-4" onClick={e => e.stopPropagation()}>
             <h3 className="font-bold text-[#2d6410]">🌍 {form.id ? t('admin.edit', 'Modifier') : t('ag.new_campaign', 'Nouvelle campagne')}</h3>
-            {msg && <p className="text-sm text-red-500">{msg}</p>}
 
             <div className="grid sm:grid-cols-2 gap-3">
               <label className="text-xs text-gray-600">{FIELD.supplier_id} *
@@ -344,7 +358,7 @@ export default function AdminCampaigns() {
               {F('min_units', `${t('ag.f_min_long', 'Seuil de déclenchement')} *`, { type: 'number', step: '1', ph: t('ag.units_ph', 'Ex : nombre d\'unités'), hint: t('ag.min_hint', 'En dessous, la campagne n\'a pas lieu et tout le monde est remboursé.') })}
               {F('max_units', t('ag.f_max_long', 'Plafond (facultatif)'), { type: 'number', step: '1', ph: t('ag.units_ph', 'Ex : nombre d\'unités'), hint: t('ag.max_hint', 'Capacité du producteur ou du camion.') })}
               {F('max_units_per_client', t('ag.f_max_client', 'Maximum par client (facultatif)'), { type: 'number', step: '1', ph: t('ag.units_ph', 'Ex : nombre d\'unités') })}
-              {F('closes_at', `${FIELD.closes_at} *`, { type: 'datetime-local' })}
+              {F('closes_at', `${FIELD.closes_at} *`, { type: 'datetime-local', hint: t('ag.closes_hint', 'Fin des réservations. Elle doit être dans le futur.') })}
               {F('eta_date', FIELD.eta_date, { type: 'date' })}
               {F('supplier_deposit_pct', t('ag.set_deposit', 'Acompte au producteur (%)'), { type: 'number', step: '0.5', ph: t('ag.pct_ph', 'Ex : pourcentage') })}
             </div>
@@ -369,10 +383,15 @@ export default function AdminCampaigns() {
             <details className="border border-[#e3eebf] rounded-xl px-3 py-2">
               <summary className="text-xs font-semibold text-[#526500] cursor-pointer">🌍 {t('ag.tr_title', 'Traductions (facultatif)')}</summary>
               <p className="text-[11px] text-gray-400 my-2">{t('ag.tr_hint', 'Sans traduction, la campagne s\'affiche en français dans cette langue.')}</p>
+              {canEdit && (
+                <AutoTranslateButton className="mb-3" source={{ title: form.title, unit_label: form.unit_label, description: form.description }} current={form.translations}
+                  onTranslated={(l, f) => setForm((p: any) => ({ ...p, translations: { ...p.translations, [l]: { ...(p.translations?.[l] || {}), ...f } } }))} />
+              )}
               {TR_LANGS.map(([l, label]) => (
                 <div key={l} className="grid sm:grid-cols-2 gap-2 mb-2">
                   <input value={form.translations?.[l]?.title || ''} onChange={e => setForm({ ...form, translations: { ...form.translations, [l]: { ...(form.translations?.[l] || {}), title: e.target.value } } })} placeholder={`${label} · ${FIELD.title}`} className="border border-[#d2e095] rounded-xl px-3 py-2 text-sm" />
                   <input value={form.translations?.[l]?.unit_label || ''} onChange={e => setForm({ ...form, translations: { ...form.translations, [l]: { ...(form.translations?.[l] || {}), unit_label: e.target.value } } })} placeholder={`${label} · ${FIELD.unit_label}`} className="border border-[#d2e095] rounded-xl px-3 py-2 text-sm" />
+                  <textarea rows={2} value={form.translations?.[l]?.description || ''} onChange={e => setForm({ ...form, translations: { ...form.translations, [l]: { ...(form.translations?.[l] || {}), description: e.target.value } } })} placeholder={`${label} · ${t('ag.f_desc', 'Description')}`} className="sm:col-span-2 border border-[#d2e095] rounded-xl px-3 py-2 text-sm resize-none" />
                 </div>
               ))}
             </details>
@@ -390,7 +409,6 @@ export default function AdminCampaigns() {
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-3" onClick={() => setSupForm(null)}>
           <div className="bg-white rounded-2xl w-full max-w-md max-h-[92vh] overflow-y-auto p-5 space-y-3" onClick={e => e.stopPropagation()}>
             <h3 className="font-bold text-[#2d6410]">👨‍🌾 {supForm.id ? t('admin.edit', 'Modifier') : t('ag.new_supplier', 'Nouveau producteur')}</h3>
-            {msg && <p className="text-sm text-red-500">{msg}</p>}
             <input value={supForm.name || ''} onChange={e => setSupForm({ ...supForm, name: e.target.value })} placeholder={t('ag.s_name_ph', 'Ex : nom du producteur ou de la coopérative')} className="w-full border border-[#d2e095] rounded-xl px-3 py-2 text-sm" />
             <div className="grid grid-cols-2 gap-2">
               <label className="text-xs text-gray-600">{FIELD.country}
@@ -423,7 +441,6 @@ export default function AdminCampaigns() {
           <div className="bg-white rounded-2xl w-full max-w-md p-5 space-y-3" onClick={e => e.stopPropagation()}>
             <h3 className="font-bold text-[#2d6410]">💱 {t('ag.pay_add', 'Enregistrer un paiement')}</h3>
             <p className="text-xs text-gray-500">{t('ag.pay_hint', 'À enregistrer une fois le paiement réellement effectué. Le taux de change de ce paiement est conservé.')}</p>
-            {msg && <p className="text-sm text-red-500">{msg}</p>}
             <select value={pay.kind} onChange={e => setPay({ ...pay, kind: e.target.value })} className={inputCls}>
               <option value="deposit">{t('ag.kind_deposit', 'Acompte')}</option><option value="balance">{t('ag.kind_balance', 'Solde')}</option><option value="other">{t('ag.kind_other', 'Autre')}</option>
             </select>

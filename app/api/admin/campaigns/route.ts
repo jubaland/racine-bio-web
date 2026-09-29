@@ -134,6 +134,8 @@ async function POST_(request: Request) {
     if (v.max_units != null && v.max_units < v.min_units!) return bad('max_below_min', 400, { field: 'max_units' });
     const closes = body.closes_at ? new Date(body.closes_at) : null;
     if (!closes || isNaN(closes.getTime())) return bad('required', 400, { field: 'closes_at' });
+    // Une date limite déjà passée rendrait la campagne impossible à ouvrir
+    if (closes.getTime() <= Date.now()) return bad('closes_in_past', 400, { field: 'closes_at' });
     const eta = body.eta_date && /^\d{4}-\d{2}-\d{2}$/.test(body.eta_date) ? body.eta_date : null;
     if (eta && eta < closes.toISOString().slice(0, 10)) return bad('eta_before_close', 400, { field: 'eta_date' });
     const allowDelivery = body.allow_delivery !== false, allowPickup = body.allow_pickup !== false;

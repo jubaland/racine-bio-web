@@ -85,7 +85,7 @@ try {
     translations: { en: { title: `${TAG} Onions`, unit_label: '50 kg bag' }, so: { title: `${TAG} Basal`, unit_label: 'jawaan 50 kg' } } };
   for (const [patch, field, label] of [
     [{ price_djf: '' }, 'price_djf', 'sans prix de vente'], [{ exchange_rate: 0 }, 'exchange_rate', 'taux de change nul'], [{ min_units: '' }, 'min_units', 'sans seuil'],
-    [{ max_units: 5 }, 'max_units', 'plafond inférieur au seuil'], [{ closes_at: '' }, 'closes_at', 'sans date limite'], [{ eta_date: '2020-01-01' }, 'eta_date', 'arrivée avant la clôture'],
+    [{ max_units: 5 }, 'max_units', 'plafond inférieur au seuil'], [{ closes_at: new Date(Date.now() - 60000).toISOString() }, 'closes_at', 'date limite déjà passée'], [{ closes_at: '' }, 'closes_at', 'sans date limite'], [{ eta_date: '2020-01-01' }, 'eta_date', 'arrivée avant la clôture'],
     [{ pickup_place: '' }, 'pickup_place', 'retrait sans lieu'], [{ allow_delivery: false, allow_pickup: false }, 'allow_delivery', 'ni livraison ni retrait'], [{ unit_label: '' }, 'unit_label', 'sans unité de vente'],
   ]) {
     r = await adm({ action: 'save_campaign', ...base, ...patch });
