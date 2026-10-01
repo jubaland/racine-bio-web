@@ -598,3 +598,19 @@ export async function sendErrorAlert(p: { title: string; where: string; message:
   `);
   await deliver({ from: FROM, to: ADMIN_EMAIL, subject: `${p.title} — ${p.where}`.slice(0, 150), html });
 }
+
+// ── 9. Annonce → client (canal e-mail des annonces, avec désabonnement) ───────
+export async function sendAnnouncementEmail(to: string, a: { title: string; body: string | null; url: string | null; unsubscribeUrl: string }, lang?: string | null) {
+  const M = await mailer(lang); const m = M.m;
+  const esc = (x: string) => x.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const link = a.url ? (a.url.startsWith('http') ? a.url : `${SITE}${a.url}`) : SITE;
+  const html = baseLayout(`
+    <h2 style="margin:0 0 12px;color:#1f2937;font-size:20px;">${esc(a.title)}</h2>
+    ${a.body ? `<p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.6;">${esc(a.body)}</p>` : ''}
+    <p style="text-align:center;margin:0 0 20px;">
+      <a href="${link}" style="display:inline-block;background:#a8c800;color:#ffffff;text-decoration:none;padding:13px 28px;border-radius:9999px;font-weight:bold;font-size:15px;">${m('ann_cta', 'Voir sur Hornafresh')}</a>
+    </p>
+    <p style="margin:0;color:#9ca3af;font-size:12px;line-height:1.6;">${m('ann_footer', 'Vous recevez cet e-mail parce que vous avez un compte Hornafresh.')} <a href="${a.unsubscribeUrl}" style="color:#7d9800;">${m('ann_unsubscribe', 'Ne plus recevoir les annonces')}</a></p>
+  `, M);
+  await deliver({ from: FROM, to, subject: a.title.slice(0, 150), html });
+}

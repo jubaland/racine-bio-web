@@ -6,14 +6,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 
 const [out, ...files] = process.argv.slice(2);
 const LANGS = ['en', 'zh', 'am', 'so', 'aa'];
-const token = /SUPABASE_ACCESS_TOKEN=(.+)/.exec(readFileSync('.env.local', 'utf8'))[1].trim();
-const q = async (query) => {
-  const r = await fetch('https://api.supabase.com/v1/projects/sneuexxysxlwpokhkjho/database/query', {
-    method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query }),
-  });
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
-};
+import { rowsFor } from './i18n_db.mjs';
 
 const found = {}; const bare = new Set();
 const reT = /\bt\(\s*'([a-zA-Z0-9_.]+)'\s*,\s*(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"|`((?:[^`\\]|\\.)*)`)\s*\)/g;
@@ -30,7 +23,7 @@ for (const f of files) {
 }
 for (const k of bare) if (!(k in found)) found[k] = null;
 const keys = Object.keys(found);
-const rows = await q(`select key, language_code, value from ui_translations where key in (${keys.map(k => `'${k.replace(/'/g, "''")}'`).join(',')})`);
+const rows = await rowsFor(keys);
 const db = {}; for (const r of rows) (db[r.key] ||= {})[r.language_code] = r.value;
 
 const missing = {}, same = {};

@@ -31,6 +31,9 @@ export default function AdminBroadcast() {
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [history, setHistory] = useState<Announcement[]>([]);
+  const [sendEmail, setSendEmail] = useState(false);          // « Envoyer aussi par e-mail », décoché par défaut
+  const [gapHours, setGapHours] = useState('');                // délai minimal entre deux e-mails d'annonce (réglage)
+  const [gapSaved, setGapSaved] = useState('');
   const [loading, setLoading] = useState(true);
 
   const authHeader = useCallback(async () => {
@@ -49,6 +52,7 @@ export default function AdminBroadcast() {
       const res = await fetch('/api/admin/broadcast', { headers: await authHeader() });
       const json = await res.json();
       setHistory(json.announcements || []);
+      setGapHours(json.settings?.email_min_gap_hours != null ? String(json.settings.email_min_gap_hours) : '');
     } catch { /* ignore */ }
     setLoading(false);
   }, [authHeader]);
@@ -56,7 +60,7 @@ export default function AdminBroadcast() {
   useEffect(() => { fetchHistory(); }, [fetchHistory]);
 
   // Aperçu : texte retenu par langue et nombre de clients concernés — rien n'est envoyé
-  const [preview, setPreview] = useState<{ accounts: Record<string, number>; devices: Record<string, number>; texts: Record<string, { title: string; body: string | null; translated: boolean }> } | null>(null);
+  const [preview, setPreview] = useState<{ accounts: Record<string, number>; devices: Record<string, number>; texts: Record<string, { title: string; body: string | null; translated: boolean }>; email?: { eligible: number; opted_out: number; recent: number; no_email: number; gap_hours: number | null } } | null>(null);
   const showPreview = async () => {
     if (!title.trim() || busy) return;
     setBusy(true); setFeedback(null);
@@ -70,19 +74,20 @@ export default function AdminBroadcast() {
 
   const send = async () => {
     if (!title.trim() || busy) return;
-    if (!confirm(t('admin.bc_confirm', 'Diffuser ce message à TOUS les clients (notification + bandeau) ?'))) return;
+    if (!confirm(sendEmail ? t('admin.bc_confirm_email', 'Diffuser ce message à TOUS les clients (notification + bandeau + e-mail) ?') : t('admin.bc_confirm', 'Diffuser ce message à TOUS les clients (notification + bandeau) ?'))) return;
     setBusy(true);
     setFeedback(null);
     try {
       const res = await fetch('/api/admin/broadcast', {
         method: 'POST',
         headers: await authHeader(),
-        body: JSON.stringify({ title: title.trim(), body: body.trim() || null, url: url.trim() || null, translations: tr }),
+        body: JSON.stringify({ title: title.trim(), body: body.trim() || null, url: url.trim() || null, translations: tr, email: sendEmail }),
       });
       const json = await res.json();
       if (!res.ok) { setFeedback('❌ ' + (json.error || 'Erreur')); }
       else {
-        setFeedback(`✅ ${t('admin.bc_sent', 'Diffusé !')} ${json.sent}/${json.total} ${t('admin.bc_devices', 'appareils notifiés')}.`);
+        const mail = json.email ? ` · ✉️ ${json.email.sent} ${t('admin.bc_emails_sent', 'e-mail(s) envoyé(s)')}${json.email.errors?.length ? ` (${json.email.errors.length} ${t('admin.bc_emails_failed', 'en échec')})` : ''}` : '';
+        setFeedback(`✅ ${t('admin.bc_sent', 'Diffusé !')} ${json.sent}/${json.total} ${t('admin.bc_devices', 'appareils notifiés')}${mail}.`);
         setTitle(''); setBody(''); setUrl(''); setTr({}); setShowTr(false); setPreview(null);
         fetchHistory();
       }
@@ -173,6 +178,25 @@ export default function AdminBroadcast() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Canal e-mail : pour les clients qui n'ont pas installé l'app */}
+        <div className="border border-[#e3eebf] rounded-xl px-4 py-3">
+          <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox" checked={sendEmail} onChange={e => setSendEmail(e.target.checked)} disabled={!canSend} className="accent-[#a8c800] mt-0.5" />
+            <span>✉️ {t('admin.bc_email', 'Envoyer aussi par e-mail')}<span className="block text-[11px] text-gray-400">{t('admin.bc_email_hint', 'Aux clients qui n\'ont pas refusé les annonces, chacun dans sa langue, avec un lien de désabonnement. Utile pour ceux qui n\'ont pas installé l\'app.')}</span></span>
+          </label>
+          {preview?.email && (
+            <p className="text-[11px] text-gray-500 mt-2">📬 {preview.email.eligible} {t('admin.bc_email_eligible', 'destinataire(s)')}{preview.email.opted_out ? ` · ${preview.email.opted_out} ${t('admin.bc_email_optout', 'ont refusé les annonces')}` : ''}{preview.email.recent ? ` · ${preview.email.recent} ${t('admin.bc_email_recent', 'déjà contacté(s) récemment')}` : ''}{preview.email.no_email ? ` · ${preview.email.no_email} ${t('admin.bc_email_none', 'sans adresse')}` : ''}</p>
+          )}
+          <div className="flex flex-wrap items-end gap-2 mt-3">
+            <label className="text-[11px] text-gray-500">{t('admin.bc_gap', 'Délai minimal entre deux e-mails d\'annonce à un même client (heures)')}
+              <input type="number" inputMode="numeric" min={1} step={1} value={gapHours} onChange={e => { setGapHours(e.target.value); setGapSaved(''); }} disabled={!canSend} placeholder={t('admin.bc_gap_ph', 'Ex : nombre d\'heures')} className="block w-44 border border-[#d2e095] rounded-xl px-3 py-2 text-sm mt-1" />
+            </label>
+            {canSend && <button type="button" disabled={busy} onClick={async () => { try { const res = await fetch('/api/admin/broadcast', { method: 'POST', headers: await authHeader(), body: JSON.stringify({ action: 'save_settings', email_min_gap_hours: gapHours }) }); const j = await res.json(); setGapSaved(res.ok ? `✅ ${t('mer.com_saved', 'Enregistré')}` : `❌ ${j.error || 'Erreur'}`); } catch (e: any) { setGapSaved('❌ ' + e.message); } }} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-2 hover:bg-[#ecf4d5] disabled:opacity-50">💾 {t('admin.save', 'Enregistrer')}</button>}
+            {gapSaved && <span className="text-[11px] text-gray-600">{gapSaved}</span>}
+          </div>
+          <p className="text-[11px] text-gray-400 mt-1">{t('admin.bc_gap_hint', 'Vide : aucun délai. Le client garde la main : préférence « Offres et promotions » dans son profil, lien de désabonnement dans chaque e-mail.')}</p>
         </div>
 
         {feedback && (

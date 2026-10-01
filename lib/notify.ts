@@ -113,3 +113,69 @@ export async function notifyWithEmail(userId: string, payload: Payload & { subje
   const { sendMerchantEmail } = await import('./emails');
   await sendMerchantEmail(to, t.subject || payload.subject, t.title, t.body || '', lang);
 }
+
+// ── Annonces par e-mail ──────────────────────────────────────────────────────
+// Éligible : compte avec e-mail, qui n'a pas refusé les annonces (préférence « Offres et promotions »
+// du profil, ou lien de désabonnement), et qui n'en a pas reçu depuis le délai minimal réglé
+// (app_settings announce.email_min_gap_hours ; vide = pas de délai).
+type Tr = Record<string, { title?: string; body?: string | null }> | null | undefined;
+
+async function minGapHours(): Promise<number | null> {
+  const { data } = await supabaseAdmin.from('app_settings').select('value_num').eq('key', 'announce.email_min_gap_hours').maybeSingle();
+  return data?.value_num != null ? Number(data.value_num) : null;
+}
+async function allUsers() {
+  const users: any[] = [];
+  for (let page = 1; page <= 50; page++) {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) break;
+    users.push(...(data?.users || []));
+    if ((data?.users || []).length < 1000) break;
+  }
+  return users;
+}
+
+/** Qui recevrait l'e-mail d'une annonce : destinataires, refus, trop récents, sans adresse. */
+export async function announcementEmailAudience() {
+  const users = await allUsers();
+  const gap = await minGapHours();
+  const limit = gap != null ? Date.now() - gap * 3600 * 1000 : null;
+  const out = { recipients: [] as { id: string; email: string; meta: Record<string, any> }[], opted_out: 0, recent: 0, no_email: 0, gap_hours: gap };
+  for (const u of users) {
+    if (!u.email) { out.no_email++; continue; }
+    if (u.user_metadata?.notifications?.promos === false) { out.opted_out++; continue; }
+    const last = u.user_metadata?.marketing_last_at ? new Date(u.user_metadata.marketing_last_at).getTime() : 0;
+    if (limit != null && last > limit) { out.recent++; continue; }
+    out.recipients.push({ id: u.id, email: u.email, meta: u.user_metadata || {} });
+  }
+  return out;
+}
+
+/** Envoie l'e-mail d'annonce à chaque destinataire éligible, dans sa langue. */
+export async function emailAnnouncement(payload: Payload, translations: Tr) {
+  const audience = await announcementEmailAudience();
+  const langs = await langsOfUsers(audience.recipients.map(r => r.id));
+  const { sendAnnouncementEmail } = await import('./emails');
+  const { unsubscribeUrl } = await import('./unsubscribe');
+  let sent = 0; const errors: string[] = [];
+  for (const r of audience.recipients) {
+    const lang = langs[r.id] || 'fr';
+    const t = lang !== 'fr' && translations?.[lang]?.title?.trim() ? { title: translations[lang].title!.trim(), body: translations[lang].body?.trim() || null } : { title: payload.title, body: payload.body ?? null };
+    try {
+      await sendAnnouncementEmail(r.email, { ...t, url: payload.url || null, unsubscribeUrl: unsubscribeUrl(r.id, lang) }, lang);
+      sent++;
+      // Date du dernier envoi : garde-fou du délai minimal (métadonnées du compte, aucune table à ajouter)
+      await supabaseAdmin.auth.admin.updateUserById(r.id, { user_metadata: { ...r.meta, marketing_last_at: new Date().toISOString() } });
+    } catch (e: any) { errors.push(`${r.email.replace(/^(..)[^@]*/, '$1***')} : ${e.message}`); }
+  }
+  return { sent, eligible: audience.recipients.length, opted_out: audience.opted_out, recent: audience.recent, no_email: audience.no_email, errors };
+}
+
+/** Désabonnement des annonces (lien dans l'e-mail) : préférence « Offres et promotions » à faux. */
+export async function unsubscribeMarketing(userId: string) {
+  const { data: u } = await supabaseAdmin.auth.admin.getUserById(userId);
+  if (!u?.user) return false;
+  const meta = u.user.user_metadata || {};
+  await supabaseAdmin.auth.admin.updateUserById(userId, { user_metadata: { ...meta, notifications: { ...(meta.notifications || {}), promos: false } } });
+  return true;
+}

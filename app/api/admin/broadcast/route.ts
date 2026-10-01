@@ -1,22 +1,24 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase-admin';
 import { requirePerm } from '../../../../lib/admin-auth';
-import { notifyAllUsers, previewAllUsers } from '../../../../lib/notify';
+import { notifyAllUsers, previewAllUsers, announcementEmailAudience, emailAnnouncement } from '../../../../lib/notify';
 import { monitored } from '../../../../lib/monitor';
+
+// Diffusion + e-mails envoyés un par un : plus long que les 10 s par défaut d'une fonction Vercel
+export const maxDuration = 60;
 
 // GET — historique des annonces diffusées (admin)
 async function GET_(request: Request) {
   const auth = await requirePerm(request, ['announcements'], 'view');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-  const { data, error } = await supabaseAdmin
-    .from('announcements')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(50);
+  const [{ data, error }, { data: gap }] = await Promise.all([
+    supabaseAdmin.from('announcements').select('*').order('created_at', { ascending: false }).limit(50),
+    supabaseAdmin.from('app_settings').select('value_num').eq('key', 'announce.email_min_gap_hours').maybeSingle(),
+  ]);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ announcements: data || [] });
+  return NextResponse.json({ announcements: data || [], settings: { email_min_gap_hours: gap?.value_num != null ? Number(gap.value_num) : null } });
 }
 
 // POST — diffuse une annonce : bandeau sur le site + push PWA à tous les abonnés
@@ -25,7 +27,19 @@ async function POST_(request: Request) {
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   try {
-    const { title, body, url, translations, dry } = await request.json();
+    const { title, body, url, translations, dry, email, action, email_min_gap_hours } = await request.json();
+
+    // Réglage : délai minimal entre deux e-mails d'annonce à un même client (heures ; vide = aucun)
+    if (action === 'save_settings') {
+      const raw = email_min_gap_hours;
+      let value: number | null = null;
+      if (raw !== '' && raw != null) {
+        value = Number(raw);
+        if (!Number.isInteger(value) || value < 1 || value > 8760) return NextResponse.json({ error: 'invalid_value', field: 'email_min_gap_hours' }, { status: 400 });
+      }
+      await supabaseAdmin.from('app_settings').upsert({ key: 'announce.email_min_gap_hours', value_num: value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      return NextResponse.json({ ok: true, settings: { email_min_gap_hours: value } });
+    }
     if (!title || !String(title).trim()) {
       return NextResponse.json({ error: 'Titre requis' }, { status: 400 });
     }
@@ -42,7 +56,10 @@ async function POST_(request: Request) {
     }
 
     // Aperçu : qui recevra quoi, par langue — rien n'est enregistré ni envoyé
-    if (dry) return NextResponse.json({ ok: true, dry: true, ...(await previewAllUsers({ title: cleanTitle, body: cleanBody, url: cleanUrl }, cleanTr)) });
+    if (dry) {
+      const [preview, audience] = await Promise.all([previewAllUsers({ title: cleanTitle, body: cleanBody, url: cleanUrl }, cleanTr), announcementEmailAudience()]);
+      return NextResponse.json({ ok: true, dry: true, ...preview, email: { eligible: audience.recipients.length, opted_out: audience.opted_out, recent: audience.recent, no_email: audience.no_email, gap_hours: audience.gap_hours } });
+    }
 
     // 1) Désactive les anciennes annonces (une seule active à la fois sur le bandeau)
     await supabaseAdmin.from('announcements').update({ active: false }).eq('active', true);
@@ -63,7 +80,14 @@ async function POST_(request: Request) {
       url: cleanUrl || '/',
     }, cleanTr);
 
-    return NextResponse.json({ ok: true, announcement: ann, sent: result.sent, total: result.total, recipients: result.recipients });
+    // 4) E-mail aux clients éligibles, si demandé (case « Envoyer aussi par e-mail »)
+    let mail: any = null;
+    if (email === true) {
+      try { mail = await emailAnnouncement({ title: cleanTitle, body: cleanBody, url: cleanUrl }, cleanTr); }
+      catch (e: any) { mail = { sent: 0, error: e.message }; }
+    }
+
+    return NextResponse.json({ ok: true, announcement: ann, sent: result.sent, total: result.total, recipients: result.recipients, email: mail });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

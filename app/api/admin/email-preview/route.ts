@@ -34,7 +34,7 @@ async function GET_(request: Request) {
     const { data } = await supabaseAdmin.from('ui_translations').select('key').eq('language_code', 'en').or('key.like.srv.m.%.subject,key.like.srv.c.%.subject').order('key');
     const msgs = (data || []).map((r: any) => r.key.replace(/^srv\./, '').replace(/\.subject$/, ''));
     return NextResponse.json({ kinds: [
-      ...['order', 'status_processing', 'status_shipping', 'status_delivered', 'status_cancelled', 'topup', 'paused', 'remind_missing', 'remind_empty', 'resumed', 'expired'].map(id => ({ id, group: 'customer' })),
+      ...['announcement', 'order', 'status_processing', 'status_shipping', 'status_delivered', 'status_cancelled', 'topup', 'paused', 'remind_missing', 'remind_empty', 'resumed', 'expired'].map(id => ({ id, group: 'customer' })),
       { id: 'digest', group: 'merchant' },
       ...msgs.map((k: string) => ({ id: `merchant:${k}`, group: k.startsWith('c.') ? 'company' : 'merchant' })),
     ] });
@@ -46,6 +46,7 @@ async function GET_(request: Request) {
 
   const run = async () => {
     if (kind === 'order') return E.sendOrderConfirmation(ORDER, ITEMS, to, lang);
+    if (kind === 'announcement') return E.sendAnnouncementEmail(to, { title: '🍊 Oranges bio : nouvel arrivage !', body: 'Fraîchement récoltées, elles sont de retour en rayon. Commandez dès maintenant, quantité limitée.', url: '/product/15', unsubscribeUrl: 'https://www.hornafresh.com/api/unsubscribe?t=exemple' }, lang);
     if (kind.startsWith('status_')) return E.sendStatusUpdate({ ...ORDER, status: kind.slice(7) }, to, lang);
     if (kind === 'topup') return E.sendDepositApproved(to, 5000, 12000, lang);
     if (kind === 'paused') return E.sendSubscriptionPaused(to, 3500, 1500, lang);

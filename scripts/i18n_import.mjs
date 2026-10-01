@@ -38,9 +38,6 @@ writeFileSync(outSql, sql);
 console.log(`${ref.length} clés, ${rows.length} lignes → ${outSql}`);
 if (dry) process.exit(0);
 
-const token = /SUPABASE_ACCESS_TOKEN=(.+)/.exec(readFileSync('.env.local', 'utf8'))[1].trim();
-const r = await fetch('https://api.supabase.com/v1/projects/sneuexxysxlwpokhkjho/database/query', {
-  method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query: sql }),
-});
-console.log(r.status, (await r.text()).slice(0, 300));
-process.exit(r.ok ? 0 : 1);
+import { insertMissing } from './i18n_db.mjs';
+const n = await insertMissing(rows.map(([key, language_code, value]) => ({ key, language_code, value })));
+console.log(`${n} ligne(s) insérée(s) en base (les existantes sont conservées)`);

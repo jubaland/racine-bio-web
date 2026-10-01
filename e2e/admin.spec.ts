@@ -177,3 +177,21 @@ test('admin › Achats groupés : onglets, fiche de coût calculée (sans enregi
   await page.getByRole('button', { name: /Annuler/ }).click();
 });
 
+test('admin › Annonces : canal e-mail, délai minimal, aperçu (rien n\'est diffusé)', async ({ page }) => {
+  const errors = trackErrors(page);
+  await openModule(page, /Annonces/, /Diffuser une annonce/);
+  // Case « Envoyer aussi par e-mail » décochée par défaut (l'e-mail est un choix explicite à chaque annonce)
+  const email = page.getByRole('checkbox', { name: /Envoyer aussi par e-mail/ });
+  await expect(email).toBeVisible();
+  await expect(email).not.toBeChecked();
+  await expect(page.getByText(/Délai minimal entre deux e-mails/)).toBeVisible();
+  await expect(page.getByPlaceholder(/nombre d'heures/)).toBeVisible();
+  // Aperçu par langue (dry) : compte les destinataires de l'e-mail sans rien envoyer
+  await page.getByPlaceholder(/Oranges Bio de Somalie/).fill('TEST e2e — aperçu seulement');
+  await page.getByRole('button', { name: /Aperçu par langue/ }).click();
+  await expect(page.getByText(/destinataire\(s\)/)).toBeVisible({ timeout: 30_000 });
+  await expectNoOverflow(page, 'Annonces');
+  await page.screenshot({ path: test.info().outputPath('annonces.png'), fullPage: true });
+  expect(errors).toEqual([]);
+});
+

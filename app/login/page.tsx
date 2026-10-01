@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [marketing, setMarketing] = useState(true);   // annonces et bons plans par e-mail (modifiable dans le profil)
   const [civility, setCivility] = useState<'madame' | 'monsieur' | ''>('');
   const [phoneDigits, setPhoneDigits] = useState('');
   const [phoneFocused, setPhoneFocused] = useState(false);
@@ -62,6 +63,7 @@ export default function LoginPage() {
               civility,
               phone: '77' + phoneDigits,
               address: titleCase(address),
+              notifications: { orders: true, status: true, promos: marketing },
             },
           },
         });
@@ -337,6 +339,10 @@ export default function LoginPage() {
                   required
                   className="w-full border border-[#d2e095] rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-[#a8c800] focus:ring-2 focus:ring-[#a8c800]/20 bg-[#faf7e8] transition resize-none"
                 />
+                <label className="flex items-start gap-2 text-xs text-gray-600 mt-3 cursor-pointer">
+                  <input type="checkbox" checked={marketing} onChange={e => setMarketing(e.target.checked)} className="accent-[#a8c800] mt-0.5" />
+                  <span>{t('login.marketing', 'Recevoir les annonces et bons plans Hornafresh par e-mail')} <span className="text-gray-400">· {t('login.marketing_hint', 'modifiable à tout moment dans votre profil')}</span></span>
+                </label>
               </div>
             )}
 
