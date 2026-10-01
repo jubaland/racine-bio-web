@@ -54,6 +54,11 @@ test('fiche produit → panier → checkout (4 étapes, sans confirmer)', async 
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('hornafresh_cart_v1') || '{"items":[]}').items.length);
   expect(stored).toBe(1);
 
+  // Accueil : le bandeau parle d'un « panier en attente » (pas d'une commande : rien n'a été commandé)
+  await page.goto('/'); await settle(page);
+  await expect(page.getByText(/Vous avez un panier en attente/)).toBeVisible();
+  await expect(page.getByText(/Vous avez une commande en cours/)).toHaveCount(0);
+
   await page.goto('/checkout'); await settle(page);
   await expect(page.getByRole('heading', { name: /Finaliser la commande/ })).toBeVisible();
   await expectNoOverflow(page, 'checkout étape 1');

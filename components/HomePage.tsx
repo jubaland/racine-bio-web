@@ -187,12 +187,12 @@ export default function HomePage({ products, categories, promos, producers, sett
 
       <Header onCartOpen={() => setCartOpen(true)} />
 
-      {/* Bannière commande en cours */}
+      {/* Bannière panier en attente (panier gardé dans le navigateur, connecté ou non — ce n'est pas une commande passée) */}
       {count > 0 && (
         <Link href="/checkout" className="block bg-[#526500] text-white hover:bg-[#3f4f00] transition">
           <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-center gap-3 text-sm font-medium flex-wrap">
             <span>
-              🛒 {t('cart.resume_text', 'Vous avez une commande en cours')}
+              🛒 {t('cart.pending_text', 'Vous avez un panier en attente')}
               {' — '}
               {count} {count > 1 ? t('cart.items', 'articles') : t('cart.item', 'article')} · {total.toLocaleString()} Fdj
             </span>

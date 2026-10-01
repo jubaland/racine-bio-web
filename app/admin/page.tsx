@@ -30,6 +30,7 @@ import AdminToday from '../../components/admin/AdminToday';
 import AdminCampaigns from '../../components/admin/AdminCampaigns';
 import { canAccessAdmin, hasPerm, roleOf } from '../../lib/permissions';
 import { AdminPermsProvider } from '../../context/AdminPermsContext';
+import { forgetCart } from '../../context/CartContext';
 
 type Section = 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'preparers' | 'wallets' | 'subscriptions' | 'forecast' | 'requests' | 'users' | 'delivery' | 'notifications' | 'homepage' | 'announcements' | 'finances' | 'refunds' | 'merchants' | 'companies' | 'loyalty' | 'monitoring' | 'emails' | 'campaigns';
 
@@ -143,6 +144,7 @@ export default function AdminPage() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
+    forgetCart();
     window.location.href = '/';
   };
 

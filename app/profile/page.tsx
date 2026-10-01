@@ -8,7 +8,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { hornafreshWa } from '../../lib/whatsapp';
 import LoyaltyCard from '../../components/LoyaltyCard';
 import { useFavorites } from '../../context/FavoritesContext';
-import { useCart } from '../../context/CartContext';
+import { useCart, forgetCart } from '../../context/CartContext';
 import Header from '../../components/Header';
 import CartDrawer from '../../components/CartDrawer';
 import ReorderDialog from '../../components/ReorderDialog';
@@ -305,6 +305,7 @@ export default function ProfilePage() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
+    forgetCart();
     window.location.href = '/';
   };
 

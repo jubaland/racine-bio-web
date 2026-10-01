@@ -59,6 +59,11 @@ function saveCart(items: CartItem[]) {
   } catch { /* stockage indisponible (navigation privée…) : le panier reste en mémoire */ }
 }
 
+/** À la déconnexion : le panier ne doit pas rester visible pour la personne suivante sur le même appareil. */
+export function forgetCart() {
+  try { localStorage.removeItem(STORAGE_KEY); } catch { /* stockage indisponible */ }
+}
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const hydrated = useRef(false);
