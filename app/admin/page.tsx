@@ -31,8 +31,9 @@ import AdminCampaigns from '../../components/admin/AdminCampaigns';
 import { canAccessAdmin, hasPerm, roleOf } from '../../lib/permissions';
 import { AdminPermsProvider } from '../../context/AdminPermsContext';
 import { forgetCart } from '../../context/CartContext';
+import AdminCredit from '../../components/admin/AdminCredit';
 
-type Section = 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'preparers' | 'wallets' | 'subscriptions' | 'forecast' | 'requests' | 'users' | 'delivery' | 'notifications' | 'homepage' | 'announcements' | 'finances' | 'refunds' | 'merchants' | 'companies' | 'loyalty' | 'monitoring' | 'emails' | 'campaigns';
+type Section = 'products' | 'categories' | 'promos' | 'producers' | 'orders' | 'preparers' | 'wallets' | 'subscriptions' | 'forecast' | 'requests' | 'users' | 'delivery' | 'notifications' | 'homepage' | 'announcements' | 'finances' | 'refunds' | 'merchants' | 'companies' | 'loyalty' | 'monitoring' | 'emails' | 'campaigns' | 'credit';
 
 export default function AdminPage() {
   const [user, setUser] = useState<any>(null);
@@ -69,6 +70,7 @@ export default function AdminPage() {
     { id: 'companies', emoji: '🏢', label: t('admin.nav_companies', 'Entreprises') },
     { id: 'loyalty', emoji: '🎁', label: t('admin.nav_loyalty', 'Fidélité') },
     { id: 'campaigns', emoji: '🌍', label: t('admin.nav_campaigns', 'Achats groupés') },
+    { id: 'credit', emoji: '💳', label: t('admin.nav_credit', 'Crédit clients') },
     { id: 'monitoring', emoji: '🚨', label: t('admin.nav_monitoring', 'Surveillance') },
     { id: 'emails', emoji: '✉️', label: t('admin.nav_emails', 'Aperçu des e-mails') },
   ];
@@ -174,6 +176,7 @@ export default function AdminPage() {
       case 'companies': return <AdminCompanies />;
       case 'loyalty': return <AdminLoyalty />;
       case 'campaigns': return <AdminCampaigns />;
+      case 'credit': return <AdminCredit />;
       case 'monitoring': return <AdminMonitoring />;
       case 'emails': return <AdminEmailPreview />;
     }

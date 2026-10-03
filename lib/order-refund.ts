@@ -1,6 +1,6 @@
 import { supabaseAdmin } from './supabase-admin';
 
-export type RefundMethod = 'wallet' | 'cash' | 'manual' | 'none';
+export type RefundMethod = 'wallet' | 'cash' | 'manual' | 'credit' | 'none';
 
 // Rembourse `amount` selon le moyen de paiement de la commande.
 //  - wallet : recrédite la cagnotte (transaction tracée)
@@ -30,6 +30,12 @@ export async function refundOrderAmount(
     method = 'wallet';
   } else if (order.payment_method === 'cash') {
     return 'cash'; // montant dû réduit : aucun remboursement à effectuer
+  } else if (order.payment_method === 'credit') {
+    // Carnet de crédit : la charge de la commande est réduite (réaffectation si déjà réglée)
+    const { refundOrder } = await import('./credit');
+    const r = await refundOrder(Number(order.id), amount, note);
+    if (!r.ok) console.error('[refund] credit:', r.reason);
+    return 'credit';
   } else {
     method = 'manual'; // waafi / dmoney → remboursement manuel
   }

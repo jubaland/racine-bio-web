@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { useLanguage } from '../../context/LanguageContext';
 import { useCan } from '../../context/AdminPermsContext';
 import Modal, { ConfirmDelete, FormField, inputClass } from './Modal';
-import AdminProductPromos from './AdminProductPromos';
+import AdminProductPromos, { prefetchPromotions } from './AdminProductPromos';
 import AdminPromoCodes from './AdminPromoCodes';
 
 interface Promo { id: number; emoji: string; badge: string; title: string; sub: string; color_start: string; active: boolean; category?: string; }
@@ -41,6 +41,8 @@ export default function AdminPromos() {
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+  // Onglet « Prix promo produits » préchargé dès l'ouverture du module (fonction serveur réveillée)
+  useEffect(() => { prefetchPromotions(); }, []);
 
   const openAdd = () => { setEditingId(null); setForm(EMPTY); setError(''); setShowModal(true); };
   const openEdit = (p: Promo) => {

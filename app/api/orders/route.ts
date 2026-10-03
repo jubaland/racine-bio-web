@@ -19,7 +19,7 @@ async function POST_(request: Request) {
     // ── Identité et champs : jamais ceux envoyés tels quels par le navigateur ─────────────
     const { userFromRequest, membershipOf, companyBalance, adjustCompanyWallet, notifyCompany, minTopupFor, fdj } = await import('../../../lib/company');
     const caller = await userFromRequest(request);
-    const PAYMENTS = ['waafi', 'cash', 'wallet', 'company_wallet', 'dmoney'];
+    const PAYMENTS = ['waafi', 'cash', 'wallet', 'company_wallet', 'dmoney', 'credit'];
     if (!PAYMENTS.includes(rawOrder.payment_method)) return NextResponse.json({ error: 'payment_invalid' }, { status: 400 });
     // Une commande rattachée à un compte doit être passée par ce compte (jeton), sinon n'importe qui
     // pourrait commander — et débiter une cagnotte — au nom d'un autre.
@@ -45,7 +45,8 @@ async function POST_(request: Request) {
       if (!m || m.company?.status !== 'active') return NextResponse.json({ error: 'company_inactive' }, { status: 403 });
       if (!['manager', 'buyer'].includes(m.role)) return NextResponse.json({ error: 'forbidden_role' }, { status: 403 });
       company = m.company; companyRole = m.role;
-      order.payment_method = 'company_wallet';
+      // Société : cagnotte prépayée, ou crédit si la société a une ligne de crédit (vérifiée plus bas)
+      order.payment_method = order.payment_method === 'credit' ? 'credit' : 'company_wallet';
       order.user_id = caller.id;
       if (companyInput?.request_id) {
         // Demande d'un acheteur validée par le gérant : lignes et site repris de la demande enregistrée
@@ -181,9 +182,19 @@ async function POST_(request: Request) {
       }
     }
     // Cagnotte société (prépayée) : solde vérifié avant, puis débit atomique après création
-    if (company) {
+    if (company && order.payment_method !== 'credit') {
       const bal = await companyBalance(company.id);
       if (bal < Number(order.total)) return NextResponse.json({ error: 'company_wallet_insufficient', balance: bal }, { status: 400 });
+    }
+    // Crédit (« carnet ») : ligne de crédit du client ou de la société, active, sans retard, plafond suffisant
+    let creditAccount: any = null, creditDue: string | null = null;
+    if (order.payment_method === 'credit') {
+      if (!caller) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+      const { accountOfUser, accountOfCompany, checkCharge } = await import('../../../lib/credit');
+      creditAccount = company ? await accountOfCompany(company.id) : await accountOfUser(caller.id);
+      const chk = await checkCharge(creditAccount, Number(order.total));
+      if (!chk.ok) return NextResponse.json({ error: 'credit_unavailable', reason: chk.reason, available: chk.available ?? null }, { status: 409 });
+      creditDue = chk.due_at;
     }
 
     // Réserver le stock AVANT de créer la commande — atomique, tout ou rien (paniers : composants inclus).
@@ -265,8 +276,21 @@ async function POST_(request: Request) {
       });
     }
 
+    // Crédit : la commande est inscrite sur le carnet avec sa date limite
+    if (creditAccount) {
+      try {
+        const { chargeOrder } = await import('../../../lib/credit');
+        await chargeOrder(creditAccount, createdOrder.id, Number(createdOrder.total), creditDue!);
+      } catch (e: any) {
+        await releaseStock();
+        await supabaseAdmin.from('order_items').delete().eq('order_id', createdOrder.id);
+        await supabaseAdmin.from('orders').delete().eq('id', createdOrder.id);
+        return NextResponse.json({ error: 'credit_error', detail: e.message }, { status: 500 });
+      }
+    }
+
     // Cagnotte société : débit atomique (refusé si le solde a été dépensé entre-temps → tout est annulé)
-    if (company) {
+    if (company && order.payment_method !== 'credit') {
       const debit = await adjustCompanyWallet(company.id, -Number(createdOrder.total), 'debit', { orderId: createdOrder.id, userId: caller!.id, note: `Commande #${createdOrder.id}` });
       if (!debit.ok) {
         await releaseStock();

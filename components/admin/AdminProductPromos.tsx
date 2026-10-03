@@ -14,26 +14,44 @@ const fdj = (n: number) => `${Math.round(Number(n)).toLocaleString('fr-FR')} Fdj
 const dateFr = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 const plusDays = (d: string, n: number) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
 
+type Payload = { today: string; products: Product[]; promotions: Promo[] };
+
+const token = async () => {
+  let { data: { session } } = await supabase.auth.getSession();
+  if (!session || (session.expires_at && session.expires_at * 1000 < Date.now() + 60000)) session = (await supabase.auth.refreshSession()).data.session;
+  return session?.access_token;
+};
+
+// Préchargement : lancé dès l'ouverture du module Promotions, pour que l'onglet s'affiche sans attendre.
+// (Sur Vercel, la première requête après une période d'inactivité réveille la fonction : plusieurs secondes.)
+let cache: { data: Payload; at: number } | null = null;
+let inflight: Promise<Payload | null> | null = null;
+export function prefetchPromotions(): Promise<Payload | null> {
+  if (inflight) return inflight;
+  inflight = (async () => {
+    try {
+      const res = await fetch('/api/admin/promotions', { headers: { Authorization: `Bearer ${await token()}` } });
+      const j = await res.json();
+      if (res.ok) cache = { data: j, at: Date.now() };
+      return res.ok ? (j as Payload) : null;
+    } catch { return null; } finally { inflight = null; }
+  })();
+  return inflight;
+}
+
 export default function AdminProductPromos({ canEdit }: { canEdit: boolean }) {
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
-  const [data, setData] = useState<{ today: string; products: Product[]; promotions: Promo[] } | null>(null);
+  // Données déjà préchargées (moins d'une minute) : affichage immédiat, puis rafraîchissement
+  const [data, setData] = useState<Payload | null>(() => (cache && Date.now() - cache.at < 60_000 ? cache.data : null));
   const [form, setForm] = useState({ product_id: '', promo_price: '', starts_at: '', ends_at: '' });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [showPast, setShowPast] = useState(false);
 
-  const token = async () => {
-    let { data: { session } } = await supabase.auth.getSession();
-    if (!session || (session.expires_at && session.expires_at * 1000 < Date.now() + 60000)) session = (await supabase.auth.refreshSession()).data.session;
-    return session?.access_token;
-  };
   const load = useCallback(async () => {
-    try {
-      const res = await fetch('/api/admin/promotions', { headers: { Authorization: `Bearer ${await token()}` } });
-      const j = await res.json();
-      if (res.ok) { setData(j); setForm(f => ({ ...f, starts_at: f.starts_at || j.today, ends_at: f.ends_at || plusDays(j.today, 6) })); }
-    } catch { /* ignore */ }
+    const j = await prefetchPromotions();
+    if (j) { setData(j); setForm(f => ({ ...f, starts_at: f.starts_at || j.today, ends_at: f.ends_at || plusDays(j.today, 6) })); }
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -62,7 +80,7 @@ export default function AdminProductPromos({ canEdit }: { canEdit: boolean }) {
     setBusy(false);
   };
 
-  if (!data) return <p className="text-center text-gray-400 py-12">⏳</p>;
+  if (!data) return <p className="text-center text-gray-400 py-12">⏳ {t('admin.loading', 'Chargement...')}</p>;
   const selected = data.products.find(p => String(p.id) === form.product_id);
   const pct = selected && form.promo_price ? Math.round((1 - Number(form.promo_price) / selected.price) * 100) : null;
   const STATE: Record<Promo['state'], { label: string; cls: string }> = {

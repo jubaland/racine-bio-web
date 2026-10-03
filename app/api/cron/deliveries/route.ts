@@ -29,6 +29,16 @@ async function GET_(request: Request) {
 
   const onlyCompany = params.get('company') ? Number(params.get('company')) : undefined; // ?company=<id> : restreint aux sociétés (tests)
 
+  // 6. Crédit client : rappel avant échéance, relevé, retard, suspension (lib/credit.ts)
+  const runCredit = async (day: string, onlyAccount?: number) => {
+    try { const { creditDaily } = await import('../../../../lib/credit'); return await creditDaily(day, { onlyAccount, dry }); }
+    catch (e: any) { return { error: e.message }; }
+  };
+  if (params.get('only') === 'credit') {
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(params.get('date') || '') ? params.get('date')! : todayStr;
+    return NextResponse.json({ date: day, credit: await runCredit(day, params.get('account') ? Number(params.get('account')) : undefined) });
+  }
+
   // 4. Rappel de la veille (réassort intelligent) — seul ou après les livraisons du jour
   const runReminders = async () => {
     try { return onlyCompany ? { tomorrow: null, reminders: [] } : await remindTomorrow(todayStr, { onlyUser, dry }); }

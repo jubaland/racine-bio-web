@@ -11,6 +11,7 @@ import { useFavorites } from '../../context/FavoritesContext';
 import { useCart, forgetCart } from '../../context/CartContext';
 import Header from '../../components/Header';
 import CartDrawer from '../../components/CartDrawer';
+import CreditPanel, { type CreditView } from '../../components/CreditPanel';
 import ReorderDialog from '../../components/ReorderDialog';
 
 interface OrderItem {
@@ -83,7 +84,8 @@ export default function ProfilePage() {
   const [depositRef, setDepositRef] = useState('');
   const [depositSaving, setDepositSaving] = useState(false);
   const [depositMsg, setDepositMsg] = useState('');
-  type Tab = 'home' | 'wallet' | 'subscription' | 'orders' | 'favorites' | 'addresses' | 'settings';
+  type Tab = 'home' | 'wallet' | 'credit' | 'subscription' | 'orders' | 'favorites' | 'addresses' | 'settings';
+  const [credit, setCredit] = useState<CreditView | null>(null);   // ligne de crédit personnelle (« carnet »), s'il y en a une
   const [tab, setTab] = useState<Tab>('home');
   const { ui, productTranslations, currentLang } = useLanguage();
   const { count: favCount, favorites, removeFavorite } = useFavorites();
@@ -229,6 +231,7 @@ export default function ProfilePage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { window.location.href = '/login'; return; }
       setUser(session.user);
+      fetch('/api/credit', { headers: { Authorization: `Bearer ${session.access_token}` } }).then(r => r.ok ? r.json() : null).then(j => { if (j?.user) setCredit(j.user); }).catch(() => {});
       if (session.user.user_metadata?.notifications) {
         setNotifPrefs(prev => ({ ...prev, ...session.user.user_metadata.notifications }));
       }
@@ -644,6 +647,7 @@ export default function ProfilePage() {
           {([
             { id: 'home', emoji: '🏠', label: t('profile.tab_home', 'Accueil') },
             { id: 'wallet', emoji: '💰', label: t('profile.tab_wallet', 'Cagnotte') },
+            ...(credit ? [{ id: 'credit', emoji: '💳', label: t('profile.tab_credit', 'Mon crédit') }] : []),
             { id: 'subscription', emoji: '🔄', label: t('profile.tab_subscription', 'Abonnement') },
             { id: 'orders', emoji: '📦', label: t('profile.tab_orders', 'Commandes') },
             { id: 'favorites', emoji: '❤️', label: t('profile.tab_favorites', 'Favoris') },
@@ -709,6 +713,8 @@ export default function ProfilePage() {
         )}
 
         {/* ===== Cagnotte ===== */}
+        {tab === 'credit' && credit && <CreditPanel credit={credit} />}
+
         {tab === 'wallet' && (
           <div className="bg-white rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6">
             <div className="flex items-center justify-between gap-3 mb-4">

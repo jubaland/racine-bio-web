@@ -6,6 +6,7 @@ import { supabase, fetchProducts } from '../../lib/supabase';
 import { useLanguage } from '../../context/LanguageContext';
 import Header from '../../components/Header';
 import CartDrawer from '../../components/CartDrawer';
+import CreditPanel, { type CreditView } from '../../components/CreditPanel';
 import { WAAFI_MERCHANT_NUMBER, WAAFI_ACCOUNT_HOLDER } from '../../lib/payments';
 
 // Espace entreprise (compte prépayé) : cagnotte société, commandes, sites, équipe, commande récurrente.
@@ -32,6 +33,7 @@ export default function CompanySpacePage() {
   const [tab, setTab] = useState<Tab>('home');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [credit, setCredit] = useState<CreditView | null>(null);   // ligne de crédit de la société, s'il y en a une
 
   const tokenOf = async () => {
     let { data: { session } } = await supabase.auth.getSession();
@@ -46,6 +48,7 @@ export default function CompanySpacePage() {
     if (res.ok && !j.membership) { window.location.href = '/entreprises'; return; }
     if (res.ok) setS(j);
     setLoading(false);
+    fetch('/api/credit', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.ok ? r.json() : null).then(c => { if (c?.company) setCredit(c.company); }).catch(() => {});
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -127,6 +130,7 @@ export default function CompanySpacePage() {
         </div>
         {msg && <div className={`text-sm px-4 py-3 rounded-xl mb-4 ${msg.ok ? 'bg-green-50 text-[#526500] border border-green-200' : 'bg-orange-50 text-[#f97316]'}`}>{msg.ok ? '✅' : '⚠️'} {msg.text}</div>}
 
+        {tab === 'home' && credit && <CreditPanel credit={credit} />}
         {tab === 'home' && <HomeTab s={s} t={t} setTab={setTab} isManager={isManager} awaiting={awaiting.length} />}
         {tab === 'wallet' && seesMoney && <WalletTab s={s} t={t} act={act} busy={busy} isManager={isManager} active={active} METHOD={METHOD} />}
         {tab === 'orders' && <OrdersTab s={s} t={t} act={act} busy={busy} isManager={isManager} role={role} STATUS={STATUS} />}

@@ -633,3 +633,30 @@ export async function sendAnnouncementEmail(to: string, a: { title: string; body
   `, M);
   await deliver({ from: FROM, to, subject: a.title.slice(0, 150), html });
 }
+
+// ── 12. Relevé de crédit (échéance) — PDF joint ───────────────────────────────────────────
+export async function sendCreditStatement(to: string, p: { holder: string; lines: { order_id: number | null; created_at: string; due_at: string; remaining: number }[]; total: number; due: string; outstanding: number }, lang?: string | null, pdf?: Buffer | null) {
+  const M = await mailer(lang); const m = M.m;
+  const dueStr = M.date(p.due + 'T00:00:00Z', { dateStyle: 'long' });
+  const rows = p.lines.map(l => `
+      <tr>
+        <td style="padding:6px 0;border-bottom:1px solid #f0f7e0;color:#374151;font-size:14px;">${m('credit_order', 'Commande #{id}', { id: String(l.order_id ?? '-') })} · ${M.date(l.created_at, { dateStyle: 'medium' })}</td>
+        <td style="padding:6px 0;border-bottom:1px solid #f0f7e0;color:#526500;font-size:14px;font-weight:bold;text-align:right;white-space:nowrap;">${fdjFr(l.remaining)}</td>
+      </tr>`).join('');
+  const html = baseLayout(`
+    <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">🧾 ${m('credit_statement_title', 'Relevé de crédit')}</h2>
+    <p style="margin:0 0 20px;color:#6b7280;font-size:14px;">${p.holder}</p>
+    <div style="text-align:center;padding:20px;background:#f0f7e0;border-radius:12px;margin-bottom:20px;">
+      <p style="margin:0;color:#6b7280;font-size:13px;">${m('credit_to_pay_by', 'À régler avant le {date}', { date: `<strong>${dueStr}</strong>` })}</p>
+      <p style="margin:6px 0 0;font-size:26px;font-weight:bold;color:#526500;">${fdjFr(p.total)}</p>
+    </div>
+    <table style="width:100%;border-collapse:collapse;">${rows}</table>
+    ${p.outstanding > p.total ? `<p style="margin:12px 0 0;color:#6b7280;font-size:13px;">${m('credit_outstanding_total', 'Encours total, échéances suivantes comprises : {amount}', { amount: fdjFr(p.outstanding) })}</p>` : ''}
+    <p style="color:#374151;font-size:14px;line-height:1.6;margin-top:20px;">${m('credit_how_to_pay', 'Règlement en espèces, par Waafi ou D-Money auprès d\'Hornafresh. Le reçu vous sera envoyé dès réception.')}</p>
+    <p style="color:#6b7280;font-size:13px;margin-top:20px;">${m('contact_us', 'Pour toute question, contactez-nous au {phone}.', { phone: '<strong>77432615</strong>' })}</p>
+  `, M);
+  await deliver({
+    from: FROM, to, subject: `🧾 ${m('credit_statement_subject', 'Relevé de crédit Hornafresh — {amount} à régler avant le {date}', { amount: fdjFr(p.total), date: dueStr })}`, html,
+    attachments: pdf ? [{ filename: `releve-credit-${p.due}.pdf`, content: pdf }] : undefined,
+  });
+}

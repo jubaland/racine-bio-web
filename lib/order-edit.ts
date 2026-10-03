@@ -70,11 +70,11 @@ export async function applyItemChange(order_id: any, item_id: any, new_quantity:
     const what = isRemoval ? `« ${name} » retiré` : `« ${name} » réduit à ${targetQty}`;
     const tail =
       refundMethod === 'wallet' ? `${amt} recrédités sur votre cagnotte.`
-      : refundMethod === 'cash' ? `Votre montant à payer baisse de ${amt}.`
+      : refundMethod === 'cash' || refundMethod === 'credit' ? `Votre montant à payer baisse de ${amt}.`
       : `Remboursement de ${amt} par Waafi en cours.`;
     try {
       await notifyUser(order.user_id, { title: `🧾 Commande #${shortId} modifiée`, body: `${what}. ${tail}`, url: '/profile',
-        i18n: { key: `order.edit.${isRemoval ? 'removed' : 'reduced'}.${refundMethod === 'wallet' ? 'wallet' : refundMethod === 'cash' ? 'cash' : 'waafi'}`, params: { id: shortId, name, qty: targetQty, amount: amt } } });
+        i18n: { key: `order.edit.${isRemoval ? 'removed' : 'reduced'}.${refundMethod === 'wallet' ? 'wallet' : refundMethod === 'cash' || refundMethod === 'credit' ? 'cash' : 'waafi'}`, params: { id: shortId, name, qty: targetQty, amount: amt } } });
     } catch { /* ignore */ }
   }
 

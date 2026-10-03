@@ -123,6 +123,27 @@ test('admin › Commandes : formulaire de remise (sans enregistrer)', async ({ p
   await expect(page.getByText(/Nouveau prix sur un article/)).toHaveCount(0);
 });
 
+test('admin › Crédit clients : indicateurs, formulaire d\'activation, réglages (sans enregistrer)', async ({ page }) => {
+  const errors = trackErrors(page);
+  await openModule(page, /Crédit clients/, /Crédit clients/);
+  await expect(page.getByText(/Encours total/)).toBeVisible({ timeout: 30_000 });
+  await expectNoOverflow(page, 'Crédit clients');
+  await page.getByRole('button', { name: /Activer un crédit/ }).click();
+  await expect(page.getByLabel(/E-mail du compte client/)).toBeVisible();
+  await page.getByLabel(/Titulaire/).selectOption('company');
+  await expect(page.getByLabel(/^Société/)).toBeVisible();
+  await page.getByLabel(/Échéance/).selectOption('days');
+  await expect(page.getByLabel(/^jours$/)).toBeVisible();
+  await expectNoOverflow(page, 'Crédit clients › activation');
+  await page.screenshot({ path: test.info().outputPath('credit-admin.png'), fullPage: true });
+  await page.getByRole('button', { name: /^Annuler$/ }).click();
+  await page.getByRole('button', { name: /Réglages/ }).click();
+  await expect(page.getByLabel(/Rappel avant l'échéance/)).toBeVisible();
+  await expect(page.getByLabel(/Suspension automatique/)).toBeVisible();
+  await expectNoOverflow(page, 'Crédit clients › réglages');
+  expect(errors).toEqual([]);
+});
+
 test('admin › Entreprises : onglets et réglage de la recharge minimale', async ({ page }) => {
   await openModule(page, /Entreprises/, /Entreprises/);
   for (const tab of ['Sociétés', 'Réglages', 'À traiter']) {

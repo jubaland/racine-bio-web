@@ -107,6 +107,9 @@ async function GET_(request: Request) {
   // Remises sur les articles (codes promo, remises admin) : à la charge d'Hornafresh, retirées de la marge
   const discountsTotal = (orders || []).reduce((s, o: any) => s + (Number(o.promo_discount) || 0) + (Number(o.admin_discount) || 0), 0)
     + items.reduce((s: number, it: any) => s + (Number(it.discount) || 0), 0);
+  // Crédit client : vendu mais pas encore encaissé (encours), dont en retard — toutes périodes confondues
+  let creditOutstanding = 0, creditOverdue = 0;
+  try { const { creditOverview } = await import('../../../../lib/credit'); const c = await creditOverview(); creditOutstanding = c.totals.outstanding; creditOverdue = c.totals.overdue; } catch { /* module crédit indisponible */ }
   const grossPaid = (orders || []).reduce((s, o) => s + (Number(o.total) || 0), 0);
   // Ventes aux comptes entreprise (commandes livrées rattachées à une société), livraison comprise
   const companyOrders = (orders || []).filter((o: any) => o.company_id);
@@ -128,6 +131,7 @@ async function GET_(request: Request) {
       deliveryOffered,
       discountsTotal,
       marginAfterDiscounts: marginTotal - discountsTotal,
+      creditOutstanding, creditOverdue,
       costTotal,
       marginTotal,                                           // marge sur les produits au coût connu
       marginPct: caWithCost > 0 ? Math.round((marginTotal / caWithCost) * 1000) / 10 : null,

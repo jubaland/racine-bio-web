@@ -6,6 +6,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { titleCase, sentenceCase } from '../../lib/format';
 import { computeDelivery, computePromoItems, NO_RULES, type DeliveryRules, type PromoBenefit } from '../../lib/delivery-pricing';
+import type { CreditView } from '../../components/CreditPanel';
 import Header from '../../components/Header';
 import CartDrawer from '../../components/CartDrawer';
 import Link from 'next/link';
@@ -49,15 +50,24 @@ export default function CheckoutPage() {
   const [requestSent, setRequestSent] = useState(false);   // commande au-delà du seuil → demande envoyée au gérant
   const [orderError, setOrderError] = useState('');
   const companyBalance = Number(companyCtx?.balance) || 0;
+  // Crédit (« carnet ») : ligne de crédit personnelle et/ou de la société (GET /api/credit)
+  const [credit, setCredit] = useState<{ user: CreditView | null; company: CreditView | null } | null>(null);
+  const creditLine = forCompany ? credit?.company : credit?.user;
+  const creditDate = (d: string) => new Date(d + 'T00:00:00Z').toLocaleDateString(currentLang === 'fr' ? 'fr-FR' : currentLang, { day: 'numeric', month: 'long', timeZone: 'UTC' });
 
+  const creditOption = creditLine && creditLine.usable
+    ? [{ id: 'credit', label: t('checkout.credit_label', 'Crédit'), emoji: '🧾', desc: `${t('checkout.credit_desc', 'À régler le {date}').replace('{date}', creditDate(creditLine.due_if_ordered_today))} — ${t('checkout.credit_available', 'disponible')} : ${creditLine.available.toLocaleString()} Fdj` }]
+    : [];
   const PAYMENT_METHODS = forCompany ? [
     { id: 'company_wallet', label: t('co.wallet', 'Cagnotte société'), emoji: '🏢', desc: `${companyCtx?.company?.name || ''} — ${t('checkout.wallet_balance', 'Solde')} : ${companyBalance.toLocaleString()} Fdj` },
+    ...creditOption,
   ] : [
     { id: 'waafi', label: t('checkout.waafi_label', 'Waafi'),   emoji: '📱', desc: t('checkout.waafi_desc', 'Paiement mobile Waafi') },
     { id: 'cash',  label: t('checkout.cash_label',  'Espèces'), emoji: '💵', desc: t('checkout.cash_desc',  'Paiement à la livraison') },
     ...(walletBalance > 0
       ? [{ id: 'wallet', label: t('checkout.wallet_label', 'Cagnotte'), emoji: '💰', desc: `${t('checkout.wallet_balance', 'Solde')} : ${walletBalance.toLocaleString()} Fdj` }]
       : []),
+    ...creditOption,
   ];
 
   const [cartOpen, setCartOpen] = useState(false);
@@ -155,7 +165,8 @@ export default function CheckoutPage() {
     };
     return (kind === 'promo' ? promo : referral)[reason] || t('checkout.code_invalid', 'Code invalide');
   };
-  const walletInsufficient = (paymentMethod === 'wallet' && walletBalance < orderTotal) || (forCompany && companyBalance < orderTotal);
+  const creditInsufficient = paymentMethod === 'credit' && (creditLine?.available ?? 0) < orderTotal;
+  const walletInsufficient = (paymentMethod === 'wallet' && walletBalance < orderTotal) || (forCompany && paymentMethod === 'company_wallet' && companyBalance < orderTotal) || creditInsufficient;
 
   // Bascule « pour moi / pour mon entreprise » : moyen de paiement et site par défaut
   const chooseSite = (site: any) => {
@@ -236,6 +247,11 @@ export default function CheckoutPage() {
       if (session?.user) {
         supabase.from('wallets').select('balance').eq('user_id', session.user.id).maybeSingle()
           .then(({ data }) => setWalletBalance(Number(data?.balance) || 0));
+      }
+      // Ligne de crédit (client ou société) : option « Crédit » au paiement
+      if (session?.access_token) {
+        fetch('/api/credit', { headers: { Authorization: `Bearer ${session.access_token}` } })
+          .then(r => r.ok ? r.json() : null).then(j => { if (j) setCredit({ user: j.user, company: j.company }); }).catch(() => {});
       }
       // Compte entreprise : proposer « Commander pour mon entreprise » aux gérants et acheteurs
       if (session?.access_token) {
@@ -424,6 +440,7 @@ export default function CheckoutPage() {
           site_required: t('co.e_site_required', 'Choisissez un site de livraison.'),
           identity_mismatch: t('checkout.e_session', 'Votre session a expiré : reconnectez-vous puis réessayez.'),
           delivery_option_invalid: t('checkout.e_delivery_option', 'Ce mode de livraison n\'est plus proposé. Rechargez la page et choisissez-en un autre.'),
+          credit_unavailable: ({ limit: t('checkout.credit_e_limit', 'Plafond de crédit dépassé pour cette commande.'), overdue: t('checkout.credit_e_overdue', 'Un règlement est en retard : le crédit est bloqué jusqu\'à régularisation.'), suspended: t('checkout.credit_e_suspended', 'Votre crédit est suspendu.'), disabled: t('checkout.credit_e_disabled', 'Le paiement à crédit n\'est pas disponible.'), no_account: t('checkout.credit_e_none', 'Vous n\'avez pas de ligne de crédit.') } as Record<string, string>)[json.reason] || t('checkout.credit_e_generic', 'Paiement à crédit impossible.'),
         };
         setOrderError(MSG[json.error] || t('checkout.e_generic', 'La commande n\'a pas pu être enregistrée. Réessayez dans un instant.'));
         return;
@@ -1361,7 +1378,7 @@ export default function CheckoutPage() {
 
             {walletInsufficient && (
               <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-2">
-                <p className="text-[#f97316] font-semibold text-sm">⚠️ {forCompany ? t('co.e_balance', 'Solde de la cagnotte société insuffisant.') : t('checkout.wallet_insufficient', 'Solde de cagnotte insuffisant')} — {(forCompany ? companyBalance : walletBalance).toLocaleString()} / {orderTotal.toLocaleString()} Fdj</p>
+                <p className="text-[#f97316] font-semibold text-sm">⚠️ {creditInsufficient ? t('checkout.credit_e_limit', 'Plafond de crédit dépassé pour cette commande.') : forCompany ? t('co.e_balance', 'Solde de la cagnotte société insuffisant.') : t('checkout.wallet_insufficient', 'Solde de cagnotte insuffisant')} — {(forCompany ? companyBalance : walletBalance).toLocaleString()} / {orderTotal.toLocaleString()} Fdj</p>
                 {forCompany && <Link href="/entreprise" className="inline-block mt-2 text-xs font-semibold text-[#526500] underline">🏢 {t('co.go_topup', 'Recharger la cagnotte société')}</Link>}
               </div>
             )}
