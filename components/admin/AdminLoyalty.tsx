@@ -12,6 +12,7 @@ type Data = {
   settings: { enabled: boolean; orders_required: number; reward_amount: number; min_order: number };
   cards_in_progress: number; stamps_open: number; near_reward: number; rewards_count: number; rewards_total: number;
   rewards: { id: number; customer: string; amount: number; stamps_used: number; created_at: string }[];
+  cards: { user_id: string; customer: string; phone: string | null; stamps: number; remaining: number; last_stamp: string }[];
 };
 const fdj = (n: number) => `${Math.round(Number(n)).toLocaleString('fr-FR')} Fdj`;
 const inputCls = 'w-full border border-[#d2e095] rounded-xl px-4 py-2.5 text-sm bg-[#faf7e8] focus:outline-none focus:border-[#a8c800]';
@@ -49,6 +50,15 @@ export default function AdminLoyalty() {
     setMsg({ ok: true, text: t('loy.a_saved', 'Réglages enregistrés. Ils s\'appliquent aux prochaines commandes livrées.') });
     await load();
     return j;
+  };
+
+  // Relance d'un client : notification « plus que N commandes avant la récompense »
+  const remind = async (userId: string) => {
+    setBusy(true); setMsg(null);
+    try {
+      const res = await fetch('/api/admin/loyalty', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await tokenOf()}` }, body: JSON.stringify({ action: 'remind', user_id: userId }) });
+      setMsg(res.ok ? { ok: true, text: t('loy.c_reminded', 'Relance envoyée.') } : { ok: false, text: 'Erreur' });
+    } catch (e: any) { setMsg({ ok: false, text: e.message }); } finally { setBusy(false); }
   };
 
   if (!data) return <div className="flex items-center justify-center h-48"><p className="text-gray-400">{msg?.text || t('admin.loading', 'Chargement...')}</p></div>;
@@ -97,6 +107,29 @@ export default function AdminLoyalty() {
           </div>
         )}
         <p className="text-[11px] text-gray-400 mt-3">{t('loy.a_pause_hint', 'En pause : plus aucun tampon n\'est posé et la carte disparaît du profil. Les tampons déjà gagnés sont conservés.')}</p>
+      </div>
+
+      {/* Cartes en cours : qui a des tampons, les plus proches de la récompense d'abord */}
+      <div className="bg-white rounded-2xl border border-[#d2e095] p-5 md:p-6 mb-6">
+        <h2 className="font-semibold text-gray-800 mb-1">🎫 {t('loy.c_title', 'Cartes en cours')}</h2>
+        <p className="text-xs text-gray-400 mb-3">{t('loy.c_hint', 'Les clients les plus proches de la récompense sont en tête : ce sont ceux à relancer. « Relancer » envoie une notification « plus que N commandes avant la récompense ».')}</p>
+        {(data.cards || []).length === 0 ? <p className="text-sm text-gray-400">{t('loy.c_none', 'Aucune carte en cours.')}</p> : (
+          <div className="space-y-2">{data.cards.map(c => (
+            <div key={c.user_id} className="flex flex-wrap items-center justify-between gap-2 bg-[#faf7e8] rounded-xl px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-800 truncate">{c.customer}{c.phone ? <span className="text-xs font-normal text-gray-400"> · {c.phone}</span> : null}</p>
+                <p className="text-xs text-gray-400">{t('loy.c_last', 'Dernier tampon')} : {new Date(c.last_stamp + 'T00:00:00Z').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' })}</p>
+              </div>
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="text-right">
+                  <p className="text-sm tracking-widest text-[#526500]" aria-label={`${c.stamps}/${data.settings.orders_required}`}>{'●'.repeat(Math.min(c.stamps, 12))}<span className="text-gray-300">{'○'.repeat(Math.max(0, Math.min(12, data.settings.orders_required) - Math.min(c.stamps, 12)))}</span> <span className="font-bold">{c.stamps}/{data.settings.orders_required}</span></p>
+                  <p className={`text-xs ${c.remaining <= 2 ? 'text-[#f97316] font-semibold' : 'text-gray-500'}`}>{c.remaining <= 1 ? t('loy.c_one_left', 'Plus qu\'une commande') : `${c.remaining} ${t('loy.c_left', 'commandes restantes')}`}</p>
+                </div>
+                {canEdit && <button disabled={busy} onClick={() => remind(c.user_id)} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5] disabled:opacity-50">🔔 {t('loy.c_remind', 'Relancer')}</button>}
+              </div>
+            </div>
+          ))}</div>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl border border-[#d2e095] p-5 md:p-6">

@@ -88,12 +88,20 @@ export async function onOrderCancelled(orderId: number | string) {
 export async function loyaltyStats() {
   const [s, { data: open }, { data: rewards }] = await Promise.all([
     loyaltySettings(),
-    supabaseAdmin.from('loyalty_stamps').select('user_id').is('reward_id', null),
+    supabaseAdmin.from('loyalty_stamps').select('user_id, stamp_date').is('reward_id', null),
     supabaseAdmin.from('loyalty_rewards').select('id, user_id, amount, stamps_used, created_at').order('created_at', { ascending: false }).limit(200),
   ]);
   const perUser: Record<string, number> = {};
-  for (const r of open || []) perUser[r.user_id] = (perUser[r.user_id] || 0) + 1;
+  const lastStamp: Record<string, string> = {};
+  for (const r of open || []) {
+    perUser[r.user_id] = (perUser[r.user_id] || 0) + 1;
+    if (!lastStamp[r.user_id] || r.stamp_date > lastStamp[r.user_id]) lastStamp[r.user_id] = r.stamp_date;
+  }
   const counts = Object.values(perUser);
+  // Cartes en cours : les plus proches de la récompense d'abord (clients à relancer en priorité)
+  const cards = Object.entries(perUser)
+    .map(([user_id, stamps]) => ({ user_id, stamps, remaining: Math.max(0, s.orders_required - stamps), last_stamp: lastStamp[user_id] }))
+    .sort((a, b) => b.stamps - a.stamps || (b.last_stamp > a.last_stamp ? 1 : -1));
   return {
     settings: s,
     cards_in_progress: counts.length,
@@ -102,5 +110,21 @@ export async function loyaltyStats() {
     rewards_count: (rewards || []).length,
     rewards_total: (rewards || []).reduce((a: number, r: any) => a + Number(r.amount), 0),
     rewards: rewards || [],
+    cards,
   };
+}
+
+/** Relance manuelle (admin) : « plus que N commandes avant la récompense ». */
+export async function remindCard(userId: string) {
+  const s = await loyaltySettings();
+  const { count } = await supabaseAdmin.from('loyalty_stamps').select('id', { count: 'exact', head: true }).eq('user_id', userId).is('reward_id', null);
+  const left = Math.max(1, s.orders_required - (count || 0));
+  const { notifyUser } = await import('./notify');
+  await notifyUser(userId, {
+    title: left === 1 ? `🎁 Plus qu'une commande avant ${fdj(s.reward_amount)} !` : `🎁 Plus que ${left} commandes avant ${fdj(s.reward_amount)}`,
+    body: `Votre carte de fidélité : ${count || 0}/${s.orders_required}. ${left === 1 ? 'Une dernière commande livrée' : `${left} commandes livrées`} et ${fdj(s.reward_amount)} seront crédités sur votre cagnotte.`,
+    url: '/',
+    i18n: { key: left === 1 ? 'loyalty.remind_one' : 'loyalty.remind', params: { left, open: count || 0, n: s.orders_required, amount: fdj(s.reward_amount) } },
+  });
+  return { left, stamps: count || 0 };
 }

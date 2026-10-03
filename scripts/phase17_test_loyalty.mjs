@@ -98,6 +98,16 @@ try {
   await ageStamps();
   const o5 = await order(2); await deliver(o5.id); await ageStamps();
   ok(await stampsOpen() === 2 && await walletOf() === 0, '2/3 : pas encore de récompense');
+  // Admin : liste nominative des cartes en cours + relance
+  r = await api('/api/admin/loyalty', adminToken);
+  const card = (r.j.cards || []).find(c => c.user_id === state.user.id);
+  ok(card && card.stamps === 2 && card.remaining === 1 && /Test Fidélité/.test(card.customer), 'admin : la carte du client apparaît (2/3, reste 1)', JSON.stringify(card));
+  r = await api('/api/admin/loyalty', adminToken, { action: 'remind', user_id: state.user.id });
+  ok(r.status === 200 && r.j.left === 1, 'relance envoyée', JSON.stringify(r.j));
+  await new Promise(res => setTimeout(res, 500));
+  ok(((await admin.from('user_notifications').select('title').eq('user_id', state.user.id).order('created_at', { ascending: false }).limit(1)).data || []).some(x => /Plus qu'une commande/.test(x.title)), 'client : notification « plus qu\'une commande »');
+  r = await api('/api/admin/loyalty', state.user.token, { action: 'remind', user_id: state.user.id });
+  ok(r.status === 401 || r.status === 403, 'un client ne peut pas relancer');
   const o6 = await order(2); r = await deliver(o6.id);
   ok(await walletOf() === 700, 'carte pleine : 700 Fdj crédités sur la cagnotte', String(await walletOf()));
   ok(await stampsOpen() === 0, 'nouvelle carte à 0/3', String(await stampsOpen()));
