@@ -5,7 +5,7 @@ import { useCart } from '../../context/CartContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { titleCase, sentenceCase } from '../../lib/format';
-import { computeDelivery, NO_RULES, type DeliveryRules, type PromoBenefit } from '../../lib/delivery-pricing';
+import { computeDelivery, computePromoItems, NO_RULES, type DeliveryRules, type PromoBenefit } from '../../lib/delivery-pricing';
 import Header from '../../components/Header';
 import CartDrawer from '../../components/CartDrawer';
 import Link from 'next/link';
@@ -129,7 +129,9 @@ export default function CheckoutPage() {
     promo: appliedPromo, referralCode: !!appliedCode && !appliedPromo, referralCredit: useReferralCredit && referralCredits > 0,
   });
   const deliveryFee = quote.fee;
-  const orderTotal = total + deliveryFee;
+  // Code sur les articles (pourcentage / montant) : remise sur les articles, la livraison suit ses propres règles
+  const promoItems = computePromoItems({ promo: appliedPromo, subtotal: total });
+  const orderTotal = total - promoItems.discount + deliveryFee;
   const fdjN = (n: number) => `${n.toLocaleString()} Fdj`;
   // Origine de la remise, affichée sous le montant de la livraison
   const discountLabel = quote.source === 'threshold' ? t('checkout.disc_threshold', 'Offerte dès {n} d\'achat').replace('{n}', fdjN(deliveryRules.free_threshold || 0))
@@ -308,8 +310,8 @@ export default function CheckoutPage() {
       });
   }, [step, user, addressesLoaded]);
 
-  const applyCode = async () => {
-    const code = refCodeInput.trim().toUpperCase();
+  const applyCode = async (forced?: string) => {
+    const code = (forced ?? refCodeInput).trim().toUpperCase();
     if (!code) return;
     setCodeValidating(true);
     setCodeError('');
@@ -320,7 +322,8 @@ export default function CheckoutPage() {
       const res = await fetch('/api/promo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
-        body: JSON.stringify({ code, phone: phoneDigits ? '77' + phoneDigits : null }),
+        // Le panier permet au serveur de calculer les articles concernés par un code sur les articles
+        body: JSON.stringify({ code, phone: phoneDigits ? '77' + phoneDigits : null, items: items.map(i => ({ product_id: i.id, quantity: i.quantity, price: i.price })) }),
       });
       const json = await res.json();
       if (json.valid) {
@@ -336,6 +339,16 @@ export default function CheckoutPage() {
       setCodeValidating(false);
     }
   };
+
+  // Panier modifié après la saisie d'un code sur les articles : montant concerné recalculé par le serveur
+  const cartKey = items.map(i => `${i.id}:${i.quantity}`).join(',');
+  useEffect(() => {
+    if (!appliedCode || !appliedPromo || appliedPromo.kind === 'free_delivery') return;
+    const code = appliedCode;
+    const timer = setTimeout(() => { setRefCodeInput(code); applyCode(code); }, 150);   // léger délai : plusieurs changements de panier d'affilée = une seule vérification
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cartKey]);
 
   const handleOrder = async () => {
     setLoading(true);
@@ -1069,8 +1082,10 @@ export default function CheckoutPage() {
                       <p className="text-sm font-semibold text-[#526500]">
                         {t('checkout.referral_applied', 'Code')} <span className="tracking-widest">{appliedCode}</span> {t('checkout.referral_applied2', 'appliqué')}
                       </p>
-                      {quote.promo_missing != null
-                        ? <p className="text-xs text-[#f97316]">{t('checkout.promo_missing', 'Ajoutez {n} d\'articles pour profiter de ce code.').replace('{n}', fdjN(quote.promo_missing))}</p>
+                      {quote.promo_missing != null || promoItems.missing != null
+                        ? <p className="text-xs text-[#f97316]">{t('checkout.promo_missing', 'Ajoutez {n} d\'articles pour profiter de ce code.').replace('{n}', fdjN(quote.promo_missing ?? promoItems.missing ?? 0))}</p>
+                        : appliedPromo && appliedPromo.kind !== 'free_delivery'
+                          ? <p className="text-xs text-gray-500">{promoItems.discount > 0 ? t('checkout.promo_items_applied', '{n} de remise sur vos articles.').replace('{n}', fdjN(promoItems.discount)) : t('checkout.promo_items_none', 'Aucun article concerné par ce code dans votre panier.')}</p>
                         : quote.source === 'threshold'
                           ? <p className="text-xs text-gray-500">{t('checkout.code_not_needed', 'Livraison déjà offerte : ce code n\'est pas utilisé sur cette commande.')}</p>
                           : quote.fee > 0 && quote.discount > 0
@@ -1096,7 +1111,7 @@ export default function CheckoutPage() {
                         className="flex-1 min-w-0 border border-[#d2e095] rounded-xl px-4 py-3 text-sm bg-white focus:outline-none focus:border-[#a8c800] tracking-widest uppercase"
                       />
                       <button
-                        onClick={applyCode}
+                        onClick={() => applyCode()}
                         disabled={!refCodeInput.trim() || codeValidating}
                         className="px-5 py-3 bg-[#a8c800] text-white text-sm font-semibold rounded-xl hover:bg-[#7d9800] transition disabled:opacity-40 whitespace-nowrap"
                       >
@@ -1136,6 +1151,12 @@ export default function CheckoutPage() {
                   <span className="text-gray-600">{t('checkout.subtotal', 'Sous-total')}</span>
                   <span className="font-medium">{total.toLocaleString()} Fdj</span>
                 </div>
+                {promoItems.discount > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-[#526500]">🎁 {t('checkout.disc_promo', 'Code promo')} {appliedCode}</span>
+                    <span className="font-medium text-[#526500]">−{promoItems.discount.toLocaleString()} Fdj</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">
                     {t('checkout.delivery_label', 'Livraison')}
@@ -1275,14 +1296,19 @@ export default function CheckoutPage() {
                 </div>
 
                 {/* Promo / crédit */}
-                {quote.discount > 0 && (
+                {(quote.discount > 0 || promoItems.discount > 0) && (
                   <div className="flex items-center gap-3">
                     <span className="text-base flex-none">🎁</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{t('checkout.benefit_label', 'Avantage')}</p>
-                      <p className="text-sm text-[#526500] font-medium">
-                        {discountLabel} — {quote.fee === 0 ? t('checkout.benefit_free', 'Livraison offerte') : t('checkout.code_partial', '{n} offerts sur la livraison.').replace('{n}', fdjN(quote.discount))} 🎁
-                      </p>
+                      {promoItems.discount > 0 && (
+                        <p className="text-sm text-[#526500] font-medium">{t('checkout.disc_promo', 'Code promo')} {appliedCode} — {t('checkout.promo_items_applied', '{n} de remise sur vos articles.').replace('{n}', fdjN(promoItems.discount))}</p>
+                      )}
+                      {quote.discount > 0 && (
+                        <p className="text-sm text-[#526500] font-medium">
+                          {discountLabel} — {quote.fee === 0 ? t('checkout.benefit_free', 'Livraison offerte') : t('checkout.code_partial', '{n} offerts sur la livraison.').replace('{n}', fdjN(quote.discount))} 🎁
+                        </p>
+                      )}
                     </div>
                     <button onClick={() => setStep(3)} className="text-xs text-[#7d9800] hover:underline flex-none">{t('checkout.edit', 'Modifier')}</button>
                   </div>
@@ -1296,6 +1322,12 @@ export default function CheckoutPage() {
                     <span className="text-gray-500">{t('checkout.subtotal', 'Sous-total')}</span>
                     <span className="font-medium">{total.toLocaleString()} Fdj</span>
                   </div>
+                  {promoItems.discount > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-[#526500]">🎁 {t('checkout.disc_promo', 'Code promo')} {appliedCode}</span>
+                      <span className="font-medium text-[#526500]">−{promoItems.discount.toLocaleString()} Fdj</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-500">{t('checkout.delivery_label', 'Livraison')}{selectedDelivery && <span className="text-gray-400"> — {deliveryName(selectedDelivery)}</span>}</span>
                     {deliveryFee === 0

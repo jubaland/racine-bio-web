@@ -19,7 +19,7 @@ type Product = {
 };
 type Data = {
   kpis: {
-    caProduits: number; caMarchands: number; commissions?: number; reverseMarchands?: number; caHornafresh: number; caEntreprises?: number; nbOrdersEntreprises?: number; nbOrders: number; panierMoyen: number; deliveryCollected: number; deliveryOffered?: number;
+    caProduits: number; caMarchands: number; commissions?: number; reverseMarchands?: number; caHornafresh: number; caEntreprises?: number; nbOrdersEntreprises?: number; nbOrders: number; panierMoyen: number; deliveryCollected: number; deliveryOffered?: number; discountsTotal?: number; marginAfterDiscounts?: number;
     costTotal: number; marginTotal: number; marginPct: number | null; caWithCost: number;
   };
   products: Product[];
@@ -109,6 +109,7 @@ export default function AdminFinances() {
             <Kpi emoji="🧾" label={t('fin.cost', "Coût d'achat")} value={k.costTotal ? fdj(k.costTotal) : '—'} hint={t('fin.cost_hint', 'Marchandises vendues')} />
             <Kpi emoji="📦" label={t('fin.orders', 'Commandes livrées')} value={String(k.nbOrders)} hint={(k.nbOrdersEntreprises || 0) > 0 ? `🏢 ${t('fin.ca_companies', 'dont comptes entreprise')} : ${k.nbOrdersEntreprises} · ${fdj(k.caEntreprises || 0)}` : undefined} />
             <Kpi emoji="🛒" label={t('fin.basket', 'Panier moyen')} value={fdj(k.panierMoyen)} hint={t('fin.basket_hint', 'Par commande, livraison incluse')} />
+            {(k.discountsTotal || 0) > 0 && <Kpi emoji="💸" label={t('fin.discounts', 'Remises accordées')} value={fdj(k.discountsTotal || 0)} hint={`${t('fin.discounts_hint', 'Codes promo et remises admin · marge nette')} : ${fdj(k.marginAfterDiscounts || 0)}`} />}
             <Kpi emoji="🚚" label={t('fin.delivery', 'Frais de livraison')} value={fdj(k.deliveryCollected)} hint={(k.deliveryOffered || 0) > 0 ? `${t('fin.delivery_hint', 'Encaissés')} · 🎁 ${fdj(k.deliveryOffered || 0)} ${t('fin.delivery_offered', 'offerts (codes, seuil, parrainage)')}` : t('fin.delivery_hint', 'Encaissés')} />
           </div>
 

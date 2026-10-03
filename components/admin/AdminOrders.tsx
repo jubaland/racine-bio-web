@@ -11,6 +11,7 @@ interface OrderItem {
   product_id: number;
   quantity: number;
   price: number;
+  discount?: number | null;   // remise admin sur la ligne (prix réel conservé)
   // Snapshot produit au moment de la commande
   product_name?:      string | null;
   product_image_url?: string | null;
@@ -27,6 +28,9 @@ interface Order {
   delivery_discount?: number | null;          // montant de livraison offert (code promo, seuil, parrainage)
   delivery_discount_source?: string | null;
   promo_code?: string | null;
+  promo_discount?: number | null;             // remise d'un code promo sur les articles
+  admin_discount?: number | null;             // remise globale accordée par l'admin
+  discount_history?: { at: string; by_name?: string | null; kind: string; name?: string; from?: number; to?: number; amount?: number; note?: string | null }[] | null;
   delivery_option_name: string | null;
   status: string;
   payment_method: string;
@@ -106,6 +110,34 @@ export default function AdminOrders() {
   }, [filterStatus]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // Remise accordée par l'admin (marchandage, geste commercial) : nouveau prix sur une ligne, ou montant global
+  const [discountFor, setDiscountFor] = useState<string | null>(null);
+  const [dForm, setDForm] = useState({ mode: 'line', item_id: '', new_price: '', amount: '', note: '' });
+  const [dBusy, setDBusy] = useState(false);
+  const [dMsg, setDMsg] = useState('');
+  const DISCOUNT_ERR: Record<string, string> = {
+    note_required: t('admin.disc_e_note', 'Indiquez le motif de la remise.'),
+    price_invalid: t('admin.disc_e_price', 'Le nouveau prix doit être un entier positif, inférieur au prix actuel.'),
+    amount_invalid: t('admin.disc_e_amount', 'Montant invalide.'),
+    amount_too_high: t('admin.disc_e_too_high', 'La remise dépasse le montant des articles.'),
+    prepaid_increase: t('admin.disc_e_prepaid', 'Commande prépayée : une remise ne peut pas être réduite (il faudrait re-débiter le client).'),
+    order_cancelled: t('admin.disc_e_cancelled', 'Commande annulée.'),
+  };
+  const grantDiscount = async (order: Order, mode: 'line' | 'global' | 'reset') => {
+    if (mode === 'reset' && !confirm(t('admin.disc_reset_confirm', 'Annuler toutes les remises accordées sur cette commande ?'))) return;
+    setDBusy(true); setDMsg('');
+    try {
+      const tk = (await supabase.auth.getSession()).data.session?.access_token;
+      const res = await fetch('/api/admin/orders/discount', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tk}` },
+        body: JSON.stringify({ order_id: order.id, mode, item_id: dForm.item_id || undefined, new_price: dForm.new_price || undefined, amount: dForm.amount || undefined, note: dForm.note }) });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) { setDMsg('⚠️ ' + (DISCOUNT_ERR[j.error] || j.error || 'Erreur')); return; }
+      setDMsg(`✅ ${t('admin.disc_done', 'Nouveau total')} : ${Number(j.total).toLocaleString()} Fdj${j.refund === 'wallet' ? ` · ${t('admin.disc_refunded', 'différence recréditée sur la cagnotte')}` : j.refund === 'manual' ? ` · ${t('admin.disc_manual', 'remboursement manuel à effectuer')}` : ''}`);
+      setDForm({ mode: 'line', item_id: '', new_price: '', amount: '', note: '' });
+      fetchAll();
+    } catch (e: any) { setDMsg('⚠️ ' + e.message); } finally { setDBusy(false); }
+  };
 
   const updateStatus = async (orderId: string, status: string) => {
     // Annulation = stock remis + remboursement enregistré + client prévenu : on confirme avant
@@ -464,9 +496,16 @@ export default function AdminOrders() {
                             <p className="text-xs text-gray-500">
                               × {item.quantity} {unit}
                             </p>
-                            <p className="text-sm font-bold text-[#526500]">
-                              {Number(subtotal).toLocaleString()} Fdj
-                            </p>
+                            {Number(item.discount) > 0 ? (
+                              <p className="text-sm font-bold text-[#526500]">
+                                <span className="line-through text-gray-400 font-normal mr-1">{Number(subtotal).toLocaleString()}</span>{(Number(subtotal) - Number(item.discount)).toLocaleString()} Fdj
+                                <span className="block text-[10px] font-normal text-[#526500]">🎁 {Number(item.price).toLocaleString()} → {Math.round((Number(subtotal) - Number(item.discount)) / Number(item.quantity)).toLocaleString()} Fdj / {unit}</span>
+                              </p>
+                            ) : (
+                              <p className="text-sm font-bold text-[#526500]">
+                                {Number(subtotal).toLocaleString()} Fdj
+                              </p>
+                            )}
                             {can('orders', 'edit') && ['pending', 'processing'].includes(order.status) && (
                               <div className="flex items-center justify-end gap-1.5 mt-1">
                                 {item.quantity > 1 && (
@@ -504,6 +543,18 @@ export default function AdminOrders() {
                       <span className="text-gray-500">{t('admin.subtotal', 'Sous-total')}</span>
                       <span className="text-gray-700">{Number(subtotal).toLocaleString()} Fdj</span>
                     </div>
+                    {Number(order.promo_discount) > 0 && (
+                      <div className="flex justify-between text-sm text-[#526500]">
+                        <span>🎁 {t('admin.disc_promo', 'Code promo')} {order.promo_code}</span>
+                        <span>−{Number(order.promo_discount).toLocaleString()} Fdj</span>
+                      </div>
+                    )}
+                    {(Number(order.admin_discount) > 0 || items.some(it => Number(it.discount) > 0)) && (
+                      <div className="flex justify-between text-sm text-[#526500]">
+                        <span>💸 {t('admin.disc_granted', 'Remise accordée')}{(order.discount_history || []).length ? <span className="text-gray-400"> — {(order.discount_history || []).filter(h => h.kind !== 'reset').map(h => h.note).filter(Boolean).slice(-1)[0]}</span> : null}</span>
+                        <span>−{(Number(order.admin_discount) + items.reduce((s, it) => s + (Number(it.discount) || 0), 0)).toLocaleString()} Fdj</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">
                         🚚 {t('admin.delivery', 'Frais de livraison')}
@@ -524,6 +575,47 @@ export default function AdminOrders() {
                       <span className="text-sm text-gray-600 font-medium">{t('admin.total', 'Total commande')}</span>
                       <span className="text-lg font-bold text-[#526500]">{Number(order.total).toLocaleString()} Fdj</span>
                     </div>
+
+                    {/* Remise admin : marchandage, geste commercial — prix réel conservé, remise tracée */}
+                    {can('orders', 'edit') && order.status !== 'cancelled' && (
+                      discountFor === order.id ? (
+                        <div className="mt-2 border border-[#d2e095] rounded-xl p-3 bg-white space-y-2">
+                          <div className="flex flex-wrap gap-3 text-xs">
+                            <label className="flex items-center gap-1.5"><input type="radio" name={`dmode-${order.id}`} checked={dForm.mode === 'line'} onChange={() => setDForm(f => ({ ...f, mode: 'line' }))} className="accent-[#a8c800]" /> {t('admin.disc_mode_line', 'Nouveau prix sur un article')}</label>
+                            <label className="flex items-center gap-1.5"><input type="radio" name={`dmode-${order.id}`} checked={dForm.mode === 'global'} onChange={() => setDForm(f => ({ ...f, mode: 'global' }))} className="accent-[#a8c800]" /> {t('admin.disc_mode_global', 'Montant sur toute la commande')}</label>
+                          </div>
+                          {dForm.mode === 'line' ? (
+                            <div className="flex flex-wrap gap-2">
+                              <select value={dForm.item_id} onChange={e => setDForm(f => ({ ...f, item_id: e.target.value }))} className="border border-[#d2e095] rounded-lg px-2 py-1.5 text-xs flex-1 min-w-[160px]">
+                                <option value="">{t('admin.disc_pick_item', 'Choisir l\'article…')}</option>
+                                {items.map(it => <option key={it.id} value={it.id}>{it.product_name} — {Number(it.price).toLocaleString()} Fdj / {it.product_unit || ''}</option>)}
+                              </select>
+                              <input type="number" inputMode="numeric" min={0} step={1} value={dForm.new_price} onChange={e => setDForm(f => ({ ...f, new_price: e.target.value }))} placeholder={t('admin.disc_new_price_ph', 'Ex : nouveau prix unitaire')} className="border border-[#d2e095] rounded-lg px-2 py-1.5 text-xs w-44" />
+                            </div>
+                          ) : (
+                            <input type="number" inputMode="numeric" min={1} step={1} value={dForm.amount} onChange={e => setDForm(f => ({ ...f, amount: e.target.value }))} placeholder={t('admin.disc_amount_ph', 'Ex : montant de la remise en Fdj')} className="border border-[#d2e095] rounded-lg px-2 py-1.5 text-xs w-60" />
+                          )}
+                          <input value={dForm.note} maxLength={300} onChange={e => setDForm(f => ({ ...f, note: e.target.value }))} placeholder={t('admin.disc_note_ph', 'Ex : gros volume, négocié par téléphone')} className="border border-[#d2e095] rounded-lg px-2 py-1.5 text-xs w-full" />
+                          <div className="flex flex-wrap gap-2 items-center">
+                            <button disabled={dBusy || !dForm.note.trim() || (dForm.mode === 'line' ? !dForm.item_id || dForm.new_price === '' : !dForm.amount)} onClick={() => grantDiscount(order, dForm.mode as 'line' | 'global')} className="text-xs font-semibold bg-[#a8c800] text-white rounded-lg px-3 py-1.5 hover:bg-[#7d9800] disabled:opacity-40">{dBusy ? '⏳' : `💸 ${t('admin.disc_apply', 'Accorder la remise')}`}</button>
+                            {(Number(order.admin_discount) > 0 || items.some(it => Number(it.discount) > 0)) && <button disabled={dBusy} onClick={() => grantDiscount(order, 'reset')} className="text-xs font-semibold border border-orange-200 text-[#f97316] rounded-lg px-3 py-1.5 hover:bg-orange-50">{t('admin.disc_reset', 'Annuler les remises')}</button>}
+                            <button onClick={() => { setDiscountFor(null); setDMsg(''); }} className="text-xs text-gray-500 hover:underline">{t('admin.cancel', 'Annuler')}</button>
+                          </div>
+                          {dMsg && <p className="text-xs text-gray-700">{dMsg}</p>}
+                          {(order.discount_history || []).length > 0 && (
+                            <ul className="text-[11px] text-gray-500 space-y-0.5 border-t border-[#f0f7e0] pt-1.5">
+                              {(order.discount_history || []).slice(-5).map((h, i) => (
+                                <li key={i}>{new Date(h.at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} · {h.by_name || 'admin'} · {h.kind === 'reset' ? t('admin.disc_h_reset', 'remises annulées') : h.kind === 'line' ? `${h.name} : ${Number(h.from).toLocaleString()} → ${Number(h.to).toLocaleString()} Fdj` : `−${Number(h.amount).toLocaleString()} Fdj`}{h.note ? ` — ${h.note}` : ''}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="mt-2 text-right">
+                          <button onClick={() => { setDiscountFor(order.id); setDMsg(''); setDForm({ mode: 'line', item_id: '', new_price: '', amount: '', note: '' }); }} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5]">💸 {t('admin.disc_button', 'Accorder une remise')}</button>
+                        </div>
+                      )
+                    )}
                   </div>
                 )}
               </div>

@@ -129,6 +129,7 @@ async function POST_(request: Request) {
       optionId: companyRequest ? null : rawOrder.delivery_option_id, optionName: order.delivery_option_name, subtotal, ...who,
       promoCode: companyRequest ? null : body.promo_code, refCode: companyRequest ? null : ref_code,
       useReferralCredit: !companyRequest && !!use_referral_credit,
+      items, owners: Object.fromEntries((stockData || []).map((p: any) => [p.id, p.owner_id || null])),
     });
     // Option absente ou inconnue alors qu'il en existe : refus (sinon la livraison serait facturée 0)
     if (!dq.option && dq.hasOptions) return NextResponse.json({ error: 'delivery_option_invalid' }, { status: 400 });
@@ -140,8 +141,11 @@ async function POST_(request: Request) {
     order.delivery_fee_base = dq.quote.base;
     order.delivery_discount = dq.quote.discount;
     order.delivery_discount_source = dq.quote.source;
-    order.promo_code = dq.quote.promo_code;
-    order.total = subtotal + dq.quote.fee;
+    // Code sur les articles (pourcentage / montant) : remise à la charge d'Hornafresh, prix des lignes inchangés
+    order.promo_discount = dq.items_discount;
+    order.promo_code = dq.quote.promo_code || (dq.items_discount > 0 && dq.promo ? dq.promo.code : null);
+    const { orderTotals } = await import('../../../lib/order-totals');
+    order.total = orderTotals({ items, promo_discount: dq.items_discount, delivery_fee: dq.quote.fee }).total;
 
     // Société : au-delà du seuil, la commande d'un acheteur doit être validée par le gérant
     if (company && companyRole === 'buyer' && !companyRequest && company.approval_threshold != null && Number(order.total) > Number(company.approval_threshold)) {
@@ -207,8 +211,8 @@ async function POST_(request: Request) {
     // Code promo : utilisation réservée de façon atomique (limites recomptées sous verrou). Deux
     // commandes simultanées sur la dernière utilisation : une seule passe.
     let redemptionId: number | null = null;
-    if (dq.quote.source === 'promo' && dq.promo) {
-      const r = await reservePromo(dq.promo.id, who, dq.quote.discount);
+    if ((dq.quote.source === 'promo' || dq.items_discount > 0) && dq.promo) {
+      const r = await reservePromo(dq.promo.id, who, dq.quote.source === 'promo' ? dq.quote.discount : dq.items_discount);
       if (!r.ok) { await releaseStock(); return NextResponse.json({ error: 'promo_invalid', reason: r.reason }, { status: 409 }); }
       redemptionId = r.redemptionId;
     }
@@ -442,7 +446,7 @@ async function POST_(request: Request) {
       console.error('[email] ERROR:', err);
     }
 
-    return NextResponse.json({ order: createdOrder, price_adjusted: priceAdjusted, delivery: dq.quote });
+    return NextResponse.json({ order: createdOrder, price_adjusted: priceAdjusted, delivery: dq.quote, items_discount: dq.items_discount });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
@@ -455,9 +459,9 @@ async function GET_(request: Request) {
   const { data, error } = await supabaseAdmin
     .from('orders')
     .select(`
-      id, user_id, total, delivery_fee, delivery_fee_base, delivery_discount, delivery_discount_source, promo_code, delivery_option_name, status, payment_method, phone, email, address, customer_name, special_instructions, created_at,
+      id, user_id, total, delivery_fee, delivery_fee_base, delivery_discount, delivery_discount_source, promo_code, promo_discount, admin_discount, discount_history, delivery_option_name, status, payment_method, phone, email, address, customer_name, special_instructions, created_at,
       order_items (
-        id, product_id, quantity, price,
+        id, product_id, quantity, price, discount,
         product_name, product_image_url, product_unit, product_farm, bundle_contents
       )
     `)

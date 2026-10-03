@@ -71,7 +71,10 @@ function itemsTable(items: any[], M?: Mailer) {
     const name  = item.product_name  || `${m('product', 'Produit')} #${item.product_id}`;
     const unit  = item.product_unit  || '';
     const pu    = `${Number(item.price).toLocaleString('fr-FR')} Fdj${unit}`;
-    const subtotal = (item.price * item.quantity).toLocaleString('fr-FR');
+    const disc  = Number(item.discount) || 0;   // remise admin sur la ligne (prix réel conservé)
+    const subtotal = disc > 0
+      ? `<s style="color:#9ca3af;font-weight:normal;">${(item.price * item.quantity).toLocaleString('fr-FR')}</s> ${(item.price * item.quantity - disc).toLocaleString('fr-FR')}`
+      : (item.price * item.quantity).toLocaleString('fr-FR');
     const contents = Array.isArray(item.bundle_contents) && item.bundle_contents.length
       ? `<br><span style="color:#9ca3af;font-size:12px;">🧺 ${item.bundle_contents.map((c: any) => `${c.quantity} ${c.unit || ''} ${c.name}`.replace(/\s+/g, ' ').trim()).join(' · ')}</span>` : '';
     return `
@@ -111,6 +114,17 @@ export async function sendOrderConfirmation(
   const isWaafi = order.payment_method === 'waafi';
   const subtotal = items.reduce((s, it) => s + Number(it.price) * it.quantity, 0);
   const deliveryFee = order.delivery_fee != null ? order.delivery_fee : Math.max(0, Number(order.total) - subtotal);
+  const promoDisc = Number(order.promo_discount) || 0;
+  const grantedDisc = (Number(order.admin_discount) || 0) + items.reduce((s, it) => s + (Number(it.discount) || 0), 0);
+  const discountRows = `${promoDisc > 0 ? `
+        <tr>
+          <td style="padding:4px 16px;color:#526500;font-size:14px;">🎁 ${m('promo_items', 'Remise code {code}', { code: order.promo_code || '' })}</td>
+          <td style="padding:4px 16px;text-align:right;color:#526500;font-size:14px;">−${fdjFr(promoDisc)}</td>
+        </tr>` : ''}${grantedDisc > 0 ? `
+        <tr>
+          <td style="padding:4px 16px;color:#526500;font-size:14px;">💸 ${m('discount_granted', 'Remise accordée')}</td>
+          <td style="padding:4px 16px;text-align:right;color:#526500;font-size:14px;">−${fdjFr(grantedDisc)}</td>
+        </tr>` : ''}`;
   const fmtDate = M.date(order.created_at, { dateStyle: 'long', timeStyle: 'short' });
   const pay: Record<string, string> = {
     waafi: '📱 Waafi', dmoney: '💳 D-Money',
@@ -140,7 +154,7 @@ export async function sendOrderConfirmation(
         <tr>
           <td style="padding:8px 16px 4px;color:#6b7280;font-size:14px;">${m('col_subtotal', 'Sous-total')}</td>
           <td style="padding:8px 16px 4px;text-align:right;color:#374151;font-size:14px;">${fdjFr(subtotal)}</td>
-        </tr>
+        </tr>${discountRows}
         <tr>
           <td style="padding:4px 16px;color:#6b7280;font-size:14px;">🚚 ${m('delivery', 'Livraison')}${order.delivery_option_name ? ` (${order.delivery_option_name})` : ''}${order.promo_code ? ` · ${m('promo_code', 'code {code}', { code: order.promo_code })}` : ''}</td>
           <td style="padding:4px 16px;text-align:right;font-size:14px;color:${deliveryFee === 0 ? '#16a34a' : '#374151'};">${deliveryFee === 0 ? m('free', 'Offerte') : `${Number(order.delivery_discount) > 0 && order.delivery_fee_base ? `<s style="color:#9ca3af;">${fdjFr(order.delivery_fee_base)}</s> ` : ''}${fdjFr(deliveryFee)}`}</td>
@@ -189,6 +203,7 @@ export async function sendNewOrderAlert(order: any, items: any[], customerEmail:
   const shortId = String(order.id).slice(0, 8).toUpperCase();
   const subtotal = items.reduce((s, it) => s + Number(it.price) * it.quantity, 0);
   const deliveryFee = order.delivery_fee != null ? order.delivery_fee : Math.max(0, Number(order.total) - subtotal);
+  const promoDisc = Number(order.promo_discount) || 0;
 
   const html = baseLayout(`
     <h2 style="margin:0 0 4px;color:#1f2937;font-size:20px;">🛍️ Nouvelle commande #${shortId}</h2>
@@ -203,7 +218,11 @@ export async function sendNewOrderAlert(order: any, items: any[], customerEmail:
         <tr>
           <td style="padding:8px 16px 4px;color:#6b7280;font-size:14px;">Sous-total</td>
           <td style="padding:8px 16px 4px;text-align:right;color:#374151;font-size:14px;">${Number(subtotal).toLocaleString('fr-FR')} Fdj</td>
-        </tr>
+        </tr>${promoDisc > 0 ? `
+        <tr>
+          <td style="padding:4px 16px;color:#526500;font-size:14px;">🎁 Remise code ${order.promo_code || ''}</td>
+          <td style="padding:4px 16px;text-align:right;color:#526500;font-size:14px;">−${promoDisc.toLocaleString('fr-FR')} Fdj</td>
+        </tr>` : ''}
         <tr>
           <td style="padding:4px 16px;color:#6b7280;font-size:14px;">🚚 Livraison${order.delivery_option_name ? ` (${order.delivery_option_name})` : ''}${Number(order.delivery_discount) > 0 ? ` · ${order.promo_code ? `code ${order.promo_code}` : order.delivery_discount_source === 'threshold' ? 'seuil atteint' : 'parrainage'} : ${Number(order.delivery_discount).toLocaleString('fr-FR')} Fdj offerts` : ''}</td>
           <td style="padding:4px 16px;text-align:right;font-size:14px;color:${deliveryFee === 0 ? '#16a34a' : '#374151'};">${deliveryFee === 0 ? 'Offerte' : `${Number(deliveryFee).toLocaleString('fr-FR')} Fdj`}</td>

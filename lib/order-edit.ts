@@ -12,7 +12,7 @@ export type ItemChangeResult =
 export async function applyItemChange(order_id: any, item_id: any, new_quantity: number | null): Promise<ItemChangeResult> {
   const { data: order, error: oErr } = await supabaseAdmin
     .from('orders')
-    .select('id, status, payment_method, user_id, company_id, total, delivery_fee, order_items ( id, product_id, quantity, price, product_name, product_unit )')
+    .select('id, status, payment_method, user_id, company_id, total, delivery_fee, promo_discount, admin_discount, order_items ( id, product_id, quantity, price, discount, product_name, product_unit )')
     .eq('id', order_id)
     .single();
   if (oErr || !order) return { ok: false, status: 404, error: 'Commande introuvable' };
@@ -31,7 +31,10 @@ export async function applyItemChange(order_id: any, item_id: any, new_quantity:
   if (isRemoval && items.length <= 1) return { ok: false, status: 409, error: 'last_item' };
 
   const removedQty = currentQty - targetQty;
-  const refundAmount = Number(item.price) * removedQty;
+  // Remise admin sur la ligne : conservée au prorata des unités restantes, remboursement au prix net
+  const lineDiscount = Number(item.discount) || 0;
+  const keptDiscount = isRemoval ? 0 : Math.round(lineDiscount * targetQty / currentQty);
+  const refundAmount = Number(item.price) * removedQty - (lineDiscount - keptDiscount);
 
   // Stock (delta rendu ; un panier composé rend aussi ses composants)
   const { applyStockDeltas } = await import('./bundles');
@@ -42,14 +45,15 @@ export async function applyItemChange(order_id: any, item_id: any, new_quantity:
     const { error } = await supabaseAdmin.from('order_items').delete().eq('id', item.id);
     if (error) return { ok: false, status: 500, error: error.message };
   } else {
-    const { error } = await supabaseAdmin.from('order_items').update({ quantity: targetQty }).eq('id', item.id);
+    const { error } = await supabaseAdmin.from('order_items').update({ quantity: targetQty, discount: keptDiscount }).eq('id', item.id);
     if (error) return { ok: false, status: 500, error: error.message };
   }
 
   // Total
-  const remainingItemsTotal = items.reduce((s: number, it: any) =>
-    s + Number(it.price) * (String(it.id) === String(item_id) ? targetQty : Number(it.quantity)), 0);
-  const newTotal = remainingItemsTotal + (Number(order.delivery_fee) || 0);
+  const { orderTotals } = await import('./order-totals');
+  const remaining = items.filter((it: any) => !(isRemoval && String(it.id) === String(item_id)))
+    .map((it: any) => String(it.id) === String(item_id) ? { ...it, quantity: targetQty, discount: keptDiscount } : it);
+  const newTotal = orderTotals({ items: remaining, promo_discount: order.promo_discount, admin_discount: order.admin_discount, delivery_fee: order.delivery_fee }).total;
   await supabaseAdmin.from('orders').update({ total: newTotal }).eq('id', order_id);
 
   // Remboursement

@@ -7,7 +7,17 @@
 
 export type DeliveryScope = 'standard' | 'all';   // montant couvert : celui de la livraison standard, ou toute l'option choisie
 export type DeliveryRules = { free_threshold: number | null; threshold_scope: DeliveryScope };
-export type PromoBenefit = { code: string; scope: DeliveryScope; max_discount: number | null; min_subtotal: number | null };
+export type PromoKind = 'free_delivery' | 'percent' | 'amount';
+export type PromoBenefit = {
+  code: string;
+  kind: PromoKind;
+  scope: DeliveryScope;                 // livraison offerte : montant couvert
+  max_discount: number | null;          // plafond (Fdj) — obligatoire pour un pourcentage
+  min_subtotal: number | null;          // panier minimum (articles)
+  value: number | null;                 // % ou Fdj selon le type
+  products_scope: 'all' | 'hornafresh'; // articles concernés : tous, ou produits Hornafresh seulement
+  eligible_subtotal?: number | null;    // montant des articles concernés, calculé par le serveur pour ce panier
+};
 export type DiscountSource = 'threshold' | 'promo' | 'referral_code' | 'referral_credit';
 export type DeliveryQuote = {
   base: number;                      // tarif de l'option choisie
@@ -38,7 +48,7 @@ export function computeDelivery(input: {
 
   const threshold = input.rules.free_threshold != null && input.rules.free_threshold > 0 ? int(input.rules.free_threshold) : null;
   const thresholdReached = threshold != null && subtotal >= threshold;
-  const promo = input.promo || null;
+  const promo = input.promo && (input.promo.kind ?? 'free_delivery') === 'free_delivery' ? input.promo : null;   // les codes sur les articles ne touchent pas la livraison
   const promoMissing = promo?.min_subtotal != null && subtotal < promo.min_subtotal ? promo.min_subtotal - subtotal : null;
 
   const candidates: [DiscountSource, number][] = [
@@ -56,4 +66,16 @@ export function computeDelivery(input: {
     threshold_remaining: threshold != null && !thresholdReached && base > 0 ? threshold - subtotal : null,
     promo_missing: promoMissing,
   };
+}
+
+/** Remise d'un code promo « pourcentage » ou « montant » sur les articles (jamais sur la livraison). */
+export function computePromoItems(input: { promo?: PromoBenefit | null; subtotal: number }): { discount: number; missing: number | null } {
+  const promo = input.promo;
+  const subtotal = int(input.subtotal);
+  if (!promo || (promo.kind ?? 'free_delivery') === 'free_delivery' || !promo.value) return { discount: 0, missing: null };
+  if (promo.min_subtotal != null && subtotal < promo.min_subtotal) return { discount: 0, missing: promo.min_subtotal - subtotal };
+  const eligible = Math.min(subtotal, promo.eligible_subtotal != null ? int(promo.eligible_subtotal) : subtotal);
+  let discount = promo.kind === 'percent' ? Math.floor(eligible * Math.min(100, promo.value) / 100) : Math.min(eligible, int(promo.value));
+  if (promo.max_discount != null) discount = Math.min(discount, int(promo.max_discount));
+  return { discount, missing: null };
 }

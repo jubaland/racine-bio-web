@@ -23,7 +23,7 @@ async function GET_(request: Request) {
   // 1) Commandes livrées sur la période
   let q = supabaseAdmin
     .from('orders')
-    .select('id, total, delivery_fee, delivery_discount, created_at, company_id')
+    .select('id, total, delivery_fee, delivery_discount, promo_discount, admin_discount, created_at, company_id')
     .eq('status', 'delivered');
   if (from) q = q.gte('created_at', from.toISOString());
   const { data: orders, error: ordErr } = await q;
@@ -37,7 +37,7 @@ async function GET_(request: Request) {
   if (orderIds.length) {
     const { data, error } = await supabaseAdmin
       .from('order_items')
-      .select('order_id, product_id, product_name, product_unit, quantity, price, product_cost, commission_rate')
+      .select('order_id, product_id, product_name, product_unit, quantity, price, discount, product_cost, commission_rate')
       .in('order_id', orderIds);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     items = data || [];
@@ -104,6 +104,9 @@ async function GET_(request: Request) {
   const deliveryCollected = (orders || []).reduce((s, o) => s + (Number(o.delivery_fee) || 0), 0);
   // Livraisons offertes (codes promo, seuil automatique, parrainage) : manque à gagner sur la période
   const deliveryOffered = (orders || []).reduce((s, o: any) => s + (Number(o.delivery_discount) || 0), 0);
+  // Remises sur les articles (codes promo, remises admin) : à la charge d'Hornafresh, retirées de la marge
+  const discountsTotal = (orders || []).reduce((s, o: any) => s + (Number(o.promo_discount) || 0) + (Number(o.admin_discount) || 0), 0)
+    + items.reduce((s: number, it: any) => s + (Number(it.discount) || 0), 0);
   const grossPaid = (orders || []).reduce((s, o) => s + (Number(o.total) || 0), 0);
   // Ventes aux comptes entreprise (commandes livrées rattachées à une société), livraison comprise
   const companyOrders = (orders || []).filter((o: any) => o.company_id);
@@ -123,6 +126,8 @@ async function GET_(request: Request) {
       panierMoyen: nbOrders ? Math.round(grossPaid / nbOrders) : 0,
       deliveryCollected,
       deliveryOffered,
+      discountsTotal,
+      marginAfterDiscounts: marginTotal - discountsTotal,
       costTotal,
       marginTotal,                                           // marge sur les produits au coût connu
       marginPct: caWithCost > 0 ? Math.round((marginTotal / caWithCost) * 1000) / 10 : null,

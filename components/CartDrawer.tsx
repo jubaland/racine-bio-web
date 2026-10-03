@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
 import Link from 'next/link';
@@ -12,12 +12,12 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
 
   // Seuil automatique de livraison offerte (réglage admin) : chargé à la première ouverture du panier
   const [freeFrom, setFreeFrom] = useState<number | null>(null);
-  const [rulesAsked, setRulesAsked] = useState(false);
+  const rulesAsked = useRef(false);
   useEffect(() => {
-    if (!open || rulesAsked) return;
-    setRulesAsked(true);
+    if (!open || rulesAsked.current) return;
+    rulesAsked.current = true;
     fetch('/api/promo').then(r => r.ok ? r.json() : null).then(j => setFreeFrom(j?.rules?.free_threshold ?? null)).catch(() => {});
-  }, [open, rulesAsked]);
+  }, [open]);
 
   return (
     <>

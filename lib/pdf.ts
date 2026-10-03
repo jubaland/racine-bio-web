@@ -174,15 +174,24 @@ export async function buildReceiptPdf(order: any, items: any[]): Promise<Buffer>
     const name = it.product_name || `Produit #${it.product_id}`;
     const unit = it.product_unit || '';
     const sub = Number(it.price) * Number(it.quantity);
+    const disc = Number(it.discount) || 0;   // remise accordee sur la ligne
     itemsSum += sub;
-    rowLR(name, `${sub.toLocaleString('fr-FR')} Fdj`, { size: 11 });
-    line(`   ${it.quantity} ${unit} x ${Number(it.price).toLocaleString('fr-FR')} Fdj`, { size: 9, color: GRAY });
+    rowLR(name, `${(sub - disc).toLocaleString('fr-FR')} Fdj`, { size: 11 });
+    line(`   ${it.quantity} ${unit} x ${Number(it.price).toLocaleString('fr-FR')} Fdj${disc > 0 ? ` - remise ${disc.toLocaleString('fr-FR')} Fdj` : ''}`, { size: 9, color: GRAY });
   }
   gap(4); hr();
 
   // Totaux
   const fee = Number(order.delivery_fee) || 0;
   const offered = Number(order.delivery_discount) || 0;   // livraison offerte (code promo, seuil, parrainage)
+  const promoDisc = Number(order.promo_discount) || 0;
+  const granted = (Number(order.admin_discount) || 0) + items.reduce((s: number, it: any) => s + (Number(it.discount) || 0), 0);
+  if (promoDisc > 0 || granted > 0) {
+    rowLR('Articles', `${itemsSum.toLocaleString('fr-FR')} Fdj`, { size: 11, color: GRAY });
+    if (promoDisc > 0) rowLR(`Remise code ${order.promo_code || ''}`, `-${promoDisc.toLocaleString('fr-FR')} Fdj`, { size: 11, color: GRAY });
+    if (granted > 0) rowLR('Remise accordee', `-${granted.toLocaleString('fr-FR')} Fdj`, { size: 11, color: GRAY });
+    itemsSum = itemsSum - promoDisc - granted;
+  }
   if (fee > 0 || offered > 0) {
     rowLR('Sous-total', `${itemsSum.toLocaleString('fr-FR')} Fdj`, { size: 11, color: GRAY });
     rowLR('Livraison', `${(fee + offered).toLocaleString('fr-FR')} Fdj`, { size: 11, color: GRAY });

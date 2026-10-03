@@ -1195,9 +1195,17 @@ export default function ProfilePage() {
                     )}
 
                     {items.length > 0 && (
-                      <div className="flex justify-between items-center px-4 py-2.5 bg-[#f8fdf0] border-t border-[#d2e095]">
-                        <span className="text-xs text-gray-500 font-medium">{t('checkout.total', 'Total')}</span>
-                        <span className="text-sm font-bold text-[#526500]">{Number(order.total).toLocaleString()} Fdj</span>
+                      <div className="px-4 py-2.5 bg-[#f8fdf0] border-t border-[#d2e095] space-y-1">
+                        {Number((order as any).promo_discount) > 0 && (
+                          <div className="flex justify-between text-xs text-[#526500]"><span>🎁 {t('checkout.disc_promo', 'Code promo')} {(order as any).promo_code}</span><span>−{Number((order as any).promo_discount).toLocaleString()} Fdj</span></div>
+                        )}
+                        {(Number((order as any).admin_discount) > 0 || items.some((it: any) => Number(it.discount) > 0)) && (
+                          <div className="flex justify-between text-xs text-[#526500]"><span>💸 {t('profile.discount_granted', 'Remise accordée')}</span><span>−{(Number((order as any).admin_discount) + items.reduce((s: number, it: any) => s + (Number(it.discount) || 0), 0)).toLocaleString()} Fdj</span></div>
+                        )}
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-gray-500 font-medium">{t('checkout.total', 'Total')}</span>
+                          <span className="text-sm font-bold text-[#526500]">{Number(order.total).toLocaleString()} Fdj</span>
+                        </div>
                       </div>
                     )}
 

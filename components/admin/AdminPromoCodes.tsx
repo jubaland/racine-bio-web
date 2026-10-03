@@ -9,13 +9,14 @@ import { inputClass, selectClass } from './Modal';
 // commande…) et seuil automatique de livraison offerte. Tout est réglable ici, rien n'est en dur.
 
 type Code = {
-  id: number; code: string; label: string | null; active: boolean; starts_at: string | null; ends_at: string | null;
+  id: number; code: string; kind: 'free_delivery' | 'percent' | 'amount'; value: number | null; products_scope: 'all' | 'hornafresh';
+  label: string | null; active: boolean; starts_at: string | null; ends_at: string | null;
   min_subtotal: number | null; first_order_only: boolean; max_uses: number | null; max_uses_per_user: number | null;
   scope: 'standard' | 'all'; max_discount: number | null; user_id: string | null; user_email: string | null;
   uses: number; amount_offered: number;
 };
 type Rules = { free_threshold: number | null; threshold_scope: 'standard' | 'all' };
-const EMPTY = { id: 0, code: '', label: '', scope: 'standard', max_discount: '', min_subtotal: '', starts_at: '', ends_at: '', max_uses: '', max_uses_per_user: '', first_order_only: false, user_email: '', active: true };
+const EMPTY = { id: 0, code: '', kind: 'free_delivery', value: '', products_scope: 'all', label: '', scope: 'standard', max_discount: '', min_subtotal: '', starts_at: '', ends_at: '', max_uses: '', max_uses_per_user: '', first_order_only: false, user_email: '', active: true };
 
 const fdj = (n: number) => `${Math.round(Number(n)).toLocaleString('fr-FR')} Fdj`;
 const CHARSET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -33,6 +34,7 @@ export default function AdminPromoCodes({ canCreate, canEdit, canDelete }: { can
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [loadError, setLoadError] = useState('');
+  const [now, setNow] = useState(0);   // instant du dernier chargement (états « expiré » / « à venir »)
 
   const headers = async () => {
     let { data: { session } } = await supabase.auth.getSession();
@@ -40,6 +42,7 @@ export default function AdminPromoCodes({ canCreate, canEdit, canDelete }: { can
     return { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` };
   };
   const apply = (j: { codes: Code[]; rules: Rules }) => {
+    setNow(Date.now());
     setCodes(j.codes || []);
     setRules({ free_threshold: j.rules?.free_threshold != null ? String(j.rules.free_threshold) : '', threshold_scope: j.rules?.threshold_scope || 'standard' });
   };
@@ -62,6 +65,9 @@ export default function AdminPromoCodes({ canCreate, canEdit, canDelete }: { can
     user_not_found: t('pc.e_user', 'Aucun compte client avec cette adresse e-mail.'),
     code_used: t('pc.e_used', 'Ce code a déjà été utilisé : désactivez-le plutôt que de le supprimer.'),
     threshold_invalid: t('pc.e_threshold', 'Le seuil doit être un nombre entier positif (ou vide pour le désactiver).'),
+    value_required: t('pc.e_value', 'Indiquez la valeur de la remise.'),
+    percent_range: t('pc.e_percent', 'Le pourcentage doit être entre 1 et 100.'),
+    cap_required: t('pc.e_cap', 'Un pourcentage doit avoir un plafond en Fdj (protège la marge sur les grosses commandes).'),
   };
   const post = async (body: Record<string, unknown>, ok: string) => {
     setBusy(true); setMsg('');
@@ -80,7 +86,8 @@ export default function AdminPromoCodes({ canCreate, canEdit, canDelete }: { can
     if (ok) setForm(null);
   };
   const edit = (c: Code) => setForm({
-    id: c.id, code: c.code, label: c.label || '', scope: c.scope, max_discount: c.max_discount != null ? String(c.max_discount) : '',
+    id: c.id, code: c.code, kind: c.kind || 'free_delivery', value: c.value != null ? String(c.value) : '', products_scope: c.products_scope || 'all',
+    label: c.label || '', scope: c.scope, max_discount: c.max_discount != null ? String(c.max_discount) : '',
     min_subtotal: c.min_subtotal != null ? String(c.min_subtotal) : '', starts_at: toInput(c.starts_at), ends_at: toInput(c.ends_at),
     max_uses: c.max_uses != null ? String(c.max_uses) : '', max_uses_per_user: c.max_uses_per_user != null ? String(c.max_uses_per_user) : '',
     first_order_only: c.first_order_only, user_email: c.user_email || '', active: c.active,
@@ -88,7 +95,6 @@ export default function AdminPromoCodes({ canCreate, canEdit, canDelete }: { can
   const set = (k: string, v: unknown) => setForm(f => f ? { ...f, [k]: v } : f);
 
   const stateOf = (c: Code): [string, string] => {
-    const now = Date.now();
     if (!c.active) return [t('pc.st_off', 'Désactivé'), 'bg-gray-100 text-gray-500'];
     if (c.ends_at && new Date(c.ends_at).getTime() < now) return [t('pc.st_expired', 'Expiré'), 'bg-gray-100 text-gray-500'];
     if (c.max_uses != null && c.uses >= c.max_uses) return [t('pc.st_exhausted', 'Épuisé'), 'bg-orange-100 text-orange-700'];
@@ -96,8 +102,11 @@ export default function AdminPromoCodes({ canCreate, canEdit, canDelete }: { can
     return [t('pc.st_active', 'Actif'), 'bg-green-100 text-green-700'];
   };
   const dateFmt = (iso: string) => new Date(iso).toLocaleString(currentLang === 'fr' ? 'fr-FR' : currentLang, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const kindLabel = (c: Code) => c.kind === 'percent' ? `−${c.value} % ${t('pc.k_on_items', 'sur les articles')}` : c.kind === 'amount' ? `−${fdj(c.value || 0)} ${t('pc.k_on_items', 'sur les articles')}` : t('pc.k_delivery', 'Livraison offerte');
   const conditions = (c: Code) => [
-    c.scope === 'all' ? t('pc.c_all', 'Toute option de livraison') : t('pc.c_standard', 'Montant de la livraison standard'),
+    kindLabel(c),
+    c.kind === 'free_delivery' && (c.scope === 'all' ? t('pc.c_all', 'Toute option de livraison') : t('pc.c_standard', 'Montant de la livraison standard')),
+    c.kind !== 'free_delivery' && c.products_scope === 'hornafresh' && t('pc.c_hornafresh', 'produits Hornafresh seulement'),
     c.max_discount != null && `${t('pc.c_cap', 'plafond')} ${fdj(c.max_discount)}`,
     c.min_subtotal != null && `${t('pc.c_min', 'panier dès')} ${fdj(c.min_subtotal)}`,
     c.first_order_only && t('pc.c_first', '1re commande'),
@@ -137,8 +146,8 @@ export default function AdminPromoCodes({ canCreate, canEdit, canDelete }: { can
       {/* Codes */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h2 className="font-bold text-gray-800">🎟️ {t('pc.title', 'Codes « livraison offerte »')}</h2>
-          <p className="text-xs text-gray-500 mt-1">{t('pc.desc', 'Le client saisit le code au paiement. Une seule remise par commande : pas de cumul avec le parrainage ni avec le seuil automatique.')}</p>
+          <h2 className="font-bold text-gray-800">🎟️ {t('pc.title2', 'Codes promo')}</h2>
+          <p className="text-xs text-gray-500 mt-1">{t('pc.desc2', 'Le client saisit le code au paiement — un seul code par commande. Un code « livraison offerte » ne se cumule pas avec le parrainage ni le seuil ; un code sur les articles, si.')}</p>
         </div>
         {canCreate && !form && <button onClick={() => { setForm({ ...EMPTY }); setMsg(''); }} className="bg-[#a8c800] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#7d9800] transition">+ {t('pc.new', 'Nouveau code')}</button>}
       </div>
@@ -161,15 +170,41 @@ export default function AdminPromoCodes({ canCreate, canEdit, canDelete }: { can
               <input id="pc-label" value={form.label} maxLength={120} onChange={e => set('label', e.target.value)} placeholder={t('pc.f_label_ph', 'Ex : Relance clients inactifs')} className={inputClass} />
             </div>
             <div>
-              <label className={label} htmlFor="pc-scope">{t('pc.f_scope', 'Montant offert')}</label>
-              <select id="pc-scope" value={form.scope} onChange={e => set('scope', e.target.value)} className={selectClass}>
-                <option value="standard">{t('pc.scope_standard', 'Le tarif de la livraison standard')}</option>
-                <option value="all">{t('pc.scope_all', 'Le tarif de l\'option choisie, quelle qu\'elle soit')}</option>
+              <label className={label} htmlFor="pc-kind">{t('pc.f_kind', 'Type de remise')}</label>
+              <select id="pc-kind" value={form.kind} onChange={e => set('kind', e.target.value)} className={selectClass}>
+                <option value="free_delivery">{t('pc.k_delivery', 'Livraison offerte')}</option>
+                <option value="percent">{t('pc.k_percent', 'Pourcentage sur les articles')}</option>
+                <option value="amount">{t('pc.k_amount', 'Montant fixe sur les articles')}</option>
               </select>
             </div>
+            {form.kind === 'free_delivery' ? (
+              <div>
+                <label className={label} htmlFor="pc-scope">{t('pc.f_scope', 'Montant offert')}</label>
+                <select id="pc-scope" value={form.scope} onChange={e => set('scope', e.target.value)} className={selectClass}>
+                  <option value="standard">{t('pc.scope_standard', 'Le tarif de la livraison standard')}</option>
+                  <option value="all">{t('pc.scope_all', 'Le tarif de l\'option choisie, quelle qu\'elle soit')}</option>
+                </select>
+              </div>
+            ) : (
+              <div>
+                <label className={label} htmlFor="pc-value">{form.kind === 'percent' ? t('pc.f_percent', 'Pourcentage (%)') : t('pc.f_amount', 'Montant (Fdj)')}</label>
+                <input id="pc-value" type="number" inputMode="numeric" min={1} max={form.kind === 'percent' ? 100 : undefined} step={1} value={form.value} onChange={e => set('value', e.target.value)} placeholder={form.kind === 'percent' ? t('pc.f_percent_ph', 'Ex : 10') : t('pc.f_amount_ph', 'Ex : 500')} className={inputClass} />
+                <p className={hint}>{t('pc.f_value_hint', 'Jamais sur la livraison. Un produit marchand reste reversé au prix réel : la remise est à la charge d\'Hornafresh.')}</p>
+              </div>
+            )}
+            {form.kind !== 'free_delivery' && (
+              <div>
+                <label className={label} htmlFor="pc-products">{t('pc.f_products', 'Articles concernés')}</label>
+                <select id="pc-products" value={form.products_scope} onChange={e => set('products_scope', e.target.value)} className={selectClass}>
+                  <option value="all">{t('pc.p_all', 'Tous les articles')}</option>
+                  <option value="hornafresh">{t('pc.p_hornafresh', 'Produits Hornafresh seulement (hors marchands)')}</option>
+                </select>
+              </div>
+            )}
             <div>
-              <label className={label} htmlFor="pc-cap">{t('pc.f_cap', 'Plafond de la remise (Fdj)')}</label>
-              <input id="pc-cap" type="number" inputMode="numeric" min={1} step={1} value={form.max_discount} onChange={e => set('max_discount', e.target.value)} placeholder={t('pc.f_empty_none', 'Ex : montant en Fdj (vide = aucun)')} className={inputClass} />
+              <label className={label} htmlFor="pc-cap">{t('pc.f_cap', 'Plafond de la remise (Fdj)')}{form.kind === 'percent' ? ' *' : ''}</label>
+              <input id="pc-cap" type="number" inputMode="numeric" min={1} step={1} value={form.max_discount} required={form.kind === 'percent'} onChange={e => set('max_discount', e.target.value)} placeholder={t('pc.f_empty_none', 'Ex : montant en Fdj (vide = aucun)')} className={inputClass} />
+              {form.kind === 'percent' && <p className={hint}>{t('pc.f_cap_hint', 'Obligatoire pour un pourcentage : évite une remise démesurée sur une très grosse commande.')}</p>}
             </div>
             <div>
               <label className={label} htmlFor="pc-start">{t('pc.f_start', 'Valable à partir du')}</label>

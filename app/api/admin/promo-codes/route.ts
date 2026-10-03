@@ -70,8 +70,14 @@ async function POST_(request: Request) {
 
   const code = cleanCode(body.code);
   if (code.length < 3 || code !== String(body.code || '').trim().toUpperCase()) return NextResponse.json({ error: 'code_format' }, { status: 400 });
-  const fields = { min_subtotal: optInt(body.min_subtotal), max_uses: optInt(body.max_uses), max_uses_per_user: optInt(body.max_uses_per_user), max_discount: optInt(body.max_discount) };
+  const fields = { min_subtotal: optInt(body.min_subtotal), max_uses: optInt(body.max_uses), max_uses_per_user: optInt(body.max_uses_per_user), max_discount: optInt(body.max_discount), value: optInt(body.value) };
   for (const [k, v] of Object.entries(fields)) if (v === undefined) return NextResponse.json({ error: 'number_invalid', field: k }, { status: 400 });
+  // Type : livraison offerte (pas de valeur), pourcentage (1-100, plafond obligatoire), montant fixe (Fdj)
+  const kind = ['free_delivery', 'percent', 'amount'].includes(body.kind) ? body.kind : 'free_delivery';
+  if (kind === 'free_delivery') fields.value = null;
+  else if (!fields.value) return NextResponse.json({ error: 'value_required' }, { status: 400 });
+  if (kind === 'percent' && fields.value! > 100) return NextResponse.json({ error: 'percent_range' }, { status: 400 });
+  if (kind === 'percent' && !fields.max_discount) return NextResponse.json({ error: 'cap_required' }, { status: 400 });
   const starts_at = optDate(body.starts_at), ends_at = optDate(body.ends_at);
   if (starts_at === undefined || ends_at === undefined) return NextResponse.json({ error: 'date_invalid' }, { status: 400 });
   if (starts_at && ends_at && ends_at <= starts_at) return NextResponse.json({ error: 'date_order' }, { status: 400 });
@@ -93,9 +99,10 @@ async function POST_(request: Request) {
   if ((same && same.id !== Number(body.id)) || ref) return NextResponse.json({ error: 'code_taken' }, { status: 409 });
 
   const row = {
-    code, kind: 'free_delivery', label: String(body.label || '').trim().slice(0, 120) || null,
+    code, kind, label: String(body.label || '').trim().slice(0, 120) || null,
     active: body.active !== false, starts_at, ends_at, ...fields,
     first_order_only: !!body.first_order_only, scope: body.scope === 'all' ? 'all' : 'standard',
+    products_scope: body.products_scope === 'hornafresh' ? 'hornafresh' : 'all',
     user_id, updated_at: new Date().toISOString(),
   };
   const { error } = body.id

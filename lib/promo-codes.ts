@@ -1,12 +1,12 @@
 import { supabaseAdmin } from './supabase-admin';
-import { computeDelivery, type DeliveryRules, type DeliveryScope, type PromoBenefit, type DeliveryQuote } from './delivery-pricing';
+import { computeDelivery, computePromoItems, type DeliveryRules, type DeliveryScope, type PromoBenefit, type PromoKind, type DeliveryQuote } from './delivery-pricing';
 
 // ── Codes promo « livraison offerte » et frais de livraison côté serveur ─────────────────────
 // Le navigateur affiche une estimation (lib/delivery-pricing.ts) ; le montant facturé est toujours
 // recalculé ici à partir de la base : tarif de l'option, seuil automatique, code promo, parrainage.
 
 export type PromoRow = {
-  id: number; code: string; kind: string; label: string | null; active: boolean;
+  id: number; code: string; kind: PromoKind; label: string | null; active: boolean; value: number | null; products_scope: 'all' | 'hornafresh';
   starts_at: string | null; ends_at: string | null; min_subtotal: number | null; first_order_only: boolean;
   max_uses: number | null; max_uses_per_user: number | null; scope: DeliveryScope; max_discount: number | null;
   user_id: string | null; created_at: string;
@@ -80,7 +80,25 @@ export async function checkPromo(promo: PromoRow | null, who: { userId: string |
   if (promo.first_order_only && await priorOrders(who.userId, who.phone) > 0) return { ok: false, reason: 'first_order_only' };
   if (promo.max_uses != null && await countUses(promo.id) >= promo.max_uses) return { ok: false, reason: 'exhausted' };
   if (promo.max_uses_per_user != null && (who.userId || who.phone) && await countUses(promo.id, who) >= promo.max_uses_per_user) return { ok: false, reason: 'per_user_limit' };
-  return { ok: true, benefit: { code: promo.code, scope: promo.scope, max_discount: promo.max_discount, min_subtotal: promo.min_subtotal } };
+  return { ok: true, benefit: benefitOf(promo) };
+}
+
+export const benefitOf = (p: PromoRow): PromoBenefit => ({
+  code: p.code, kind: p.kind || 'free_delivery', scope: p.scope, max_discount: p.max_discount, min_subtotal: p.min_subtotal,
+  value: p.value, products_scope: p.products_scope || 'all',
+});
+
+/** Montant des articles concernés par un code sur les articles : tous, ou produits Hornafresh seulement (hors marchands). */
+export async function eligibleSubtotal(items: { product_id: number | string; price: number | string; quantity: number | string }[], scope: 'all' | 'hornafresh', owners?: Record<number, string | null>) {
+  const line = (i: { price: number | string; quantity: number | string }) => Math.max(0, Math.round(Number(i.price) || 0)) * Math.max(0, Math.round(Number(i.quantity) || 0));
+  if (scope !== 'hornafresh') return items.reduce((s, i) => s + line(i), 0);
+  let own = owners;
+  if (!own) {
+    const ids = [...new Set(items.map(i => Number(i.product_id)))];
+    const { data } = await supabaseAdmin.from('products').select('id, owner_id').in('id', ids);
+    own = Object.fromEntries((data || []).map((p: { id: number; owner_id: string | null }) => [p.id, p.owner_id]));
+  }
+  return items.reduce((s, i) => s + (own![Number(i.product_id)] ? 0 : line(i)), 0);
 }
 
 /** Code parrainage : existe, n'est pas le sien, et c'est la première commande (compte, ou téléphone pour un invité). */
@@ -98,6 +116,8 @@ export async function checkReferral(code: string, who: { userId: string | null; 
 
 export type ServerQuote = {
   quote: DeliveryQuote;
+  benefit: PromoBenefit | null;          // code promo utilisable (quel que soit son type)
+  items_discount: number;                // remise du code sur les articles (pourcentage / montant)
   option: { id: number; name: string; price: number } | null;
   hasOptions: boolean;                   // des options de livraison sont proposées : en choisir une est obligatoire
   promo: PromoRow | null;
@@ -110,6 +130,8 @@ export async function quoteDelivery(input: {
   optionId?: number | null; optionName?: string | null; subtotal: number;
   userId: string | null; phone: string | null;
   promoCode?: string | null; refCode?: string | null; useReferralCredit?: boolean;
+  items?: { product_id: number | string; price: number | string; quantity: number | string }[];   // pour un code sur les articles
+  owners?: Record<number, string | null>;                                                           // propriétaire (marchand) par produit, si déjà connu
 }): Promise<ServerQuote> {
   const [{ data: opts }, rules] = await Promise.all([
     supabaseAdmin.from('delivery_options').select('id, name, price, is_standard').eq('is_active', true),
@@ -122,10 +144,17 @@ export async function quoteDelivery(input: {
   const who = { userId: input.userId, phone: input.phone };
 
   let promo: PromoRow | null = null, benefit: PromoBenefit | null = null, promoError: PromoReason | null = null;
+  let itemsDiscount = 0;
   if (input.promoCode) {
     promo = await findPromo(input.promoCode);
     const c = await checkPromo(promo, who);
-    if (c.ok) benefit = c.benefit; else promoError = c.reason;
+    if (c.ok) {
+      benefit = c.benefit;
+      if (benefit.kind !== 'free_delivery') {
+        benefit.eligible_subtotal = await eligibleSubtotal(input.items || [], benefit.products_scope, input.owners);
+        itemsDiscount = computePromoItems({ promo: benefit, subtotal: input.subtotal }).discount;
+      }
+    } else promoError = c.reason;
   }
   let referralCode = false, referralError: ReferralReason | null = null;
   if (input.refCode) {
@@ -142,7 +171,7 @@ export async function quoteDelivery(input: {
     base: Number(option?.price) || 0, standardPrice: standard ? Number(standard.price) : null,
     subtotal: input.subtotal, rules, promo: benefit, referralCode, referralCredit,
   });
-  return { quote, option: option ? { id: option.id, name: option.name, price: Number(option.price) } : null, hasOptions: options.length > 0, promo, promoError, referralError };
+  return { quote, benefit, items_discount: itemsDiscount, option: option ? { id: option.id, name: option.name, price: Number(option.price) } : null, hasOptions: options.length > 0, promo, promoError, referralError };
 }
 
 /** Réserve une utilisation du code (atomique). À appeler juste avant de créer la commande. */

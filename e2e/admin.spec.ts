@@ -91,11 +91,36 @@ test('admin › Promotions › Codes promo : seuil automatique et formulaire (sa
     await expect(page.getByLabel(label)).toBeVisible();
   }
   await expect(page.getByRole('checkbox', { name: /Réservé à une première commande/ })).not.toBeChecked();
+  // Type de remise : un pourcentage demande une valeur, un plafond et les articles concernés
+  await page.getByLabel(/Type de remise/).selectOption('percent');
+  await expect(page.getByLabel(/Pourcentage \(%\)/)).toBeVisible();
+  await expect(page.getByLabel(/Articles concernés/)).toBeVisible();
+  await expect(page.getByText(/Obligatoire pour un pourcentage/)).toBeVisible();
+  await page.getByLabel(/Type de remise/).selectOption('free_delivery');
+  await expect(page.getByLabel(/Pourcentage \(%\)/)).toHaveCount(0);
   await expectNoOverflow(page, 'Codes promo › nouveau code');
   await page.screenshot({ path: test.info().outputPath('codes-promo.png'), fullPage: true });
   await page.getByRole('button', { name: /Annuler/ }).click();
   await expect(page.getByLabel(/Plafond de la remise/)).toHaveCount(0);
   expect(errors).toEqual([]);
+});
+
+test('admin › Commandes : formulaire de remise (sans enregistrer)', async ({ page }) => {
+  await openModule(page, /Commandes/, /Commandes/);
+  const btn = page.getByRole('button', { name: /Accorder une remise/ }).first();
+  await btn.waitFor({ state: 'visible', timeout: 20_000 }).catch(() => null);   // la liste se charge après l'ouverture du module
+  test.skip(!(await btn.isVisible().catch(() => false)), 'aucune commande non annulée à l\'écran');
+  await btn.click();
+  await expect(page.getByText(/Nouveau prix sur un article/).first()).toBeVisible();
+  await expect(page.getByPlaceholder(/négocié par téléphone/).first()).toBeVisible();
+  // Bouton d'envoi inactif tant que motif et article/prix ne sont pas renseignés
+  await expect(page.getByRole('button', { name: /Accorder la remise/ }).first()).toBeDisabled();
+  await page.getByText(/Montant sur toute la commande/).first().click();
+  await expect(page.getByPlaceholder(/montant de la remise en Fdj/).first()).toBeVisible();
+  await expectNoOverflow(page, 'Commandes › remise');
+  await page.screenshot({ path: test.info().outputPath('remise-commande.png'), fullPage: false });
+  await page.getByRole('button', { name: /^Annuler$/ }).first().click();
+  await expect(page.getByText(/Nouveau prix sur un article/)).toHaveCount(0);
 });
 
 test('admin › Entreprises : onglets et réglage de la recharge minimale', async ({ page }) => {
