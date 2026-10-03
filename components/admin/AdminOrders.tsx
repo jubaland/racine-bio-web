@@ -24,6 +24,9 @@ interface Order {
   user_id: string | null;
   total: number;
   delivery_fee: number | null;
+  delivery_discount?: number | null;          // montant de livraison offert (code promo, seuil, parrainage)
+  delivery_discount_source?: string | null;
+  promo_code?: string | null;
   delivery_option_name: string | null;
   status: string;
   payment_method: string;
@@ -510,6 +513,13 @@ export default function AdminOrders() {
                         {deliveryFee === 0 ? t('admin.delivery_free', 'Offerte') : `${Number(deliveryFee).toLocaleString()} Fdj`}
                       </span>
                     </div>
+                    {Number(order.delivery_discount) > 0 && (
+                      <p className="text-[11px] text-[#526500] text-right">
+                        🎁 {order.delivery_discount_source === 'promo' ? `${t('admin.disc_promo', 'Code promo')} ${order.promo_code}`
+                          : order.delivery_discount_source === 'threshold' ? t('admin.disc_threshold', 'Seuil de livraison offerte')
+                          : t('admin.disc_referral', 'Parrainage')} — {Number(order.delivery_discount).toLocaleString()} Fdj {t('admin.disc_offered', 'offerts')}
+                      </p>
+                    )}
                     <div className="flex justify-between items-center pt-1.5 border-t border-[#d2e095]">
                       <span className="text-sm text-gray-600 font-medium">{t('admin.total', 'Total commande')}</span>
                       <span className="text-lg font-bold text-[#526500]">{Number(order.total).toLocaleString()} Fdj</span>

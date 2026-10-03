@@ -6,9 +6,12 @@
 //   node scripts/phase16_test_companies.mjs
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
+import { cheapestDelivery } from './test_helpers.mjs';
 
 const env = Object.fromEntries(readFileSync('.env.local', 'utf8').split(/\r?\n/).filter(l => l.includes('=') && !l.startsWith('#')).map(l => { const i = l.indexOf('='); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, '')]; }));
 const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+// Frais de livraison calculés par le serveur : chaque commande de test désigne une option réelle
+const DEL = await cheapestDelivery(admin);
 const anon = () => createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, { auth: { persistSession: false } });
 const BASE = 'http://localhost:3000';
 const cronHeaders = env.CRON_SECRET ? { Authorization: `Bearer ${env.CRON_SECRET}` } : {};
@@ -105,33 +108,33 @@ try {
   ok(r.status === 409 && await balance() === 5000, 'double validation impossible (pas de double crédit)', String(r.status));
 
   console.log('\n5) Commande au nom de la société');
-  r = await api('/api/orders', users.buyer.token, { company: { site_id: siteId }, order: { payment_method: 'company_wallet', delivery_fee: 0 }, items: [line(2)] });
+  r = await api('/api/orders', users.buyer.token, { company: { site_id: siteId }, order: { payment_method: 'company_wallet', ...DEL.fields }, items: [line(2)] });
   ok(r.status === 200 && r.j.order?.company_id === state.company && r.j.order?.payment_method === 'company_wallet', 'commande de l\'acheteur acceptée', JSON.stringify(r.j).slice(0, 200));
   const o1 = r.j.order?.id;
   ok(/TEST Société/.test(r.j.order?.customer_name || '') && r.j.order?.address === 'Quartier Test, Djibouti', 'adresse et destinataire repris du site', r.j.order?.customer_name);
-  ok(await balance() === 3000 && await stockOf(P.id) === 48, 'cagnotte 5 000 → 3 000, stock 50 → 48', `${await balance()} / ${await stockOf(P.id)}`);
-  r = await api('/api/orders', users.buyer.token, { company: { site_id: siteId }, order: { payment_method: 'company_wallet' }, items: [line(4)] });
+  ok(await balance() === 3000 - DEL.price && await stockOf(P.id) === 48, 'cagnotte 5 000 → 3 000 moins la livraison, stock 50 → 48', `${await balance()} / ${await stockOf(P.id)}`);
+  r = await api('/api/orders', users.buyer.token, { company: { site_id: siteId }, order: { payment_method: 'company_wallet', ...DEL.fields }, items: [line(4)] });
   ok(r.status === 400 && r.j.error === 'company_wallet_insufficient' && await stockOf(P.id) === 48, 'solde insuffisant : refusée, stock intact', JSON.stringify(r.j));
   r = await api('/api/orders', users.accountant.token, { company: { site_id: siteId }, order: { payment_method: 'company_wallet' }, items: [line(1)] });
   ok(r.status === 403, 'un comptable ne peut pas commander', String(r.status));
   r = await api('/api/orders', users.outsider.token, { company: { site_id: siteId }, order: { payment_method: 'company_wallet' }, items: [line(1)] });
-  ok(r.status === 403 && await balance() === 3000, 'un étranger ne peut pas utiliser la cagnotte de la société', String(r.status));
+  ok(r.status === 403 && await balance() === 3000 - DEL.price, 'un étranger ne peut pas utiliser la cagnotte de la société', String(r.status));
 
   console.log('\n6) Identité à la commande (faille corrigée)');
   r = await api('/api/orders', null, { order: { user_id: users.manager.id, payment_method: 'cash', total: 1000, customer_name: 'X', phone: '77000000', address: 'X' }, items: [line(1)] });
   ok(r.status === 401 && r.j.error === 'identity_mismatch', 'commander au nom d\'un autre sans jeton : refusé', JSON.stringify(r.j));
   r = await api('/api/orders', users.outsider.token, { order: { user_id: users.manager.id, payment_method: 'wallet', total: 1000, customer_name: 'X', phone: '77000000', address: 'X' }, items: [line(1)] });
   ok(r.status === 401, 'débiter la cagnotte d\'un autre : refusé', String(r.status));
-  r = await api('/api/orders', null, { order: { user_id: null, payment_method: 'cash', status: 'delivered', total: 1, customer_name: 'Test Invité', phone: '77000000', address: 'Test' }, items: [line(1)] });
-  ok(r.status === 200 && r.j.order?.status === 'pending' && Number(r.j.order?.total) === 1000, 'invité : statut et total imposés par le serveur', JSON.stringify(r.j).slice(0, 160));
+  r = await api('/api/orders', null, { order: { user_id: null, payment_method: 'cash', status: 'delivered', total: 1, ...DEL.fields, customer_name: 'Test Invité', phone: '77000000', address: 'Test' }, items: [line(1)] });
+  ok(r.status === 200 && r.j.order?.status === 'pending' && Number(r.j.order?.total) === 1000 + DEL.price, 'invité : statut et total imposés par le serveur', JSON.stringify(r.j).slice(0, 160));
 
   console.log('\n7) Seuil de validation par le gérant');
   await api('/api/admin/companies', adminToken, { action: 'adjust_wallet', company_id: state.company, amount: 20000, note: 'TEST' });
   await co(users.manager.token, { action: 'update_company', approval_threshold: 2500 });
-  r = await api('/api/orders', users.buyer.token, { company: { site_id: siteId }, order: { payment_method: 'company_wallet' }, items: [line(3)] });
+  r = await api('/api/orders', users.buyer.token, { company: { site_id: siteId }, order: { payment_method: 'company_wallet', ...DEL.fields }, items: [line(3)] });
   ok(r.status === 409 && r.j.error === 'approval_required', 'acheteur au-delà du seuil : validation requise', JSON.stringify(r.j));
   const balBefore = await balance(), stockBefore = await stockOf(P.id);
-  r = await co(users.buyer.token, { action: 'order_request', site_id: siteId, items: [line(3)], delivery: { fee: 0 } });
+  r = await co(users.buyer.token, { action: 'order_request', site_id: siteId, items: [line(3)], delivery: { fee: DEL.price, option_name: DEL.name } });
   ok(r.status === 200 && await balance() === balBefore && await stockOf(P.id) === stockBefore, 'demande enregistrée : rien débité ni réservé', JSON.stringify(r.j).slice(0, 120));
   const reqId = r.j.request.id;
   r = await co(users.buyer.token, { action: 'decide_request', id: reqId, decision: 'approve' });
@@ -139,16 +142,16 @@ try {
   r = await co(users.manager.token, { action: 'decide_request', id: reqId, decision: 'approve' });
   ok(r.status === 200 && r.j.order?.id, 'gérant valide : commande créée', JSON.stringify(r.j).slice(0, 200));
   const { data: o2 } = await admin.from('orders').select('user_id, total').eq('id', r.j.order.id).single();
-  ok(o2.user_id === users.buyer.id && Number(o2.total) === 3000 && await balance() === balBefore - 3000, 'commande au nom de l\'acheteur, cagnotte débitée de 3 000', JSON.stringify(o2));
+  ok(o2.user_id === users.buyer.id && Number(o2.total) === 3000 + DEL.price && await balance() === balBefore - 3000 - DEL.price, 'commande au nom de l\'acheteur, cagnotte débitée de 3 000 plus la livraison', JSON.stringify(o2));
   r = await co(users.manager.token, { action: 'decide_request', id: reqId, decision: 'approve' });
   ok(r.status === 409, 'une demande ne peut être validée qu\'une fois', String(r.status));
-  r = await api('/api/orders', users.manager.token, { company: { site_id: siteId }, order: { payment_method: 'company_wallet' }, items: [line(3)] });
+  r = await api('/api/orders', users.manager.token, { company: { site_id: siteId }, order: { payment_method: 'company_wallet', ...DEL.fields }, items: [line(3)] });
   ok(r.status === 200, 'le gérant commande sans validation');
 
   console.log('\n8) Annulation → remboursement sur la cagnotte société');
   const b8 = await balance();
   r = await api('/api/orders', adminToken, { id: o1, status: 'cancelled' }, 'PATCH');
-  ok(r.status === 200 && await balance() === b8 + 2000, 'commande de 2 000 annulée : cagnotte recréditée', `${r.status} ${await balance()}`);
+  ok(r.status === 200 && await balance() === b8 + 2000 + DEL.price, 'commande de 2 000 (plus livraison) annulée : cagnotte recréditée', `${r.status} ${await balance()}`);
 
   console.log('\n9) Visibilité par rôle et RLS');
   r = await co(users.buyer.token);

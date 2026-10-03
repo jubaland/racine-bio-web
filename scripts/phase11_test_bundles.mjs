@@ -5,9 +5,12 @@
 //   node scripts/phase11_test_bundles.mjs [--keep] [--cleanup]
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'node:fs';
+import { cheapestDelivery } from './test_helpers.mjs';
 
 const env = Object.fromEntries(readFileSync('.env.local', 'utf8').split(/\r?\n/).filter(l => l.includes('=') && !l.startsWith('#')).map(l => { const i = l.indexOf('='); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, '')]; }));
 const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+// Frais de livraison calculés par le serveur : chaque commande de test désigne une option réelle
+const DEL = await cheapestDelivery(admin);
 const anon = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, { auth: { persistSession: false } });
 const BASE = 'http://localhost:3000';
 const STATE = 'scripts/.phase11_test_state.json';
@@ -63,7 +66,7 @@ try {
   { const { error } = await admin.from('bundle_items').insert({ bundle_id: A.id, product_id: B.id, quantity: 1 }); ok(error && /not_bundle/.test(error.message), 'un produit simple ne peut pas avoir de composition', error?.message); }
 
   console.log('\n3) Disponibilité = min(stock panier 5, 10/2=5, 4/1=4) = 4');
-  const order = (qty) => ({ order: { user_id: null, total: 700 * qty, delivery_fee: 0, delivery_option_name: 'Test', special_instructions: 'TEST PANIERS', status: 'pending', payment_method: 'cash', phone: '77000000', email: null, address: 'Test', customer_name: 'Test Paniers' }, items: [{ product_id: P.id, quantity: qty, price: 700, product_name: 'TEST Panier anti-gaspi', product_unit: 'panier' }] });
+  const order = (qty) => ({ order: { user_id: null, total: 700 * qty, ...DEL.fields, special_instructions: 'TEST PANIERS', status: 'pending', payment_method: 'cash', phone: '77000000', email: null, address: 'Test', customer_name: 'Test Paniers' }, items: [{ product_id: P.id, quantity: qty, price: 700, product_name: 'TEST Panier anti-gaspi', product_unit: 'panier' }] });
   const post = async (body) => { const r = await fetch(`${BASE}/api/orders`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); return { status: r.status, j: await r.json() }; };
   const r5 = await post(order(5));
   ok(r5.status === 400 && r5.j.error === 'stock_insufficient' && r5.j.items?.[0]?.available === 4, 'commander 5 paniers → refus, 4 disponibles', JSON.stringify(r5.j).slice(0, 200));

@@ -77,6 +77,27 @@ test('admin › Promotions › Prix promo produits', async ({ page }) => {
   await expectNoOverflow(page, 'Prix promo produits');
 });
 
+test('admin › Promotions › Codes promo : seuil automatique et formulaire (sans enregistrer)', async ({ page }) => {
+  const errors = trackErrors(page);
+  await openModule(page, /Promotions/, /Promotions/);
+  await page.getByRole('button', { name: /Codes promo/ }).click();
+  await expect(page.getByText(/Livraison offerte automatique/)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByLabel(/Seuil d'achat/)).toBeVisible();
+  await expectNoOverflow(page, 'Codes promo');
+  await page.getByRole('button', { name: /Nouveau code/ }).click();
+  await page.getByRole('button', { name: /Générer/ }).click();
+  await expect(page.getByLabel(/^Code/)).toHaveValue(/^[A-Z0-9]{8}$/);
+  for (const label of [/Plafond de la remise/, /Panier minimum/, /Nombre total d'utilisations/, /Utilisations par client/, /Réservé à un client/, /Valable jusqu'au/]) {
+    await expect(page.getByLabel(label)).toBeVisible();
+  }
+  await expect(page.getByRole('checkbox', { name: /Réservé à une première commande/ })).not.toBeChecked();
+  await expectNoOverflow(page, 'Codes promo › nouveau code');
+  await page.screenshot({ path: test.info().outputPath('codes-promo.png'), fullPage: true });
+  await page.getByRole('button', { name: /Annuler/ }).click();
+  await expect(page.getByLabel(/Plafond de la remise/)).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test('admin › Entreprises : onglets et réglage de la recharge minimale', async ({ page }) => {
   await openModule(page, /Entreprises/, /Entreprises/);
   for (const tab of ['Sociétés', 'Réglages', 'À traiter']) {

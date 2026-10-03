@@ -142,8 +142,8 @@ export async function sendOrderConfirmation(
           <td style="padding:8px 16px 4px;text-align:right;color:#374151;font-size:14px;">${fdjFr(subtotal)}</td>
         </tr>
         <tr>
-          <td style="padding:4px 16px;color:#6b7280;font-size:14px;">🚚 ${m('delivery', 'Livraison')}${order.delivery_option_name ? ` (${order.delivery_option_name})` : ''}</td>
-          <td style="padding:4px 16px;text-align:right;font-size:14px;color:${deliveryFee === 0 ? '#16a34a' : '#374151'};">${deliveryFee === 0 ? m('free', 'Offerte') : fdjFr(deliveryFee)}</td>
+          <td style="padding:4px 16px;color:#6b7280;font-size:14px;">🚚 ${m('delivery', 'Livraison')}${order.delivery_option_name ? ` (${order.delivery_option_name})` : ''}${order.promo_code ? ` · ${m('promo_code', 'code {code}', { code: order.promo_code })}` : ''}</td>
+          <td style="padding:4px 16px;text-align:right;font-size:14px;color:${deliveryFee === 0 ? '#16a34a' : '#374151'};">${deliveryFee === 0 ? m('free', 'Offerte') : `${Number(order.delivery_discount) > 0 && order.delivery_fee_base ? `<s style="color:#9ca3af;">${fdjFr(order.delivery_fee_base)}</s> ` : ''}${fdjFr(deliveryFee)}`}</td>
         </tr>
         <tr>
           <td style="padding:4px 16px;color:#6b7280;font-size:14px;">${m('payment_method', 'Mode de paiement')}</td>
@@ -205,7 +205,7 @@ export async function sendNewOrderAlert(order: any, items: any[], customerEmail:
           <td style="padding:8px 16px 4px;text-align:right;color:#374151;font-size:14px;">${Number(subtotal).toLocaleString('fr-FR')} Fdj</td>
         </tr>
         <tr>
-          <td style="padding:4px 16px;color:#6b7280;font-size:14px;">🚚 Livraison${order.delivery_option_name ? ` (${order.delivery_option_name})` : ''}</td>
+          <td style="padding:4px 16px;color:#6b7280;font-size:14px;">🚚 Livraison${order.delivery_option_name ? ` (${order.delivery_option_name})` : ''}${Number(order.delivery_discount) > 0 ? ` · ${order.promo_code ? `code ${order.promo_code}` : order.delivery_discount_source === 'threshold' ? 'seuil atteint' : 'parrainage'} : ${Number(order.delivery_discount).toLocaleString('fr-FR')} Fdj offerts` : ''}</td>
           <td style="padding:4px 16px;text-align:right;font-size:14px;color:${deliveryFee === 0 ? '#16a34a' : '#374151'};">${deliveryFee === 0 ? 'Offerte' : `${Number(deliveryFee).toLocaleString('fr-FR')} Fdj`}</td>
         </tr>
         <tr>

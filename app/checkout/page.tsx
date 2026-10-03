@@ -5,6 +5,7 @@ import { useCart } from '../../context/CartContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { titleCase, sentenceCase } from '../../lib/format';
+import { computeDelivery, NO_RULES, type DeliveryRules, type PromoBenefit } from '../../lib/delivery-pricing';
 import Header from '../../components/Header';
 import CartDrawer from '../../components/CartDrawer';
 import Link from 'next/link';
@@ -99,19 +100,19 @@ export default function CheckoutPage() {
   const selectedDelivery = deliveryOptions.find(o => o.id === selectedDeliveryId) ?? null;
   const baseFee = selectedDelivery?.price ?? 0;
 
-  // Parrainage
+  // Code saisi au paiement : code promo (livraison offerte) ou code parrainage — un seul champ
   const [refCodeInput, setRefCodeInput] = useState('');
   const [appliedCode, setAppliedCode] = useState<string | null>(null);
+  const [appliedPromo, setAppliedPromo] = useState<PromoBenefit | null>(null);   // renseigné si le code appliqué est un code promo
+  const [deliveryRules, setDeliveryRules] = useState<DeliveryRules>(NO_RULES);   // seuil automatique de livraison offerte
   const [codeValidating, setCodeValidating] = useState(false);
   const [codeError, setCodeError] = useState('');
   const [referralCredits, setReferralCredits] = useState(0);
   const [useReferralCredit, setUseReferralCredit] = useState(false);
-  const [orderCount, setOrderCount] = useState(0);
-  const [referralLoaded, setReferralLoaded] = useState(false);
-  // Le code parrainage (être parrainé) n'est utilisable qu'à la 1ère commande d'un
-  // client identifié. Les invités peuvent l'utiliser. Le crédit parrainage gagné en
-  // tant que parrain reste toujours utilisable (géré séparément).
-  const canUseReferralCode = !user || orderCount === 0;
+  const [, setReferralLoaded] = useState(false);
+  // Le code parrainage (être parrainé) n'est utilisable qu'à la 1ère commande (vérifié par le
+  // serveur : compte, ou téléphone pour un invité). Le crédit parrainage gagné en tant que parrain
+  // reste toujours utilisable. Un code promo suit ses propres conditions (admin › Promotions).
 
   // Adresses sauvegardées
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
@@ -120,11 +121,38 @@ export default function CheckoutPage() {
   const [saveNewAddress, setSaveNewAddress] = useState(false);
   const [newAddressLabel, setNewAddressLabel] = useState('Maison');
 
-  const referralActive = !!(appliedCode || (useReferralCredit && referralCredits > 0));
+  // Estimation affichée : même calcul que le serveur (lib/delivery-pricing.ts), qui reste seul juge
+  // du montant facturé. Une seule remise s'applique, la plus avantageuse.
   const standardOption = deliveryOptions.find(o => o.is_standard);
-  const referralDiscount = referralActive && standardOption ? standardOption.price : 0;
-  const deliveryFee = Math.max(0, baseFee - referralDiscount);
+  const quote = computeDelivery({
+    base: baseFee, standardPrice: standardOption ? standardOption.price : null, subtotal: total, rules: deliveryRules,
+    promo: appliedPromo, referralCode: !!appliedCode && !appliedPromo, referralCredit: useReferralCredit && referralCredits > 0,
+  });
+  const deliveryFee = quote.fee;
   const orderTotal = total + deliveryFee;
+  const fdjN = (n: number) => `${n.toLocaleString()} Fdj`;
+  // Origine de la remise, affichée sous le montant de la livraison
+  const discountLabel = quote.source === 'threshold' ? t('checkout.disc_threshold', 'Offerte dès {n} d\'achat').replace('{n}', fdjN(deliveryRules.free_threshold || 0))
+    : quote.source === 'promo' ? `${t('checkout.disc_promo', 'Code promo')} ${quote.promo_code}`
+    : quote.source === 'referral_code' ? `${t('checkout.disc_referral', 'Code parrainage')} ${appliedCode}`
+    : quote.source === 'referral_credit' ? t('checkout.disc_credit', 'Crédit parrainage') : '';
+  // Message d'un code refusé (motif renvoyé par le serveur)
+  const codeMessage = (kind: string, reason: string) => {
+    const promo: Record<string, string> = {
+      inactive: t('checkout.promo_e_inactive', 'Ce code n\'est plus actif.'),
+      not_started: t('checkout.promo_e_not_started', 'Ce code n\'est pas encore valable.'),
+      expired: t('checkout.promo_e_expired', 'Ce code a expiré.'),
+      first_order_only: t('checkout.promo_e_first', 'Ce code est réservé à une première commande.'),
+      exhausted: t('checkout.promo_e_exhausted', 'Ce code a atteint son nombre maximal d\'utilisations.'),
+      per_user_limit: t('checkout.promo_e_per_user', 'Vous avez déjà utilisé ce code.'),
+      login_required: t('checkout.promo_e_login', 'Connectez-vous pour utiliser ce code.'),
+    };
+    const referral: Record<string, string> = {
+      own_code: t('checkout.ref_e_own', 'Vous ne pouvez pas utiliser votre propre code.'),
+      first_order_only: t('checkout.ref_e_first', 'Le code parrainage est réservé à une première commande.'),
+    };
+    return (kind === 'promo' ? promo : referral)[reason] || t('checkout.code_invalid', 'Code invalide');
+  };
   const walletInsufficient = (paymentMethod === 'wallet' && walletBalance < orderTotal) || (forCompany && companyBalance < orderTotal);
 
   // Bascule « pour moi / pour mon entreprise » : moyen de paiement et site par défaut
@@ -193,6 +221,9 @@ export default function CheckoutPage() {
         if (opts.length > 0) setSelectedDeliveryId(opts[0].id);
       });
 
+    // Seuil automatique de livraison offerte (réglage admin › Livraison)
+    fetch('/api/promo').then(r => r.ok ? r.json() : null).then(j => { if (j?.rules) setDeliveryRules(j.rules); }).catch(() => {});
+
     // Pré-remplir le code depuis localStorage (lien de parrainage)
     const saved = localStorage.getItem('hf_ref_code');
     if (saved) { setRefCodeInput(saved); setAppliedCode(saved); }
@@ -218,10 +249,9 @@ export default function CheckoutPage() {
         }).then(r => r.ok ? r.json() : null).then(json => {
           if (json?.credits > 0) setReferralCredits(json.credits);
           const oc = Number(json?.orders_count) || 0;
-          setOrderCount(oc);
           setReferralLoaded(true);
           // Client ayant déjà commandé : un code parrainage pré-rempli (lien) n'est plus valable
-          if (oc > 0) {
+          if (oc > 0 && localStorage.getItem('hf_ref_code')) {
             setAppliedCode(null);
             setRefCodeInput('');
             localStorage.removeItem('hf_ref_code');
@@ -284,17 +314,21 @@ export default function CheckoutPage() {
     setCodeValidating(true);
     setCodeError('');
     try {
-      const res = await fetch('/api/referral', {
+      // Le serveur reconnaît un code promo ou un code parrainage et vérifie ses conditions
+      // (dates, limites, première commande) pour ce compte — ou ce téléphone, pour un invité
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/promo', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, user_id: user?.id }),
+        headers: { 'Content-Type': 'application/json', ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
+        body: JSON.stringify({ code, phone: phoneDigits ? '77' + phoneDigits : null }),
       });
       const json = await res.json();
       if (json.valid) {
         setAppliedCode(code);
+        setAppliedPromo(json.kind === 'promo' ? json.promo : null);
       } else {
-        setCodeError(json.error || t('checkout.code_invalid', 'Code invalide'));
-        setAppliedCode(null);
+        setCodeError(codeMessage(json.kind, json.reason));
+        setAppliedCode(null); setAppliedPromo(null);
       }
     } catch {
       setCodeError(t('checkout.code_network_error', 'Erreur réseau, réessayez.'));
@@ -324,6 +358,7 @@ export default function CheckoutPage() {
             user_id:              session?.user?.id || null,
             total:                orderTotal,
             delivery_fee:          deliveryFee,
+            delivery_option_id:    selectedDelivery?.id ?? null,   // le serveur recalcule les frais à partir de l'option
             delivery_option_name:  selectedDelivery?.name ?? null,
             special_instructions:  sentenceCase(specialInstructions) || null,
             status:               'pending',
@@ -343,7 +378,8 @@ export default function CheckoutPage() {
             product_unit:      item.unit,
             product_farm:      item.farm ?? null,
           })),
-          ref_code:             appliedCode || undefined,
+          promo_code:           appliedCode && appliedPromo ? appliedCode : undefined,
+          ref_code:             appliedCode && !appliedPromo ? appliedCode : undefined,
           use_referral_credit:  useReferralCredit && referralCredits > 0,
         }),
       });
@@ -352,6 +388,12 @@ export default function CheckoutPage() {
 
       if (!res.ok) {
         if (json.error === 'stock_insufficient') { setStockError(json.items); return; }
+        // Code devenu inutilisable depuis sa saisie (expiré, épuisé…) : retiré, le total se met à jour
+        if (json.error === 'promo_invalid' || json.error === 'referral_invalid') {
+          setAppliedCode(null); setAppliedPromo(null); setRefCodeInput(''); localStorage.removeItem('hf_ref_code');
+          setOrderError(`${codeMessage(json.error === 'promo_invalid' ? 'promo' : 'referral', json.reason)} ${t('checkout.e_code_removed', 'Le code a été retiré : vérifiez le total puis confirmez à nouveau.')}`);
+          return;
+        }
         // Société : au-delà du seuil, la commande d'un acheteur part en validation chez le gérant
         if (json.error === 'approval_required') {
           const r2 = await fetch('/api/company', {
@@ -368,18 +410,22 @@ export default function CheckoutPage() {
           company_inactive: t('co.e_inactive', 'Le compte entreprise n\'est pas actif.'),
           site_required: t('co.e_site_required', 'Choisissez un site de livraison.'),
           identity_mismatch: t('checkout.e_session', 'Votre session a expiré : reconnectez-vous puis réessayez.'),
+          delivery_option_invalid: t('checkout.e_delivery_option', 'Ce mode de livraison n\'est plus proposé. Rechargez la page et choisissez-en un autre.'),
         };
         setOrderError(MSG[json.error] || t('checkout.e_generic', 'La commande n\'a pas pu être enregistrée. Réessayez dans un instant.'));
         return;
       }
 
       setOrderId(json.order.id);
-      setConfirmedTotal(orderTotal);
+      // Montants confirmés par le serveur (frais de livraison et remises recalculés)
+      const paidTotal = Number(json.order.total) || orderTotal;
+      const paidFee = json.order.delivery_fee != null ? Number(json.order.delivery_fee) : deliveryFee;
+      setConfirmedTotal(paidTotal);
       // Récapitulatif pour WhatsApp (préparé avant le vidage du panier)
       setConfirmedRecap([
         `Bonjour Hornafresh, voici ma commande #${String(json.order.id)} :`,
         ...items.map(item => `• ${item.quantity} ${item.unit || ''} ${item.name}`.replace(/\s+/g, ' ')),
-        `Total : ${orderTotal.toLocaleString('fr-FR')} Fdj${deliveryFee ? ` (dont livraison ${deliveryFee.toLocaleString('fr-FR')} Fdj)` : ''}`,
+        `Total : ${paidTotal.toLocaleString('fr-FR')} Fdj${paidFee ? ` (dont livraison ${paidFee.toLocaleString('fr-FR')} Fdj)` : ''}`,
         `Paiement : ${PAYMENT_METHODS.find(p => p.id === paymentMethod)?.label || paymentMethod}`,
         `Livraison : ${titleCase(address)} — ${titleCase(name)}, 77${phoneDigits}`,
       ].join('\n'));
@@ -1011,11 +1057,10 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              {/* Code parrainage — réservé à la 1ère commande d'un client identifié */}
-              {canUseReferralCode && (
+              {/* Code promo ou parrainage — un seul champ, les conditions sont vérifiées par le serveur */}
               <div className="mt-5 pt-5 border-t border-[#d2e095]">
                 <p className="text-sm font-medium text-gray-600 mb-3">
-                  🎁 {t('checkout.referral_code_label', 'Code parrainage')}
+                  🎁 {t('checkout.code_label', 'Code promo ou parrainage')}
                 </p>
                 {appliedCode ? (
                   <div className="flex items-center gap-3 p-3.5 bg-[#ecf4d5] border border-[#a8c800] rounded-xl">
@@ -1024,10 +1069,16 @@ export default function CheckoutPage() {
                       <p className="text-sm font-semibold text-[#526500]">
                         {t('checkout.referral_applied', 'Code')} <span className="tracking-widest">{appliedCode}</span> {t('checkout.referral_applied2', 'appliqué')}
                       </p>
-                      <p className="text-xs text-gray-500">{t('checkout.referral_applied_desc', 'Livraison offerte sur cette commande.')}</p>
+                      {quote.promo_missing != null
+                        ? <p className="text-xs text-[#f97316]">{t('checkout.promo_missing', 'Ajoutez {n} d\'articles pour profiter de ce code.').replace('{n}', fdjN(quote.promo_missing))}</p>
+                        : quote.source === 'threshold'
+                          ? <p className="text-xs text-gray-500">{t('checkout.code_not_needed', 'Livraison déjà offerte : ce code n\'est pas utilisé sur cette commande.')}</p>
+                          : quote.fee > 0 && quote.discount > 0
+                            ? <p className="text-xs text-gray-500">{t('checkout.code_partial', '{n} offerts sur la livraison.').replace('{n}', fdjN(quote.discount))}</p>
+                            : <p className="text-xs text-gray-500">{t('checkout.referral_applied_desc', 'Livraison offerte sur cette commande.')}</p>}
                     </div>
                     <button
-                      onClick={() => { setAppliedCode(null); setRefCodeInput(''); setCodeError(''); }}
+                      onClick={() => { setAppliedCode(null); setAppliedPromo(null); setRefCodeInput(''); setCodeError(''); }}
                       className="text-gray-400 hover:text-gray-600 transition text-lg leading-none"
                       aria-label={t('checkout.remove_code', 'Retirer le code')}
                     >✕</button>
@@ -1041,8 +1092,8 @@ export default function CheckoutPage() {
                         onChange={e => { setRefCodeInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')); setCodeError(''); }}
                         onKeyDown={e => e.key === 'Enter' && applyCode()}
                         placeholder={t('checkout.referral_placeholder', 'Ex : R4K7NP')}
-                        maxLength={8}
-                        className="flex-1 border border-[#d2e095] rounded-xl px-4 py-3 text-sm bg-white focus:outline-none focus:border-[#a8c800] tracking-widest uppercase"
+                        maxLength={20}
+                        className="flex-1 min-w-0 border border-[#d2e095] rounded-xl px-4 py-3 text-sm bg-white focus:outline-none focus:border-[#a8c800] tracking-widest uppercase"
                       />
                       <button
                         onClick={applyCode}
@@ -1058,7 +1109,6 @@ export default function CheckoutPage() {
                   </div>
                 )}
               </div>
-              )}
 
               {/* Crédit parrainage (utilisateurs avec crédits gagnés) — toujours utilisable */}
               {referralCredits > 0 && !appliedCode && (
@@ -1095,7 +1145,7 @@ export default function CheckoutPage() {
                     <span className="font-medium text-green-500">
                       {baseFee > 0 ? <>{t('checkout.delivery_offered', 'Offerte')} 🎁</> : t('checkout.free', 'Gratuite')}
                     </span>
-                  ) : referralDiscount > 0 ? (
+                  ) : quote.discount > 0 ? (
                     <span className="font-medium flex items-center gap-1.5">
                       <span className="line-through text-gray-400">{baseFee.toLocaleString()} Fdj</span>
                       <span className="text-[#526500]">{deliveryFee.toLocaleString()} Fdj</span>
@@ -1105,6 +1155,12 @@ export default function CheckoutPage() {
                     <span className="font-medium">{deliveryFee.toLocaleString()} Fdj</span>
                   )}
                 </div>
+                {discountLabel && <p className="text-[11px] text-[#526500] text-right -mt-1">{discountLabel}</p>}
+                {quote.threshold_remaining != null && quote.fee > 0 && (
+                  <p className="text-[11px] text-gray-500 bg-[#f7fbe9] border border-[#e3eebf] rounded-lg px-3 py-1.5">
+                    🚚 {t('checkout.threshold_hint', 'Plus que {n} d\'achat pour la livraison offerte.').replace('{n}', fdjN(quote.threshold_remaining))}
+                  </p>
+                )}
                 <div className="flex items-center justify-between pt-1 border-t border-[#f0f0f0]">
                   <span className="font-bold text-gray-800">{t('checkout.total', 'Total')}</span>
                   <span className="text-xl font-bold text-[#526500]">{orderTotal.toLocaleString()} Fdj</span>
@@ -1219,13 +1275,13 @@ export default function CheckoutPage() {
                 </div>
 
                 {/* Promo / crédit */}
-                {(appliedCode || (useReferralCredit && referralCredits > 0)) && (
+                {quote.discount > 0 && (
                   <div className="flex items-center gap-3">
                     <span className="text-base flex-none">🎁</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{t('checkout.referral_code_label', 'Avantage')}</p>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{t('checkout.benefit_label', 'Avantage')}</p>
                       <p className="text-sm text-[#526500] font-medium">
-                        {appliedCode ? `${t('checkout.referral_applied', 'Code')} ${appliedCode}` : t('checkout.use_credit', 'Crédit parrainage')} — {t('checkout.delivery_offered', 'Livraison offerte')} 🎁
+                        {discountLabel} — {quote.fee === 0 ? t('checkout.benefit_free', 'Livraison offerte') : t('checkout.code_partial', '{n} offerts sur la livraison.').replace('{n}', fdjN(quote.discount))} 🎁
                       </p>
                     </div>
                     <button onClick={() => setStep(3)} className="text-xs text-[#7d9800] hover:underline flex-none">{t('checkout.edit', 'Modifier')}</button>
@@ -1244,7 +1300,7 @@ export default function CheckoutPage() {
                     <span className="text-gray-500">{t('checkout.delivery_label', 'Livraison')}{selectedDelivery && <span className="text-gray-400"> — {deliveryName(selectedDelivery)}</span>}</span>
                     {deliveryFee === 0
                       ? <span className="font-medium text-green-500">{baseFee > 0 ? <>{t('checkout.delivery_offered', 'Offerte')} 🎁</> : t('checkout.free', 'Gratuite')}</span>
-                      : referralDiscount > 0
+                      : quote.discount > 0
                         ? <span className="font-medium flex items-center gap-1.5"><span className="line-through text-gray-400">{baseFee.toLocaleString()} Fdj</span><span className="text-[#526500]">{deliveryFee.toLocaleString()} Fdj</span><span>🎁</span></span>
                         : <span className="font-medium">{deliveryFee.toLocaleString()} Fdj</span>}
                   </div>

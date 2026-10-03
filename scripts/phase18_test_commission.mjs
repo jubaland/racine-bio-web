@@ -7,9 +7,12 @@
 //   node scripts/phase18_test_commission.mjs
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
+import { cheapestDelivery } from './test_helpers.mjs';
 
 const env = Object.fromEntries(readFileSync('.env.local', 'utf8').split(/\r?\n/).filter(l => l.includes('=') && !l.startsWith('#')).map(l => { const i = l.indexOf('='); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, '')]; }));
 const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+// Frais de livraison calculés par le serveur : chaque commande de test désigne une option réelle
+const DEL = await cheapestDelivery(admin);
 const anon = () => createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, { auth: { persistSession: false } });
 const BASE = process.argv[2] || 'http://localhost:3000';
 
@@ -59,7 +62,7 @@ try {
   const M = state.merchant, C = state.client;
   const adm = (body) => api('/api/admin/merchants', adminToken, body);
   const order = async (qty) => api('/api/orders', C.token, {
-    order: { user_id: C.id, payment_method: 'cash', delivery_fee: 0, customer_name: 'Test Commission Client', phone: '77000000', address: 'Test' },
+    order: { user_id: C.id, payment_method: 'cash', ...DEL.fields, customer_name: 'Test Commission Client', phone: '77000000', address: 'Test' },
     items: [{ product_id: P.id, quantity: qty, price: 1000, product_name: 'TEST Commission produit', product_unit: 'kg' }],
   });
   const deliver = (id) => api('/api/orders', adminToken, { id, status: 'delivered' }, 'PATCH');

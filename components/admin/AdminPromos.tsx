@@ -6,6 +6,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useCan } from '../../context/AdminPermsContext';
 import Modal, { ConfirmDelete, FormField, inputClass } from './Modal';
 import AdminProductPromos from './AdminProductPromos';
+import AdminPromoCodes from './AdminPromoCodes';
 
 interface Promo { id: number; emoji: string; badge: string; title: string; sub: string; color_start: string; active: boolean; category?: string; }
 interface Category { id: string; slug: string; label: string; }
@@ -22,7 +23,7 @@ export default function AdminPromos() {
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
-  const [tab, setTab] = useState<'banners' | 'products'>('banners'); // bannières d'accueil | prix promo produits (planifiés)
+  const [tab, setTab] = useState<'banners' | 'products' | 'codes'>('banners'); // bannières d'accueil | prix promo produits (planifiés) | codes promo (livraison offerte)
 
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
@@ -85,7 +86,7 @@ export default function AdminPromos() {
         <h1 className="text-2xl font-bold text-gray-800">🏷️ {t('admin.nav_promos', 'Promotions')}</h1>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex flex-wrap gap-1 bg-white border border-[#d2e095] rounded-2xl sm:rounded-full p-1">
-            {([['banners', `🎉 ${t('promo.tab_banners', 'Bannières')}`], ['products', `🏷️ ${t('promo.tab_products', 'Prix promo produits')}`]] as const).map(([id, label]) => (
+            {([['banners', `🎉 ${t('promo.tab_banners', 'Bannières')}`], ['products', `🏷️ ${t('promo.tab_products', 'Prix promo produits')}`], ['codes', `🎟️ ${t('promo.tab_codes', 'Codes promo')}`]] as const).map(([id, label]) => (
               <button key={id} onClick={() => setTab(id)} className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${tab === id ? 'bg-[#526500] text-white' : 'text-[#526500] hover:bg-[#ecf4d5]'}`}>{label}</button>
             ))}
           </div>
@@ -93,7 +94,9 @@ export default function AdminPromos() {
         </div>
       </div>
 
-      {tab === 'products' ? (
+      {tab === 'codes' ? (
+        <AdminPromoCodes canCreate={can('promos', 'create')} canEdit={can('promos', 'edit')} canDelete={can('promos', 'delete')} />
+      ) : tab === 'products' ? (
         <AdminProductPromos canEdit={can('promos', 'edit')} />
       ) : loading ? (
         <div className="flex items-center justify-center h-48"><p className="text-gray-400">{t('admin.loading', 'Chargement...')}</p></div>

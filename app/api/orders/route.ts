@@ -116,9 +116,32 @@ async function POST_(request: Request) {
       for (const item of items) {
         if (serverPrice[item.product_id] != null && Number(item.price) !== serverPrice[item.product_id]) { item.price = serverPrice[item.product_id]; priceAdjusted = true; }
       }
-      // Total toujours recalculé côté serveur (articles au prix serveur + frais de livraison)
-      order.total = items.reduce((s: number, i: any) => s + Number(i.price) * Number(i.quantity), 0) + (Number(order.delivery_fee) || 0);
     } catch (e) { console.error('[orders] price check:', e); }
+
+    // ── Frais de livraison : toujours calculés ici (tarif de l'option en base, seuil automatique,
+    //    code promo, parrainage) — jamais le montant envoyé par le navigateur. Une seule remise, la
+    //    plus avantageuse (lib/delivery-pricing.ts). Une demande d'entreprise validée par le gérant
+    //    ne porte pas de code : seul le seuil automatique peut s'y appliquer.
+    const subtotal = items.reduce((s: number, i: any) => s + Number(i.price) * Number(i.quantity), 0);
+    const { quoteDelivery, reservePromo, attachPromo, releasePromo, cleanPhone } = await import('../../../lib/promo-codes');
+    const who = { userId: (order.user_id as string | null) || null, phone: cleanPhone(order.phone) };
+    const dq = await quoteDelivery({
+      optionId: companyRequest ? null : rawOrder.delivery_option_id, optionName: order.delivery_option_name, subtotal, ...who,
+      promoCode: companyRequest ? null : body.promo_code, refCode: companyRequest ? null : ref_code,
+      useReferralCredit: !companyRequest && !!use_referral_credit,
+    });
+    // Option absente ou inconnue alors qu'il en existe : refus (sinon la livraison serait facturée 0)
+    if (!dq.option && dq.hasOptions) return NextResponse.json({ error: 'delivery_option_invalid' }, { status: 400 });
+    if (dq.option) order.delivery_option_name = dq.option.name;
+    // Un code affiché comme appliqué mais plus utilisable : on le dit, plutôt que de facturer sans prévenir
+    if (dq.promoError) return NextResponse.json({ error: 'promo_invalid', reason: dq.promoError }, { status: 409 });
+    if (dq.referralError) return NextResponse.json({ error: 'referral_invalid', reason: dq.referralError }, { status: 409 });
+    order.delivery_fee = dq.quote.fee;
+    order.delivery_fee_base = dq.quote.base;
+    order.delivery_discount = dq.quote.discount;
+    order.delivery_discount_source = dq.quote.source;
+    order.promo_code = dq.quote.promo_code;
+    order.total = subtotal + dq.quote.fee;
 
     // Société : au-delà du seuil, la commande d'un acheteur doit être validée par le gérant
     if (company && companyRole === 'buyer' && !companyRequest && company.approval_threshold != null && Number(order.total) > Number(company.approval_threshold)) {
@@ -181,6 +204,15 @@ async function POST_(request: Request) {
     const stockChanges = reservation.changes;
     const releaseStock = () => applyStockDeltas(supabaseAdmin, orderLines.map((l: any) => ({ product_id: l.product_id, delta: l.quantity }))).catch(e => console.error('[orders] release stock:', e));
 
+    // Code promo : utilisation réservée de façon atomique (limites recomptées sous verrou). Deux
+    // commandes simultanées sur la dernière utilisation : une seule passe.
+    let redemptionId: number | null = null;
+    if (dq.quote.source === 'promo' && dq.promo) {
+      const r = await reservePromo(dq.promo.id, who, dq.quote.discount);
+      if (!r.ok) { await releaseStock(); return NextResponse.json({ error: 'promo_invalid', reason: r.reason }, { status: 409 }); }
+      redemptionId = r.redemptionId;
+    }
+
     // Créer la commande
     const { data: createdOrder, error: orderError } = await supabaseAdmin
       .from('orders')
@@ -188,7 +220,9 @@ async function POST_(request: Request) {
       .select()
       .single();
 
-    if (orderError) { await releaseStock(); return NextResponse.json({ error: orderError.message }, { status: 400 }); }
+    if (orderError) { await releaseStock(); if (redemptionId) await releasePromo(redemptionId); return NextResponse.json({ error: orderError.message }, { status: 400 }); }
+    // Utilisation rattachée à la commande : supprimée avec elle si la suite échoue (cascade)
+    if (redemptionId) await attachPromo(redemptionId, createdOrder.id);
 
     // Insérer les articles (snapshot produit)
     const { error: snapshotError } = await supabaseAdmin
@@ -251,8 +285,8 @@ async function POST_(request: Request) {
       } catch (e) { console.error('[orders] company notify:', e); }
     }
 
-    // Consommer un crédit parrainage si demandé
-    if (use_referral_credit && createdOrder.user_id) {
+    // Consommer un crédit parrainage — seulement si c'est lui qui a offert la livraison
+    if (dq.quote.source === 'referral_credit' && createdOrder.user_id) {
       try {
         const { data: rc } = await supabaseAdmin
           .from('referral_codes')
@@ -408,7 +442,7 @@ async function POST_(request: Request) {
       console.error('[email] ERROR:', err);
     }
 
-    return NextResponse.json({ order: createdOrder, price_adjusted: priceAdjusted });
+    return NextResponse.json({ order: createdOrder, price_adjusted: priceAdjusted, delivery: dq.quote });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
@@ -421,7 +455,7 @@ async function GET_(request: Request) {
   const { data, error } = await supabaseAdmin
     .from('orders')
     .select(`
-      id, user_id, total, delivery_fee, delivery_option_name, status, payment_method, phone, email, address, customer_name, special_instructions, created_at,
+      id, user_id, total, delivery_fee, delivery_fee_base, delivery_discount, delivery_discount_source, promo_code, delivery_option_name, status, payment_method, phone, email, address, customer_name, special_instructions, created_at,
       order_items (
         id, product_id, quantity, price,
         product_name, product_image_url, product_unit, product_farm, bundle_contents

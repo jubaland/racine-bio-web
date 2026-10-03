@@ -23,7 +23,7 @@ async function GET_(request: Request) {
   // 1) Commandes livrées sur la période
   let q = supabaseAdmin
     .from('orders')
-    .select('id, total, delivery_fee, created_at, company_id')
+    .select('id, total, delivery_fee, delivery_discount, created_at, company_id')
     .eq('status', 'delivered');
   if (from) q = q.gte('created_at', from.toISOString());
   const { data: orders, error: ordErr } = await q;
@@ -102,6 +102,8 @@ async function GET_(request: Request) {
     .sort((a, b) => b.revenue - a.revenue);
 
   const deliveryCollected = (orders || []).reduce((s, o) => s + (Number(o.delivery_fee) || 0), 0);
+  // Livraisons offertes (codes promo, seuil automatique, parrainage) : manque à gagner sur la période
+  const deliveryOffered = (orders || []).reduce((s, o: any) => s + (Number(o.delivery_discount) || 0), 0);
   const grossPaid = (orders || []).reduce((s, o) => s + (Number(o.total) || 0), 0);
   // Ventes aux comptes entreprise (commandes livrées rattachées à une société), livraison comprise
   const companyOrders = (orders || []).filter((o: any) => o.company_id);
@@ -120,6 +122,7 @@ async function GET_(request: Request) {
       nbOrders,
       panierMoyen: nbOrders ? Math.round(grossPaid / nbOrders) : 0,
       deliveryCollected,
+      deliveryOffered,
       costTotal,
       marginTotal,                                           // marge sur les produits au coût connu
       marginPct: caWithCost > 0 ? Math.round((marginTotal / caWithCost) * 1000) / 10 : null,

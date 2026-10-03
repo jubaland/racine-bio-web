@@ -4,9 +4,12 @@
 //   node scripts/phase14_test_stock_atomic.mjs
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
+import { cheapestDelivery } from './test_helpers.mjs';
 
 const env = Object.fromEntries(readFileSync('.env.local', 'utf8').split(/\r?\n/).filter(l => l.includes('=') && !l.startsWith('#')).map(l => { const i = l.indexOf('='); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, '')]; }));
 const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+// Frais de livraison calculés par le serveur : chaque commande de test désigne une option réelle
+const DEL = await cheapestDelivery(admin);
 const anon = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, { auth: { persistSession: false } });
 const BASE = 'http://localhost:3000';
 
@@ -16,7 +19,7 @@ const stockOf = async (id) => Number((await admin.from('products').select('stock
 const state = { products: [], bundle: null, orders: [], preparers: [] };
 
 const body = (lines) => ({
-  order: { user_id: null, total: lines.reduce((s, l) => s + l.price * l.qty, 0), delivery_fee: 0, delivery_option_name: 'Test', special_instructions: 'TEST STOCK ATOMIQUE', status: 'pending', payment_method: 'cash', phone: '77000000', email: null, address: 'Test', customer_name: 'Test Stock' },
+  order: { user_id: null, total: lines.reduce((s, l) => s + l.price * l.qty, 0), ...DEL.fields, special_instructions: 'TEST STOCK ATOMIQUE', status: 'pending', payment_method: 'cash', phone: '77000000', email: null, address: 'Test', customer_name: 'Test Stock' },
   items: lines.map(l => ({ product_id: l.id, quantity: l.qty, price: l.price, product_name: l.name, product_unit: l.unit })),
 });
 const post = async (lines) => { const r = await fetch(`${BASE}/api/orders`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body(lines)) }); const j = await r.json(); if (j.order?.id) state.orders.push(j.order.id); return { status: r.status, j }; };

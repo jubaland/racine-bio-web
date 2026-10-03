@@ -75,7 +75,13 @@ test('fiche produit → panier → checkout (4 étapes, sans confirmer)', async 
   // Visiteur : l'étape paiement commence par « Se connecter » ou « Continuer sans compte »
   await page.getByRole('button', { name: /Continuer sans compte/ }).click();
   await expect(page.getByText('Mode de paiement').first()).toBeVisible();
+  // Un seul champ pour les codes promo et parrainage ; un code inconnu est refusé par le serveur
+  await expect(page.getByText(/Code promo ou parrainage/)).toBeVisible();
+  await page.getByPlaceholder(/R4K7NP/).fill('ZZZZ99INCONNU');
+  await page.getByRole('button', { name: /Appliquer/ }).click();
+  await expect(page.getByText(/Code invalide/)).toBeVisible();
   await expectNoOverflow(page, 'checkout étape 3');
+  await page.screenshot({ path: test.info().outputPath('checkout-paiement.png'), fullPage: true });
 
   await page.getByRole('button', { name: /^Continuer/ }).last().click();
   await expect(page.getByText(/Récapitulatif de votre commande/)).toBeVisible();

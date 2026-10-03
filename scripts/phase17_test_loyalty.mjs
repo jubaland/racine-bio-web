@@ -5,9 +5,12 @@
 //   node scripts/phase17_test_loyalty.mjs
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
+import { cheapestDelivery } from './test_helpers.mjs';
 
 const env = Object.fromEntries(readFileSync('.env.local', 'utf8').split(/\r?\n/).filter(l => l.includes('=') && !l.startsWith('#')).map(l => { const i = l.indexOf('='); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, '')]; }));
 const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+// Frais de livraison calculés par le serveur : chaque commande de test désigne une option réelle
+const DEL = await cheapestDelivery(admin);
 const anon = () => createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, { auth: { persistSession: false } });
 const BASE = 'http://localhost:3000';
 
@@ -45,8 +48,8 @@ try {
   const { data: P } = await admin.from('products').insert({ name: 'TEST Fidélité produit', price: 500, cost_price: 300, unit: 'kg', stock_qty: 200, farm: 'Test', category: 'legumes', product_type: 'conventionnel', origin_country: 'DJ', region: 'Test', status: 'published', is_local: false, in_stock: true, description: 'TEST FIDÉLITÉ — à supprimer', bg_color: '#ecf4d5' }).select('id').single();
   state.product = P.id;
 
-  const order = async (qty, token = state.user.token, userId = state.user.id, fee = 0) => (await api('/api/orders', token, {
-    order: { user_id: userId, payment_method: 'cash', delivery_fee: fee, customer_name: 'Test Fidélité', phone: '77000000', address: 'Test' },
+  const order = async (qty, token = state.user.token, userId = state.user.id) => (await api('/api/orders', token, {
+    order: { user_id: userId, payment_method: 'cash', ...DEL.fields, customer_name: 'Test Fidélité', phone: '77000000', address: 'Test' },
     items: [{ product_id: P.id, quantity: qty, price: 500, product_name: 'TEST Fidélité produit', product_unit: 'kg' }],
   })).j.order;
   const deliver = (id) => api('/api/orders', adminToken, { id, status: 'delivered' }, 'PATCH');
@@ -77,10 +80,10 @@ try {
   await deliver(o2.id);
   ok(await stampsOpen() === 1, 'deuxième commande le même jour : pas de second tampon', String(await stampsOpen()));
   await ageStamps();
-  const o3 = await order(1, state.user.token, state.user.id, 500);   // 500 d'articles + 500 de livraison
+  const o3 = await order(1);   // 500 d'articles + la livraison (facturée par le serveur) : sous le minimum hors livraison
   await deliver(o3.id);
   ok(await stampsOpen() === 1, 'commande sous le minimum (hors livraison) : pas de tampon', String(await stampsOpen()));
-  const g = (await api('/api/orders', null, { order: { user_id: null, payment_method: 'cash', customer_name: 'Test Invité', phone: '77000000', address: 'Test' }, items: [{ product_id: P.id, quantity: 4, price: 500, product_name: 'TEST', product_unit: 'kg' }] })).j.order;
+  const g = (await api('/api/orders', null, { order: { user_id: null, payment_method: 'cash', ...DEL.fields, customer_name: 'Test Invité', phone: '77000000', address: 'Test' }, items: [{ product_id: P.id, quantity: 4, price: 500, product_name: 'TEST', product_unit: 'kg' }] })).j.order;
   await deliver(g.id);
   ok((await admin.from('loyalty_stamps').select('id').eq('order_id', g.id)).data.length === 0, 'commande invité : pas de tampon');
 

@@ -113,7 +113,7 @@ export default function AdminDelivery() {
         <div>
           <h2 className="text-xl font-bold text-gray-800">🚚 Options de livraison</h2>
           <p className="text-sm text-gray-400 mt-1">
-            Modes et tarifs proposés au checkout. Le code parrainage ou un crédit annule les frais.
+            Modes et tarifs proposés au paiement. Livraisons offertes (codes promo, seuil automatique) : Promotions › Codes promo. Le parrainage offre aussi la livraison standard.
           </p>
         </div>
         {can('delivery', 'create') && (

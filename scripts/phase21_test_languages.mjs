@@ -7,9 +7,12 @@
 //   node scripts/phase21_test_languages.mjs
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
+import { cheapestDelivery } from './test_helpers.mjs';
 
 const env = Object.fromEntries(readFileSync('.env.local', 'utf8').split(/\r?\n/).filter(l => l.includes('=') && !l.startsWith('#')).map(l => { const i = l.indexOf('='); return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, '')]; }));
 const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+// Frais de livraison calculés par le serveur : chaque commande de test désigne une option réelle
+const DEL = await cheapestDelivery(admin);
 const anon = () => createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, { auth: { persistSession: false } });
 const BASE = process.argv[2] || 'http://localhost:3000';
 
@@ -80,18 +83,20 @@ try {
 
   console.log('\n2) Notifications de commande dans la langue du client');
   const order = async (u) => (await api('/api/orders', u.token, {
-    order: { user_id: u.id, payment_method: 'cash', delivery_fee: 0, customer_name: 'Test Langue', phone: '77000000', address: 'Test' },
+    order: { user_id: u.id, payment_method: 'cash', ...DEL.fields, customer_name: 'Test Langue', phone: '77000000', address: 'Test' },
     items: [{ product_id: P.id, quantity: 1, price: 1500, product_name: 'TEST Langue produit', product_unit: 'kg' }],
   })).j.order;
   const oEn = await order(EN), oFr = await order(FR), oZh = await order(ZH);
+  // Montant annoncé = 1 500 d'articles + livraison (le séparateur de milliers varie : « . » le tolère)
+  const AMOUNT = new RegExp(String(1500 + DEL.price).replace(/(\d)(\d{3})$/, '$1.$2') + ' Fdj');
   ok(!!oEn && !!oFr && !!oZh, 'trois commandes créées');
   let n = await notifs(EN.id);
-  ok(n.length === 1 && n[0].title === '✅ Order confirmed' && /#[0-9A-Z]+/.test(n[0].body) && /1.500 Fdj/.test(n[0].body), 'client anglais : « Order confirmed », numéro et montant présents', JSON.stringify(n));
+  ok(n.length === 1 && n[0].title === '✅ Order confirmed' && /#[0-9A-Z]+/.test(n[0].body) && AMOUNT.test(n[0].body), 'client anglais : « Order confirmed », numéro et montant présents', JSON.stringify(n));
   ok(n.every(x => !FRENCH.test(x.title + ' ' + (x.body || ''))), 'client anglais : aucun mot français');
   n = await notifs(FR.id);
   ok(n.length === 1 && n[0].title === '✅ Commande confirmée', 'client français : texte français inchangé', JSON.stringify(n));
   n = await notifs(ZH.id);
-  ok(n.length === 1 && /[一-鿿]/.test(n[0].title) && /[一-鿿]/.test(n[0].body) && /1.500 Fdj/.test(n[0].body), 'client chinois : titre et message en chinois', JSON.stringify(n));
+  ok(n.length === 1 && /[一-鿿]/.test(n[0].title) && /[一-鿿]/.test(n[0].body) && AMOUNT.test(n[0].body), 'client chinois : titre et message en chinois', JSON.stringify(n));
 
   console.log('\n3) Suivi de statut et fidélité');
   await api('/api/orders', adminToken, { id: oEn.id, status: 'delivered' }, 'PATCH');
@@ -162,14 +167,14 @@ try {
 
   console.log('\n8) Langue de la commande (invité compris)');
   r = await api('/api/orders', null, {
-    order: { user_id: null, payment_method: 'cash', delivery_fee: 0, customer_name: 'Test Langue Invité', phone: '77000000', address: 'Test', lang: 'so' },
+    order: { user_id: null, payment_method: 'cash', ...DEL.fields, customer_name: 'Test Langue Invité', phone: '77000000', address: 'Test', lang: 'so' },
     items: [{ product_id: P.id, quantity: 1, price: 1500, product_name: 'TEST Langue produit', product_unit: 'kg' }],
   });
   const guestId = r.j.order?.id;
   const { data: go } = guestId ? await admin.from('orders').select('lang').eq('id', guestId).single() : { data: null };
   ok(!!guestId && go?.lang === 'so', 'commande d\'un invité : langue enregistrée sur la commande', JSON.stringify({ s: r.status, l: go?.lang }));
   r = await api('/api/orders', EN.token, {
-    order: { user_id: EN.id, payment_method: 'cash', delivery_fee: 0, customer_name: 'Test Langue', phone: '77000000', address: 'Test', lang: 'pirate' },
+    order: { user_id: EN.id, payment_method: 'cash', ...DEL.fields, customer_name: 'Test Langue', phone: '77000000', address: 'Test', lang: 'pirate' },
     items: [{ product_id: P.id, quantity: 1, price: 1500, product_name: 'TEST Langue produit', product_unit: 'kg' }],
   });
   const { data: bo } = r.j.order?.id ? await admin.from('orders').select('lang').eq('id', r.j.order.id).single() : { data: { lang: 'x' } };

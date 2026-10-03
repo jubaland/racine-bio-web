@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
 import Link from 'next/link';
@@ -8,6 +9,15 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
   const { items, removeItem, updateQuantity, total, clearCart } = useCart();
   const { ui } = useLanguage();
   const t = (key: string, fallback: string) => ui[key] || fallback;
+
+  // Seuil automatique de livraison offerte (réglage admin) : chargé à la première ouverture du panier
+  const [freeFrom, setFreeFrom] = useState<number | null>(null);
+  const [rulesAsked, setRulesAsked] = useState(false);
+  useEffect(() => {
+    if (!open || rulesAsked) return;
+    setRulesAsked(true);
+    fetch('/api/promo').then(r => r.ok ? r.json() : null).then(j => setFreeFrom(j?.rules?.free_threshold ?? null)).catch(() => {});
+  }, [open, rulesAsked]);
 
   return (
     <>
@@ -76,6 +86,13 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
                 <span className="text-gray-600 font-medium">{t('cart.total', 'Total')}</span>
                 <span className="text-xl font-bold text-[#526500]">{total.toLocaleString()} Fdj</span>
               </div>
+              {freeFrom != null && (
+                <p className="text-xs text-[#526500] bg-[#f7fbe9] border border-[#e3eebf] rounded-xl px-3 py-2 mb-3">
+                  🚚 {total >= freeFrom
+                    ? t('cart.free_delivery_reached', 'Livraison offerte sur cette commande !')
+                    : t('checkout.threshold_hint', 'Plus que {n} d\'achat pour la livraison offerte.').replace('{n}', `${(freeFrom - total).toLocaleString()} Fdj`)}
+                </p>
+              )}
               <Link
                 href="/checkout"
                 onClick={onClose}

@@ -182,9 +182,11 @@ export async function buildReceiptPdf(order: any, items: any[]): Promise<Buffer>
 
   // Totaux
   const fee = Number(order.delivery_fee) || 0;
-  if (fee > 0) {
+  const offered = Number(order.delivery_discount) || 0;   // livraison offerte (code promo, seuil, parrainage)
+  if (fee > 0 || offered > 0) {
     rowLR('Sous-total', `${itemsSum.toLocaleString('fr-FR')} Fdj`, { size: 11, color: GRAY });
-    rowLR('Livraison', `${fee.toLocaleString('fr-FR')} Fdj`, { size: 11, color: GRAY });
+    rowLR('Livraison', `${(fee + offered).toLocaleString('fr-FR')} Fdj`, { size: 11, color: GRAY });
+    if (offered > 0) rowLR(`Livraison offerte${order.promo_code ? ` (code ${order.promo_code})` : ''}`, `-${offered.toLocaleString('fr-FR')} Fdj`, { size: 11, color: GRAY });
   }
   rowLR('TOTAL', `${Number(order.total).toLocaleString('fr-FR')} Fdj`, { f: bold, size: 14, color: GREEN });
   gap();
