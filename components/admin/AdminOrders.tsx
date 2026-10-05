@@ -239,35 +239,14 @@ export default function AdminOrders() {
     setQtyDraft({ itemId: item.id, qty: String(next) });
   };
 
-  const modifyItem = async (order: Order, item: OrderItem, newQty: number) => {
-    const increase = newQty > item.quantity;
-    const delta = Math.abs(item.quantity - newQty);
-    const amt = `${(Number(item.price) * delta).toLocaleString()} Fdj`;
-    const name = item.product_name || t('admin.this_item', 'cet article');
-    const refundMsg = increase
-      ? (order.payment_method === 'wallet' || order.payment_method === 'company_wallet' ? t('admin.add_charge_wallet', 'Le complément sera débité de la cagnotte.')
-        : order.payment_method === 'credit' ? t('admin.add_charge_credit', 'Le complément sera ajouté au carnet de crédit.')
-        : order.payment_method === 'cash' ? t('admin.add_charge_cash', 'Le montant à payer du client augmente.')
-        : t('admin.add_charge_waafi', 'Pensez à encaisser le complément (Waafi / D-Money).'))
-      : (order.payment_method === 'wallet' || order.payment_method === 'company_wallet' ? t('admin.remove_refund_wallet', 'Le montant sera recrédité sur la cagnotte du client.')
-        : order.payment_method === 'cash' || order.payment_method === 'credit' ? t('admin.remove_refund_cash', 'Le montant à payer du client sera réduit.')
-        : t('admin.remove_refund_waafi', 'Pensez à rembourser ce montant au client par Waafi.'));
-    const action = newQty === 0
-      ? `${t('admin.remove_item_confirm', 'Retirer')} « ${name} »`
-      : increase
-        ? `${t('admin.increase_qty_confirm', 'Augmenter')} « ${name} » → ${newQty} ${item.product_unit || ''}`
-        : `${t('admin.reduce_qty_confirm', 'Réduire')} « ${name} » → ${newQty} ${item.product_unit || ''}`;
-    const stockMsg = increase ? t('admin.add_item_stock', 'Le stock sera vérifié et réservé.') : t('admin.remove_item_stock', 'Le stock sera remis à disposition.');
-    if (newQty === 0 && !confirm(`${action} (−${amt}) ?\n\n${refundMsg}\n${stockMsg}`)) return;
-    // Garde-fou : après expédition/livraison, un motif est obligatoire (journal des modifications)
-    let reason: string | null = null;
-    if (!['pending', 'processing'].includes(order.status)) {
-      reason = prompt(t('admin.edit_reason_prompt', 'Commande déjà expédiée/livrée : indiquez le motif de la modification (obligatoire, conservé dans le journal) :'));
-      if (reason === null) return;
-      if (!reason.trim()) { alert('⚠️ ' + t('admin.edit_reason_required', 'Motif obligatoire pour modifier une commande expédiée ou livrée.')); return; }
-    }
+  const [editMsg, setEditMsg] = useState('');
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);                    // retrait en attente de confirmation (dans la page)
+  const [askReason, setAskReason] = useState<{ itemId: string; qty: number } | null>(null);   // motif demandé (commande expédiée/livrée)
+  const [reasonText, setReasonText] = useState('');
 
+  const modifyItem = async (order: Order, item: OrderItem, newQty: number, reason: string | null = null) => {
     setRemovingItemId(item.id);
+    setEditMsg('');
     try {
       const tk = (await supabase.auth.getSession()).data.session?.access_token;
       const res = await fetch('/api/admin/orders/remove-item', {
@@ -286,7 +265,7 @@ export default function AdminOrders() {
           company_wallet_insufficient: t('co.e_balance', 'Solde de la cagnotte société insuffisant.'),
           credit_unavailable: t('admin.edit_err_credit', 'Crédit indisponible (plafond, retard ou compte suspendu).'),
         };
-        alert('⚠️ ' + (map[j.error] || j.error || 'Erreur'));
+        setEditMsg('⚠️ ' + (map[j.error] || j.error || 'Erreur'));
         return;
       }
       setOrders(prev => prev.map(o => o.id === order.id
@@ -298,17 +277,27 @@ export default function AdminOrders() {
               : o.order_items.map(it => it.id === item.id ? { ...it, quantity: newQty } : it),
           }
         : o));
-      setQtyDraft(null);
+      setQtyDraft(null); setConfirmRemove(null); setAskReason(null); setReasonText('');
+      const extra =
+        j.refundMethod === 'manual' ? ` · ${Number(j.refundAmount) < 0 ? t('admin.add_collect_waafi', 'Complément à encaisser (Waafi / D-Money)') : t('admin.remove_refund_waafi_amount', 'À rembourser par Waafi')} : ${Math.abs(Number(j.refundAmount)).toLocaleString()} Fdj`
+        : j.refundMethod === 'wallet' && Number(j.refundAmount) > 0 ? ` · ${Number(j.refundAmount).toLocaleString()} Fdj ${t('admin.edit_refunded_wallet', 'recrédités sur la cagnotte')}` : '';
+      setEditMsg(`✅ ${t('admin.edit_done', 'Modification appliquée.')} ${t('admin.disc_done', 'Nouveau total')} : ${Number(j.newTotal).toLocaleString()} Fdj${extra}`);
+      if (editLogOpen) refreshEditLog();
       fetchAll();   // recharge le journal des modifications de la commande
-      if (j.refundMethod === 'manual') {
-        const n = Math.abs(Number(j.refundAmount)).toLocaleString();
-        alert(`✅ ${t('admin.remove_done', 'Modification effectuée.')} ${Number(j.refundAmount) < 0 ? t('admin.add_collect_waafi', 'Complément à encaisser (Waafi / D-Money)') : t('admin.remove_refund_waafi_amount', 'À rembourser par Waafi')} : ${n} Fdj`);
-      }
     } catch (e: any) {
-      alert('⚠️ ' + e.message);
+      setEditMsg('⚠️ ' + e.message);
     } finally {
       setRemovingItemId(null);
     }
+  };
+
+  // Lancement d'un changement : motif demandé dans la page si la commande est expédiée/livrée,
+  // confirmation dans la page pour un retrait complet — jamais de fenêtre du navigateur.
+  const startChange = (order: Order, item: OrderItem, newQty: number) => {
+    setEditMsg('');
+    if (!['pending', 'processing'].includes(order.status)) { setAskReason({ itemId: item.id, qty: newQty }); setReasonText(''); setConfirmRemove(null); return; }
+    if (newQty === 0) { setConfirmRemove(item.id); setAskReason(null); return; }
+    modifyItem(order, item, newQty);
   };
 
   const statusFilters = [
@@ -319,16 +308,19 @@ export default function AdminOrders() {
   // Journal global des commandes modifiées (traçabilité, admin seulement)
   const [editLog, setEditLog] = useState<OrderEdit[] | null>(null);
   const [editLogOpen, setEditLogOpen] = useState(false);
-  const toggleEditLog = async () => {
-    if (editLogOpen) { setEditLogOpen(false); return; }
-    setEditLogOpen(true);
-    if (editLog) return;
+  const refreshEditLog = async () => {
     try {
       const tk = (await supabase.auth.getSession()).data.session?.access_token;
       const res = await fetch('/api/admin/orders/edits', { headers: { Authorization: `Bearer ${tk}` } });
       const j = await res.json();
       setEditLog(res.ok ? (j.edits || []) : []);
     } catch { setEditLog([]); }
+  };
+  const toggleEditLog = () => {
+    if (editLogOpen) { setEditLogOpen(false); return; }
+    setEditLogOpen(true);
+    setEditLog(null);     // toujours rechargé : le journal reflète la dernière modification
+    refreshEditLog();
   };
   const editLine = (e: OrderEdit) => `${e.product_name || '—'} : ${Number(e.from_qty)} → ${Number(e.to_qty)} ${e.product_unit || ''}`.trim();
   const editWhen = (d: string) => new Date(d).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -612,22 +604,44 @@ export default function AdminOrders() {
                                   </div>
                                   {changed && (
                                     <>
-                                      <button onClick={() => modifyItem(order, item, draft)} disabled={removingItemId === item.id}
+                                      <button onClick={() => startChange(order, item, draft)} disabled={removingItemId === item.id}
                                         className="inline-flex items-center gap-1 text-[11px] font-semibold bg-[#a8c800] text-white rounded-lg px-2.5 py-1 hover:bg-[#7d9800] transition disabled:opacity-50">
                                         {removingItemId === item.id ? '⏳' : `✓ ${t('admin.qty_apply', 'Appliquer')} (${delta > 0 ? '+' : '−'}${Math.abs(delta).toLocaleString()} Fdj)`}
                                       </button>
-                                      <button onClick={() => setQtyDraft(null)} disabled={removingItemId === item.id}
+                                      <button onClick={() => { setQtyDraft(null); setAskReason(null); }} disabled={removingItemId === item.id}
                                         aria-label={t('admin.cancel', 'Annuler')} className="text-[11px] text-gray-400 hover:text-gray-600 px-1">✕</button>
                                     </>
                                   )}
-                                  {!changed && items.length > 1 && (
+                                  {!changed && items.length > 1 && confirmRemove !== item.id && (
                                     <button
-                                      onClick={() => modifyItem(order, item, 0)}
+                                      onClick={() => startChange(order, item, 0)}
                                       disabled={removingItemId === item.id}
                                       className="inline-flex items-center gap-1 text-[11px] font-medium text-[#f97316] border border-orange-200 rounded-lg px-2 py-1 hover:bg-orange-50 transition disabled:opacity-50"
                                     >
                                       {removingItemId === item.id ? '⏳' : '🗑️'} {t('admin.remove_item', 'Retirer')}
                                     </button>
+                                  )}
+                                  {confirmRemove === item.id && !askReason && (
+                                    <>
+                                      <button onClick={() => modifyItem(order, item, 0)} disabled={removingItemId === item.id}
+                                        className="inline-flex items-center gap-1 text-[11px] font-semibold bg-[#f97316] text-white rounded-lg px-2.5 py-1 hover:bg-[#ea580c] transition disabled:opacity-50">
+                                        {removingItemId === item.id ? '⏳' : `🗑️ ${t('admin.remove_confirm_btn', 'Confirmer le retrait')} (−${(Number(item.price) * item.quantity - (Number(item.discount) || 0)).toLocaleString()} Fdj)`}
+                                      </button>
+                                      <button onClick={() => setConfirmRemove(null)} aria-label={t('admin.cancel', 'Annuler')} className="text-[11px] text-gray-400 hover:text-gray-600 px-1">✕</button>
+                                    </>
+                                  )}
+                                  {askReason?.itemId === item.id && (
+                                    <div className="w-full mt-1.5 flex items-center justify-end gap-1.5 flex-wrap">
+                                      <input autoFocus value={reasonText} maxLength={300} onChange={e => setReasonText(e.target.value)}
+                                        onKeyDown={e => { if (e.key === 'Enter' && reasonText.trim()) modifyItem(order, item, askReason.qty, reasonText.trim()); }}
+                                        placeholder={t('admin.qty_reason_ph', 'Motif (obligatoire) — ex : le client n\'a pris que 10 kg')}
+                                        className="flex-1 min-w-[180px] max-w-[320px] border border-[#d2e095] rounded-lg px-2.5 py-1.5 text-[11px] bg-white focus:outline-none focus:border-[#a8c800]" />
+                                      <button onClick={() => modifyItem(order, item, askReason.qty, reasonText.trim())} disabled={removingItemId === item.id || !reasonText.trim()}
+                                        className="text-[11px] font-semibold bg-[#a8c800] text-white rounded-lg px-2.5 py-1.5 hover:bg-[#7d9800] transition disabled:opacity-40">
+                                        {removingItemId === item.id ? '⏳' : `✓ ${askReason.qty === 0 ? t('admin.remove_confirm_btn', 'Confirmer le retrait') : t('admin.qty_apply', 'Appliquer')}`}
+                                      </button>
+                                      <button onClick={() => { setAskReason(null); setReasonText(''); }} aria-label={t('admin.cancel', 'Annuler')} className="text-[11px] text-gray-400 hover:text-gray-600 px-1">✕</button>
+                                    </div>
                                   )}
                                 </div>
                               );
@@ -734,6 +748,12 @@ export default function AdminOrders() {
         </div>
       )}
 
+      {editMsg && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 max-w-[92vw] bg-white border-2 border-[#d2e095] shadow-lg rounded-xl px-4 py-2.5 text-sm font-medium text-gray-700 flex items-center gap-3">
+          <span>{editMsg}</span>
+          <button onClick={() => setEditMsg('')} aria-label={t('admin.close', 'Fermer')} className="text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+      )}
       {slipOrder && <PrepSlip order={slipOrder} onClose={() => setSlipOrder(null)} />}
     </div>
   );

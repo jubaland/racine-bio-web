@@ -490,7 +490,8 @@ async function GET_(request: Request) {
       ),
       order_edits ( id, product_name, product_unit, from_qty, to_qty, amount, reason, by_name, by_role, order_status, created_at )
     `)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .order('created_at', { referencedTable: 'order_edits', ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
