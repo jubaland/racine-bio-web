@@ -198,3 +198,111 @@ export async function applyItemChange(order_id: any, item_id: any, new_quantity:
 
   return { ok: true, newTotal, refundAmount: isIncrease ? -extraAmount : refundAmount, refundMethod, removed: isRemoval, newQty: targetQty };
 }
+
+export type FeeChangeResult =
+  | { ok: false; status: number; error: string; available?: number }
+  | { ok: true; newTotal: number; newFee: number; delta: number; refundMethod: string };
+
+// Modifie les frais de livraison d'une commande (admin/gestionnaire) : différence remboursée ou
+// débitée selon le paiement, total recalculé, journal (kind 'delivery_fee'), client prévenu.
+// Mêmes garde-fous que les quantités : commande annulée intouchable, motif obligatoire après
+// expédition/livraison, alerte admin si l'auteur est gestionnaire.
+export async function applyDeliveryFeeChange(order_id: any, newFee: number, opts: EditOptions & { optionName?: string | null } = {}): Promise<FeeChangeResult> {
+  const { data: order, error: oErr } = await supabaseAdmin
+    .from('orders')
+    .select('id, status, payment_method, user_id, company_id, total, delivery_fee, delivery_option_name, promo_discount, admin_discount, customer_name, order_items ( id, price, quantity, discount )')
+    .eq('id', order_id)
+    .single();
+  if (oErr || !order) return { ok: false, status: 404, error: 'Commande introuvable' };
+  if (order.status === 'cancelled') return { ok: false, status: 409, error: 'order_cancelled' };
+  const shipped = !['pending', 'processing'].includes(order.status);
+  const reason = String(opts.reason || '').trim().slice(0, 300) || null;
+  if (shipped && !reason) return { ok: false, status: 400, error: 'reason_required' };
+  if (!Number.isInteger(newFee) || newFee < 0) return { ok: false, status: 400, error: 'fee_invalid' };
+  const oldFee = Number(order.delivery_fee) || 0;
+  const delta = newFee - oldFee;
+  if (delta === 0 && (!opts.optionName || opts.optionName === order.delivery_option_name)) return { ok: false, status: 400, error: 'no_change' };
+
+  const shortId = String(order_id).slice(0, 8).toUpperCase();
+  let refundMethod = 'none';
+
+  if (delta > 0) {
+    // ── Hausse : complément débité selon le paiement ───────────────────────────────────────────
+    if (order.payment_method === 'wallet' && order.user_id) {
+      const { data: w } = await supabaseAdmin.from('wallets').select('balance').eq('user_id', order.user_id).maybeSingle();
+      if ((Number(w?.balance) || 0) < delta) return { ok: false, status: 409, error: 'wallet_insufficient' };
+      await supabaseAdmin.rpc('wallet_adjust', { p_user: order.user_id, p_amount: -delta, p_type: 'debit', p_order: order.id, p_note: 'Frais de livraison ajustés' });
+      refundMethod = 'wallet';
+    } else if (order.payment_method === 'company_wallet' && order.company_id) {
+      const { adjustCompanyWallet } = await import('./company');
+      const debit = await adjustCompanyWallet(Number(order.company_id), -delta, 'debit', { orderId: Number(order.id), userId: opts.actor?.id ?? null, note: `Frais de livraison ajustés (commande #${order.id})` });
+      if (!debit.ok) return { ok: false, status: 409, error: 'company_wallet_insufficient' };
+      refundMethod = 'wallet';
+    } else if (order.payment_method === 'credit') {
+      const { accountOfUser, accountOfCompany, summaryOf } = await import('./credit');
+      const account = order.company_id ? await accountOfCompany(Number(order.company_id)) : await accountOfUser(order.user_id);
+      const sum = account ? await summaryOf(account) : null;
+      if (!account || account.status !== 'active' || !sum || sum.overdue > 0 || sum.available < delta) {
+        return { ok: false, status: 409, error: 'credit_unavailable', available: sum?.available ?? 0 };
+      }
+      const { data: ch } = await supabaseAdmin.from('credit_entries').select('id, amount').eq('order_id', order.id).eq('type', 'charge').order('id').limit(1).maybeSingle();
+      if (ch) await supabaseAdmin.from('credit_entries').update({ amount: Number(ch.amount) + delta }).eq('id', ch.id);
+      refundMethod = 'credit';
+    } else {
+      refundMethod = order.payment_method === 'cash' ? 'cash' : 'manual';
+    }
+  }
+
+  // Total et nouveaux frais (le détail base/remise d'origine reste tel quel : le journal fait foi)
+  const { orderTotals } = await import('./order-totals');
+  const newTotal = orderTotals({ items: order.order_items || [], promo_discount: order.promo_discount, admin_discount: order.admin_discount, delivery_fee: newFee }).total;
+  const patch: Record<string, unknown> = { delivery_fee: newFee, total: newTotal };
+  if (opts.optionName) patch.delivery_option_name = opts.optionName;
+  const { error: upErr } = await supabaseAdmin.from('orders').update(patch).eq('id', order_id);
+  if (upErr) return { ok: false, status: 500, error: upErr.message };
+
+  // Baisse : différence rendue selon le paiement (cagnotte, carnet de crédit, espèces, Waafi)
+  if (delta < 0) refundMethod = await refundOrderAmount(order, -delta, 'Frais de livraison ajustés');
+
+  // Journal immuable
+  try {
+    await supabaseAdmin.from('order_edits').insert({
+      kind: 'delivery_fee', order_id: order.id, item_id: null,
+      product_name: opts.optionName || order.delivery_option_name || null, product_unit: null,
+      from_qty: oldFee, to_qty: newFee, price: 0, amount: delta, refund_method: refundMethod, reason,
+      by_user: opts.actor?.id ?? null, by_name: opts.actor?.name ?? null, by_role: opts.actor?.role ?? null, order_status: order.status,
+    });
+  } catch (e) { console.error('[order-edit] journal livraison:', e); }
+
+  if (shipped && opts.actor && opts.actor.role !== 'admin') {
+    try {
+      const { sendPushToAdmin } = await import('./push');
+      await sendPushToAdmin({ title: `✏️ Livraison modifiée par ${opts.actor.name || 'un gestionnaire'}`, body: `#${shortId} — ${oldFee.toLocaleString('fr-FR')} → ${newFee.toLocaleString('fr-FR')} Fdj${reason ? ` · ${reason}` : ''}`, url: '/admin' });
+    } catch { /* ignore */ }
+  }
+
+  // Notif client (dans sa langue)
+  if (order.user_id && delta !== 0) {
+    const amt = `${Math.abs(delta).toLocaleString('fr-FR')} Fdj`;
+    const fromTo = { from: `${oldFee.toLocaleString('fr-FR')} Fdj`, to: `${newFee.toLocaleString('fr-FR')} Fdj` };
+    const kind = refundMethod === 'wallet' ? 'wallet' : refundMethod === 'credit' ? 'credit' : refundMethod === 'manual' ? 'waafi' : 'cash';
+    const tail = delta < 0
+      ? (kind === 'wallet' ? `${amt} recrédités sur votre cagnotte.`
+        : kind === 'waafi' ? `Remboursement de ${amt} par Waafi en cours.`
+        : `Votre montant à payer baisse de ${amt}.`)
+      : (kind === 'wallet' ? `${amt} débités de votre cagnotte.`
+        : kind === 'credit' ? `${amt} ajoutés à votre carnet de crédit.`
+        : kind === 'waafi' ? `Merci d'envoyer le complément de ${amt}.`
+        : `Votre montant à payer augmente de ${amt}.`);
+    try {
+      await notifyUser(order.user_id, {
+        title: `🚚 Livraison de la commande #${shortId} ajustée`,
+        body: `Frais de livraison : ${fromTo.from} → ${fromTo.to}. ${tail}`,
+        url: '/profile',
+        i18n: { key: `order.fee.${delta < 0 ? 'reduced' : 'increased'}.${kind}`, params: { id: shortId, ...fromTo, amount: amt } },
+      });
+    } catch { /* ignore */ }
+  }
+
+  return { ok: true, newTotal, newFee, delta, refundMethod };
+}

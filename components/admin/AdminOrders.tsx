@@ -8,7 +8,7 @@ import { useCan } from '../../context/AdminPermsContext';
 import PrepSlip from './PrepSlip';
 
 interface OrderEdit {
-  id: number; order_id?: string; product_name: string | null; product_unit: string | null;
+  id: number; kind?: string; order_id?: string; product_name: string | null; product_unit: string | null;
   from_qty: number; to_qty: number; amount: number; reason: string | null;
   by_name: string | null; by_role: string | null; order_status: string | null; created_at: string;
   orders?: { customer_name: string | null } | null;
@@ -230,6 +230,49 @@ export default function AdminOrders() {
   };
 
   // newQty === 0 → retrait complet ; sinon réduction à newQty
+  // Modification des frais de livraison : options actives + éditeur ouvert par commande
+  const [deliveryOpts, setDeliveryOpts] = useState<{ id: number; name: string; price: number }[]>([]);
+  useEffect(() => {
+    supabase.from('delivery_options').select('id, name, price').eq('is_active', true).order('sort_order').order('id')
+      .then(({ data }) => setDeliveryOpts((data || []).map((o: any) => ({ id: o.id, name: o.name, price: Number(o.price) }))));
+  }, []);
+  const [feeEditFor, setFeeEditFor] = useState<string | null>(null);
+  const [feeForm, setFeeForm] = useState({ option_id: '', fee: '', reason: '' });
+  const applyFee = async (order: Order) => {
+    setRemovingItemId('fee-' + order.id);
+    setEditMsg('');
+    try {
+      const tk = (await supabase.auth.getSession()).data.session?.access_token;
+      const res = await fetch('/api/admin/orders/delivery-fee', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tk}` },
+        body: JSON.stringify({ order_id: order.id, fee: feeForm.option_id ? undefined : feeForm.fee, option_id: feeForm.option_id || undefined, reason: feeForm.reason.trim() || null }),
+      });
+      const j = await res.json();
+      if (!res.ok) {
+        const map: Record<string, string> = {
+          order_cancelled: t('admin.remove_err_cancelled', 'Commande annulée : modification impossible.'),
+          reason_required: t('admin.edit_reason_required', 'Motif obligatoire pour modifier une commande expédiée ou livrée.'),
+          fee_invalid: t('admin.fee_err_invalid', 'Montant invalide (entier positif ou 0).'),
+          no_change: t('admin.fee_err_same', 'Les frais sont déjà à ce montant.'),
+          delivery_option_invalid: t('checkout.e_delivery_option', 'Ce mode de livraison n\'est plus proposé. Rechargez la page et choisissez-en un autre.'),
+          wallet_insufficient: t('checkout.wallet_insufficient', 'Solde de cagnotte insuffisant'),
+          company_wallet_insufficient: t('co.e_balance', 'Solde de la cagnotte société insuffisant.'),
+          credit_unavailable: t('admin.edit_err_credit', 'Crédit indisponible (plafond, retard ou compte suspendu).'),
+        };
+        setEditMsg('⚠️ ' + (map[j.error] || j.error || 'Erreur'));
+        return;
+      }
+      setFeeEditFor(null); setFeeForm({ option_id: '', fee: '', reason: '' });
+      const extra = j.refundMethod === 'manual'
+        ? ` · ${j.delta < 0 ? t('admin.remove_refund_waafi_amount', 'À rembourser par Waafi') : t('admin.add_collect_waafi', 'Complément à encaisser (Waafi / D-Money)')} : ${Math.abs(j.delta).toLocaleString()} Fdj`
+        : j.refundMethod === 'wallet' && j.delta < 0 ? ` · ${Math.abs(j.delta).toLocaleString()} Fdj ${t('admin.edit_refunded_wallet', 'recrédités sur la cagnotte')}` : '';
+      setEditMsg(`✅ ${t('admin.edit_done', 'Modification appliquée.')} ${t('admin.disc_done', 'Nouveau total')} : ${Number(j.newTotal).toLocaleString()} Fdj${extra}`);
+      if (editLogOpen) refreshEditLog();
+      fetchAll();
+    } catch (e: any) { setEditMsg('⚠️ ' + e.message); } finally { setRemovingItemId(null); }
+  };
+
   // Quantité en cours d'ajustement (par article) : les clics +/− ne déclenchent rien,
   // tout part en une fois au « Appliquer » — une seule validation, un seul motif.
   const [qtyDraft, setQtyDraft] = useState<{ itemId: string; qty: string } | null>(null);
@@ -323,7 +366,9 @@ export default function AdminOrders() {
     setEditLog(null);     // toujours rechargé : le journal reflète la dernière modification
     refreshEditLog();
   };
-  const editLine = (e: OrderEdit) => `${e.product_name || '—'} : ${Number(e.from_qty)} → ${Number(e.to_qty)} ${e.product_unit || ''}`.trim();
+  const editLine = (e: OrderEdit) => e.kind === 'delivery_fee'
+    ? `🚚 ${t('admin.delivery', 'Frais de livraison')}${e.product_name ? ` (${e.product_name})` : ''} : ${Number(e.from_qty).toLocaleString()} → ${Number(e.to_qty).toLocaleString()} Fdj`
+    : `${e.product_name || '—'} : ${Number(e.from_qty)} → ${Number(e.to_qty)} ${e.product_unit || ''}`.trim();
   const editWhen = (d: string) => new Date(d).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
   return (
@@ -685,10 +730,46 @@ export default function AdminOrders() {
                         🚚 {t('admin.delivery', 'Frais de livraison')}
                         {order.delivery_option_name && <span className="text-gray-400"> — {order.delivery_option_name}</span>}
                       </span>
-                      <span className={deliveryFee === 0 ? 'text-green-600 font-medium' : 'text-gray-700'}>
-                        {deliveryFee === 0 ? t('admin.delivery_free', 'Offerte') : `${Number(deliveryFee).toLocaleString()} Fdj`}
+                      <span className="flex items-center gap-1.5">
+                        <span className={deliveryFee === 0 ? 'text-green-600 font-medium' : 'text-gray-700'}>
+                          {deliveryFee === 0 ? t('admin.delivery_free', 'Offerte') : `${Number(deliveryFee).toLocaleString()} Fdj`}
+                        </span>
+                        {can('orders', 'edit') && order.status !== 'cancelled' && (
+                          <button onClick={() => { setFeeEditFor(feeEditFor === order.id ? null : order.id); setFeeForm({ option_id: '', fee: String(deliveryFee), reason: '' }); setEditMsg(''); }}
+                            title={t('admin.fee_edit', 'Modifier les frais de livraison')} className="text-gray-400 hover:text-[#7d9800]">✏️</button>
+                        )}
                       </span>
                     </div>
+                    {feeEditFor === order.id && (
+                      <div className="border border-[#d2e095] rounded-xl p-3 bg-white space-y-2">
+                        <div className="flex flex-wrap gap-2 items-center">
+                          <select value={feeForm.option_id} aria-label={t('admin.fee_option', 'Option de livraison')}
+                            onChange={e => { const id = e.target.value; const opt = deliveryOpts.find(o => String(o.id) === id); setFeeForm(f => ({ ...f, option_id: id, fee: opt ? String(opt.price) : f.fee })); }}
+                            className="border border-[#d2e095] rounded-lg px-2 py-1.5 text-xs">
+                            <option value="">{t('admin.fee_custom', 'Montant libre…')}</option>
+                            {deliveryOpts.map(o => <option key={o.id} value={o.id}>{o.name} — {o.price.toLocaleString()} Fdj</option>)}
+                          </select>
+                          <input type="number" inputMode="numeric" min={0} step={1} value={feeForm.fee} disabled={!!feeForm.option_id}
+                            onChange={e => setFeeForm(f => ({ ...f, fee: e.target.value }))}
+                            aria-label={t('admin.fee_amount', 'Frais de livraison (Fdj)')} placeholder={t('admin.fee_ph', 'Ex : 0 = offerte')}
+                            className="w-32 border border-[#d2e095] rounded-lg px-2 py-1.5 text-xs disabled:bg-gray-50 disabled:text-gray-400" />
+                          <span className="text-[11px] text-gray-400">{t('admin.fee_current', 'Actuel')} : {Number(deliveryFee).toLocaleString()} Fdj</span>
+                        </div>
+                        {!['pending', 'processing'].includes(order.status) && (
+                          <input value={feeForm.reason} maxLength={300} onChange={e => setFeeForm(f => ({ ...f, reason: e.target.value }))}
+                            placeholder={t('admin.qty_reason_ph', 'Motif (obligatoire) — ex : le client n\'a pris que 10 kg')}
+                            className="w-full border border-[#d2e095] rounded-lg px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:border-[#a8c800]" />
+                        )}
+                        <div className="flex gap-2 items-center">
+                          <button onClick={() => applyFee(order)}
+                            disabled={removingItemId === 'fee-' + order.id || (!feeForm.option_id && feeForm.fee === '') || (!['pending', 'processing'].includes(order.status) && !feeForm.reason.trim())}
+                            className="text-xs font-semibold bg-[#a8c800] text-white rounded-lg px-3 py-1.5 hover:bg-[#7d9800] transition disabled:opacity-40">
+                            {removingItemId === 'fee-' + order.id ? '⏳' : `✓ ${t('admin.qty_apply', 'Appliquer')}`}
+                          </button>
+                          <button onClick={() => setFeeEditFor(null)} className="text-xs text-gray-400 hover:text-gray-600">✕ {t('admin.cancel', 'Annuler')}</button>
+                        </div>
+                      </div>
+                    )}
                     {Number(order.delivery_discount) > 0 && (
                       <p className="text-[11px] text-[#526500] text-right">
                         🎁 {order.delivery_discount_source === 'promo' ? `${t('admin.disc_promo', 'Code promo')} ${order.promo_code}`

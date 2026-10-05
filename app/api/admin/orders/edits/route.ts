@@ -13,7 +13,7 @@ async function GET_(request: Request) {
 
   const { data, error } = await supabaseAdmin
     .from('order_edits')
-    .select('id, order_id, product_name, product_unit, from_qty, to_qty, price, amount, refund_method, reason, by_name, by_role, order_status, created_at, orders ( customer_name, status, payment_method )')
+    .select('id, kind, order_id, product_name, product_unit, from_qty, to_qty, price, amount, refund_method, reason, by_name, by_role, order_status, created_at, orders ( customer_name, status, payment_method )')
     .order('created_at', { ascending: false })
     .limit(200);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

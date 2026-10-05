@@ -488,7 +488,7 @@ async function GET_(request: Request) {
         id, product_id, quantity, price, discount,
         product_name, product_image_url, product_unit, product_farm, bundle_contents
       ),
-      order_edits ( id, product_name, product_unit, from_qty, to_qty, amount, reason, by_name, by_role, order_status, created_at )
+      order_edits ( id, kind, product_name, product_unit, from_qty, to_qty, amount, reason, by_name, by_role, order_status, created_at )
     `)
     .order('created_at', { ascending: false })
     .order('created_at', { referencedTable: 'order_edits', ascending: true });
