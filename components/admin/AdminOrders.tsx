@@ -229,6 +229,16 @@ export default function AdminOrders() {
   };
 
   // newQty === 0 → retrait complet ; sinon réduction à newQty
+  // Quantité en cours d'ajustement (par article) : les clics +/− ne déclenchent rien,
+  // tout part en une fois au « Appliquer » — une seule validation, un seul motif.
+  const [qtyDraft, setQtyDraft] = useState<{ itemId: string; qty: string } | null>(null);
+  const draftFor = (item: OrderItem) => qtyDraft?.itemId === item.id ? qtyDraft.qty : String(item.quantity);
+  const bumpDraft = (item: OrderItem, delta: number) => {
+    const cur = parseInt(draftFor(item), 10);
+    const next = Math.max(0, (isNaN(cur) ? item.quantity : cur) + delta);
+    setQtyDraft({ itemId: item.id, qty: String(next) });
+  };
+
   const modifyItem = async (order: Order, item: OrderItem, newQty: number) => {
     const increase = newQty > item.quantity;
     const delta = Math.abs(item.quantity - newQty);
@@ -248,7 +258,7 @@ export default function AdminOrders() {
         ? `${t('admin.increase_qty_confirm', 'Augmenter')} « ${name} » → ${newQty} ${item.product_unit || ''}`
         : `${t('admin.reduce_qty_confirm', 'Réduire')} « ${name} » → ${newQty} ${item.product_unit || ''}`;
     const stockMsg = increase ? t('admin.add_item_stock', 'Le stock sera vérifié et réservé.') : t('admin.remove_item_stock', 'Le stock sera remis à disposition.');
-    if (!confirm(`${action} (${increase ? '+' : '−'}${amt}) ?\n\n${refundMsg}\n${stockMsg}`)) return;
+    if (newQty === 0 && !confirm(`${action} (−${amt}) ?\n\n${refundMsg}\n${stockMsg}`)) return;
     // Garde-fou : après expédition/livraison, un motif est obligatoire (journal des modifications)
     let reason: string | null = null;
     if (!['pending', 'processing'].includes(order.status)) {
@@ -288,6 +298,7 @@ export default function AdminOrders() {
               : o.order_items.map(it => it.id === item.id ? { ...it, quantity: newQty } : it),
           }
         : o));
+      setQtyDraft(null);
       fetchAll();   // recharge le journal des modifications de la commande
       if (j.refundMethod === 'manual') {
         const n = Math.abs(Number(j.refundAmount)).toLocaleString();
@@ -583,37 +594,44 @@ export default function AdminOrders() {
                                 {Number(subtotal).toLocaleString()} Fdj
                               </p>
                             )}
-                            {can('orders', 'edit') && order.status !== 'cancelled' && (
-                              <div className="flex items-center justify-end gap-1.5 mt-1">
-                                <button
-                                  onClick={() => modifyItem(order, item, item.quantity + 1)}
-                                  disabled={removingItemId === item.id}
-                                  title={t('admin.increase_qty', 'Augmenter la quantité')}
-                                  className="inline-flex items-center gap-1 text-[11px] font-medium text-[#526500] border border-[#d2e095] rounded-lg px-2 py-1 hover:bg-[#ecf4d5] transition disabled:opacity-50"
-                                >
-                                  + 1 {item.product_unit || ''}
-                                </button>
-                                {item.quantity > 1 && (
-                                  <button
-                                    onClick={() => modifyItem(order, item, item.quantity - 1)}
-                                    disabled={removingItemId === item.id}
-                                    title={t('admin.reduce_qty', 'Réduire la quantité')}
-                                    className="inline-flex items-center gap-1 text-[11px] font-medium text-[#526500] border border-[#d2e095] rounded-lg px-2 py-1 hover:bg-[#ecf4d5] transition disabled:opacity-50"
-                                  >
-                                    − 1 {item.product_unit || ''}
-                                  </button>
-                                )}
-                                {items.length > 1 && (
-                                  <button
-                                    onClick={() => modifyItem(order, item, 0)}
-                                    disabled={removingItemId === item.id}
-                                    className="inline-flex items-center gap-1 text-[11px] font-medium text-[#f97316] border border-orange-200 rounded-lg px-2 py-1 hover:bg-orange-50 transition disabled:opacity-50"
-                                  >
-                                    {removingItemId === item.id ? '⏳' : '🗑️'} {t('admin.remove_item', 'Retirer')}
-                                  </button>
-                                )}
-                              </div>
-                            )}
+                            {can('orders', 'edit') && order.status !== 'cancelled' && (() => {
+                              const draft = parseInt(draftFor(item), 10);
+                              const changed = !isNaN(draft) && draft !== item.quantity && draft > 0;
+                              const delta = changed ? (draft - item.quantity) * Number(item.price) : 0;
+                              return (
+                                <div className="flex items-center justify-end gap-1.5 mt-1 flex-wrap">
+                                  <div className="inline-flex items-center border border-[#d2e095] rounded-lg overflow-hidden">
+                                    <button onClick={() => bumpDraft(item, -1)} disabled={removingItemId === item.id || (isNaN(draft) ? item.quantity : draft) <= 1}
+                                      title={t('admin.reduce_qty', 'Réduire la quantité')} className="px-2 py-1 text-[13px] font-bold text-[#526500] hover:bg-[#ecf4d5] disabled:opacity-40">−</button>
+                                    <input type="number" inputMode="numeric" min={1} value={draftFor(item)}
+                                      onChange={e => setQtyDraft({ itemId: item.id, qty: e.target.value })}
+                                      aria-label={t('admin.qty_label', 'Quantité')}
+                                      className="w-12 text-center text-[12px] font-semibold text-gray-800 py-1 outline-none border-x border-[#e3eebf]" />
+                                    <button onClick={() => bumpDraft(item, 1)} disabled={removingItemId === item.id}
+                                      title={t('admin.increase_qty', 'Augmenter la quantité')} className="px-2 py-1 text-[13px] font-bold text-[#526500] hover:bg-[#ecf4d5] disabled:opacity-40">+</button>
+                                  </div>
+                                  {changed && (
+                                    <>
+                                      <button onClick={() => modifyItem(order, item, draft)} disabled={removingItemId === item.id}
+                                        className="inline-flex items-center gap-1 text-[11px] font-semibold bg-[#a8c800] text-white rounded-lg px-2.5 py-1 hover:bg-[#7d9800] transition disabled:opacity-50">
+                                        {removingItemId === item.id ? '⏳' : `✓ ${t('admin.qty_apply', 'Appliquer')} (${delta > 0 ? '+' : '−'}${Math.abs(delta).toLocaleString()} Fdj)`}
+                                      </button>
+                                      <button onClick={() => setQtyDraft(null)} disabled={removingItemId === item.id}
+                                        aria-label={t('admin.cancel', 'Annuler')} className="text-[11px] text-gray-400 hover:text-gray-600 px-1">✕</button>
+                                    </>
+                                  )}
+                                  {!changed && items.length > 1 && (
+                                    <button
+                                      onClick={() => modifyItem(order, item, 0)}
+                                      disabled={removingItemId === item.id}
+                                      className="inline-flex items-center gap-1 text-[11px] font-medium text-[#f97316] border border-orange-200 rounded-lg px-2 py-1 hover:bg-orange-50 transition disabled:opacity-50"
+                                    >
+                                      {removingItemId === item.id ? '⏳' : '🗑️'} {t('admin.remove_item', 'Retirer')}
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
                       );

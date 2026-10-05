@@ -78,9 +78,16 @@ test('admin › Commandes : boutons de quantité et journal des modifications (s
   await expect(page.getByText(/Toutes les modifications de quantités/)).toBeVisible();
   await expectNoOverflow(page, 'Commandes › journal des modifications');
   await page.getByRole('button', { name: /Commandes modifiées/ }).click();
-  // Les boutons +1 / −1 existent sur les commandes non annulées (on ne clique pas : base réelle)
-  const plus = page.getByRole('button', { name: /^\+ 1/ }).first();
-  if (await plus.isVisible().catch(() => false)) await expect(plus).toBeEnabled();
+  // La molette de quantité existe sur les commandes non annulées ; +/− n'appellent pas le serveur
+  const qty = page.getByRole('spinbutton', { name: /Quantité/ }).first();
+  if (await qty.isVisible().catch(() => false)) {
+    const before = await qty.inputValue();
+    await qty.locator('xpath=following-sibling::button[1]').click();          // « + » : brouillon local
+    await expect(page.getByRole('button', { name: /Appliquer \(/ }).first()).toBeVisible();
+    await page.getByRole('button', { name: /^✕$|Annuler/ }).first().click(); // ✕ : brouillon abandonné
+    await expect(qty).toHaveValue(before);
+    await expect(page.getByRole('button', { name: /Appliquer \(/ })).toHaveCount(0);
+  }
   expect(errors).toEqual([]);
 });
 
