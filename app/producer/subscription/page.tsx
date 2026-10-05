@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { ask } from '../../../components/Dialog';
 import { supabase } from '../../../lib/supabase';
 import { useLanguage } from '../../../context/LanguageContext';
 import ProducerLayout from '../../../components/producer/ProducerLayout';
@@ -71,7 +72,7 @@ function SubscriptionContent() {
 
   const declare = async () => {
     if (!planId) return;
-    if (!confirm(t('producer.sub_declare_confirm', 'Confirmez-vous avoir effectué ce paiement ? Hornafresh vérifiera puis activera votre abonnement.'))) return;
+    if (!(await ask({ text: t('producer.sub_declare_confirm', 'Confirmez-vous avoir effectué ce paiement ? Hornafresh vérifiera puis activera votre abonnement.') }))) return;
     const ok = await post({ plan_id: planId, payment_method: method, reference });
     if (ok) { setReference(''); setDone(true); setTimeout(() => window.location.reload(), 1200); }
   };
@@ -80,16 +81,16 @@ function SubscriptionContent() {
     const msg = data.active
       ? `${t('producer.com_confirm_later', 'Passer à la formule commission à la fin de votre abonnement en cours ? Taux retenu sur vos ventes livrées :')} ${data.commission.rate} %`
       : `${t('producer.com_confirm_now', 'Passer à la formule commission dès maintenant ? Taux retenu sur vos ventes livrées :')} ${data.commission.rate} %`;
-    if (!confirm(msg)) return;
+    if (!(await ask({ text: msg }))) return;
     await post({ action: 'choose_formula', kind: 'commission' });
   };
   const cancelSwitch = async () => {
-    if (!confirm(t('producer.com_cancel_confirm', 'Annuler le passage à la commission et rester en abonnement ?'))) return;
+    if (!(await ask({ text: t('producer.com_cancel_confirm', 'Annuler le passage à la commission et rester en abonnement ?') }))) return;
     await post({ action: 'choose_formula', kind: 'subscription' });
   };
   const cancelPending = async () => {
     if (!data?.pending) return;
-    if (!confirm(t('producer.sub_cancel_confirm', 'Retirer cette déclaration de paiement ?'))) return;
+    if (!(await ask({ danger: true, text: t('producer.sub_cancel_confirm', 'Retirer cette déclaration de paiement ?') }))) return;
     const ok = await post({ action: 'cancel', subscription_id: data.pending.id });
     if (ok) setTimeout(() => window.location.reload(), 600);
   };

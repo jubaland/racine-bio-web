@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { ask } from './Dialog';
 import Link from 'next/link';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../context/LanguageContext';
@@ -103,12 +104,12 @@ export default function GroupBuying({ id }: { id?: number }) {
   const reserve = async () => {
     if (!c) return;
     const total = units * c.price_djf + (mode === 'delivery' ? Number(c.delivery_fee) : 0);
-    if (!confirm(`${t('gb.confirm', 'Confirmer la réservation ?')}\n${units} × ${tr(c, 'unit_label')} = ${fdj(total)}\n${t('gb.confirm_note', 'Si la quantité minimale n\'est pas atteinte, vous serez remboursé sur votre cagnotte.')}`)) return;
+    if (!(await ask({ text: `${t('gb.confirm', 'Confirmer la réservation ?')}\n${units} × ${tr(c, 'unit_label')} = ${fdj(total)}\n${t('gb.confirm_note', 'Si la quantité minimale n\'est pas atteinte, vous serez remboursé sur votre cagnotte.')}` }))) return;
     const j = await post({ action: 'reserve', campaign_id: c.id, units, delivery_mode: mode, payment_method: method, reference, address, phone, group: mode === 'group' ? group : (group || undefined), lang: currentLang });
     if (j) { setDone({ status: j.status, amount: j.amount }); setReference(''); await load(group); }
   };
   const cancel = async (orderId: number) => {
-    if (!confirm(t('gb.cancel_confirm', 'Annuler cette réservation ? Le montant sera recrédité sur votre cagnotte.'))) return;
+    if (!(await ask({ danger: true, text: t('gb.cancel_confirm', 'Annuler cette réservation ? Le montant sera recrédité sur votre cagnotte.') }))) return;
     if (await post({ action: 'cancel', order_id: orderId })) await load(group);
   };
   const invite = async () => {

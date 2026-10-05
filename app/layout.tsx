@@ -4,6 +4,7 @@ import './globals.css';
 import { LanguageProvider } from '../context/LanguageContext';
 import { CartProvider } from '../context/CartContext';
 import { FavoritesProvider } from '../context/FavoritesContext';
+import DialogHost from '../components/Dialog';
 import ServiceWorkerRegister from '../components/ServiceWorkerRegister';
 import InstallAppPrompt from '../components/InstallAppPrompt';
 import AnnouncementBanner from '../components/AnnouncementBanner';
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <AnnouncementBanner />
               {children}
               <InstallAppPrompt />
+              <DialogHost />
               <ErrorReporter />
             </FavoritesProvider>
           </CartProvider>

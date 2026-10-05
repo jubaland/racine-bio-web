@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { ask, askText } from '../../components/Dialog';
 import Link from 'next/link';
 import { supabase, fetchProducts } from '../../lib/supabase';
 import { useLanguage } from '../../context/LanguageContext';
@@ -62,7 +63,7 @@ export default function CompanySpacePage() {
     company_inactive: t('co.e_inactive', 'Le compte entreprise n\'est pas actif.'), forbidden_role: t('co.e_role', 'Votre rôle ne permet pas cette action.'),
   };
   const act = async (body: any, okText?: string, confirmMsg?: string) => {
-    if (confirmMsg && !window.confirm(confirmMsg)) return false;
+    if (confirmMsg && !(await ask({ text: confirmMsg }))) return false;
     setBusy(true); setMsg(null);
     const res = await fetch('/api/company', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await tokenOf()}` }, body: JSON.stringify(body) });
     const j = await res.json().catch(() => ({}));
@@ -255,7 +256,7 @@ function OrdersTab({ s, t, act, busy, isManager, role, STATUS }: P & { role: str
               <p className="text-xs text-gray-500 mt-1">{(r.items || []).map((i: any) => `${i.quantity} ${i.product_unit || ''} ${i.product_name}`.replace(/\s+/g, ' ')).join(' · ')}</p>
               <div className="flex flex-wrap gap-2 mt-2">
                 {isManager && <button disabled={busy} onClick={() => act({ action: 'decide_request', id: r.id, decision: 'approve' }, t('co.req_approved', 'Commande validée et passée.'), `${t('co.confirm_validate', 'Valider cette commande de')} ${fdj(r.total)} ?`)} className="bg-[#526500] text-white text-xs font-semibold px-4 py-2 rounded-xl disabled:opacity-50">✅ {t('co.validate', 'Valider')}</button>}
-                {isManager && <button disabled={busy} onClick={() => { const n = window.prompt(t('co.req_reject_reason', 'Motif du refus (envoyé à l\'acheteur) :')); if (n !== null) act({ action: 'decide_request', id: r.id, decision: 'reject', note: n }); }} className="border border-orange-200 text-[#f97316] text-xs font-semibold px-4 py-2 rounded-xl bg-white disabled:opacity-50">{t('co.reject', 'Refuser')}</button>}
+                {isManager && <button disabled={busy} onClick={async () => { const n = await askText({ text: t('co.req_reject_reason', 'Motif du refus (envoyé à l\'acheteur) :') }); if (n !== null) act({ action: 'decide_request', id: r.id, decision: 'reject', note: n }); }} className="border border-orange-200 text-[#f97316] text-xs font-semibold px-4 py-2 rounded-xl bg-white disabled:opacity-50">{t('co.reject', 'Refuser')}</button>}
                 {!isManager && <button disabled={busy} onClick={() => act({ action: 'cancel_request', id: r.id })} className="text-xs text-gray-400 hover:text-[#f97316]">{t('co.withdraw', 'Retirer')}</button>}
               </div>
             </div>

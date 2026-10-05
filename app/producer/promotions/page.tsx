@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { ask } from '../../../components/Dialog';
 import { supabase } from '../../../lib/supabase';
 import { useLanguage } from '../../../context/LanguageContext';
 import ProducerLayout from '../../../components/producer/ProducerLayout';
@@ -57,7 +58,7 @@ function PromotionsContent() {
     setBusy(false);
   };
   const cancel = async (p: Promo) => {
-    if (!confirm(t('promo.cancel_confirm', 'Annuler cette promotion ? Le prix normal s\'applique immédiatement.'))) return;
+    if (!(await ask({ danger: true, text: t('promo.cancel_confirm', 'Annuler cette promotion ? Le prix normal s\'applique immédiatement.') }))) return;
     setBusy(true);
     try { await fetch('/api/producer/promotions', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await token()}` }, body: JSON.stringify({ action: 'cancel', id: p.id }) }); await load(); } catch { /* ignore */ }
     setBusy(false);

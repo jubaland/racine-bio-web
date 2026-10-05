@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { ask } from '../Dialog';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { inputClass, selectClass } from './Modal';
@@ -274,7 +275,7 @@ export default function AdminPromoCodes({ canCreate, canEdit, canDelete }: { can
                 <div className="flex flex-wrap gap-2 mt-3">
                   {canEdit && <button disabled={busy} onClick={() => { edit(c); setMsg(''); }} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5]">✏️ {t('admin.edit', 'Modifier')}</button>}
                   {canEdit && <button disabled={busy} onClick={() => post({ action: 'toggle', id: c.id, active: !c.active }, c.active ? t('pc.disabled', 'Code désactivé.') : t('pc.enabled', 'Code réactivé.'))} className="text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg px-3 py-1.5 hover:bg-gray-50">{c.active ? `⏸ ${t('pc.disable', 'Désactiver')}` : `▶️ ${t('pc.enable', 'Réactiver')}`}</button>}
-                  {canDelete && c.uses === 0 && <button disabled={busy} onClick={() => { if (confirm(t('pc.delete_confirm', 'Supprimer ce code ?'))) post({ action: 'delete', id: c.id }, t('pc.deleted', 'Code supprimé.')); }} className="text-xs font-semibold border border-orange-200 text-[#f97316] rounded-lg px-3 py-1.5 hover:bg-orange-50">🗑 {t('admin.delete', 'Supprimer')}</button>}
+                  {canDelete && c.uses === 0 && <button disabled={busy} onClick={async () => { if (await ask({ danger: true, text: t('pc.delete_confirm', 'Supprimer ce code ?') })) post({ action: 'delete', id: c.id }, t('pc.deleted', 'Code supprimé.')); }} className="text-xs font-semibold border border-orange-200 text-[#f97316] rounded-lg px-3 py-1.5 hover:bg-orange-50">🗑 {t('admin.delete', 'Supprimer')}</button>}
                 </div>
               </div>
             );

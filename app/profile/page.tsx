@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { ask } from '../../components/Dialog';
 import { supabase } from '../../lib/supabase';
 import { titleCase } from '../../lib/format';
 import Link from 'next/link';
@@ -469,7 +470,7 @@ export default function ProfilePage() {
 
   // Le client demande l'annulation complète : validée par un administrateur (stock, remboursement)
   const requestCancel = async (order: Order) => {
-    if (!confirm(`${t('profile.cancel_confirm', 'Demander l\'annulation de la commande')} #${order.id} (${Number(order.total).toLocaleString()} Fdj) ?\n\n${t('profile.cancel_note', 'Notre équipe validera la demande ; le remboursement suivra selon votre mode de paiement.')}`)) return;
+    if (!(await ask({ danger: true, text: `${t('profile.cancel_confirm', 'Demander l\'annulation de la commande')} #${order.id} (${Number(order.total).toLocaleString()} Fdj) ?\n\n${t('profile.cancel_note', 'Notre équipe validera la demande ; le remboursement suivra selon votre mode de paiement.')}` }))) return;
     setReqBusy('cancel-' + order.id); setReqMsg('');
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -500,7 +501,7 @@ export default function ProfilePage() {
     const verb = newQty === 0
       ? t('profile.req_remove', 'Demander le retrait de')
       : `${t('profile.req_reduce', 'Demander la réduction de')} (→ ${newQty} ${item.product_unit || ''})`;
-    if (!confirm(`${verb} « ${name} » (−${amt}) ?\n\n${t('profile.req_note', 'Votre demande sera validée par notre équipe avant tout remboursement.')}`)) return;
+    if (!(await ask({ text: `${verb} « ${name} » (−${amt}) ?\n\n${t('profile.req_note', 'Votre demande sera validée par notre équipe avant tout remboursement.')}` }))) return;
     setReqBusy(item.id); setReqMsg('');
     try {
       const { data: { session } } = await supabase.auth.getSession();

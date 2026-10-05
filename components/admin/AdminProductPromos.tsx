@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { ask, askText } from '../Dialog';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
 
@@ -73,8 +74,8 @@ export default function AdminProductPromos({ canEdit }: { canEdit: boolean }) {
   };
   const cancel = async (p: Promo) => {
     let note: string | null = null;
-    if (p.owner_id) { note = prompt(t('promo.admin_cancel_note', 'Motif communiqué au marchand (optionnel) :')); if (note === null) return; }
-    else if (!confirm(t('promo.cancel_confirm', 'Annuler cette promotion ? Le prix normal s\'applique immédiatement.'))) return;
+    if (p.owner_id) { note = await askText({ text: t('promo.admin_cancel_note', 'Motif communiqué au marchand (optionnel) :') }); if (note === null) return; }
+    else if (!(await ask({ danger: true, text: t('promo.cancel_confirm', 'Annuler cette promotion ? Le prix normal s\'applique immédiatement.') }))) return;
     setBusy(true);
     try { await fetch('/api/admin/promotions', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await token()}` }, body: JSON.stringify({ action: 'cancel', id: p.id, note: note || undefined }) }); await load(); } catch { /* ignore */ }
     setBusy(false);

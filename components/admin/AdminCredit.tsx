@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { ask, askText } from '../Dialog';
 import { useLanguage } from '../../context/LanguageContext';
 import { useCan } from '../../context/AdminPermsContext';
 import { supabase } from '../../lib/supabase';
@@ -235,10 +236,10 @@ export default function AdminCredit() {
                         <button disabled={busy} onClick={() => { setPayId(payId === id ? null : id); setPay({ amount: '', method: 'cash', note: '' }); setEditId(null); setMsg(''); }} className="text-xs font-semibold bg-[#a8c800] text-white rounded-lg px-3 py-1.5 hover:bg-[#7d9800]">💵 {t('cr.pay', 'Enregistrer un paiement')}</button>
                         <button disabled={busy} onClick={() => { setEditId(editId === id ? null : id); setEdit({ credit_limit: String(a.account.credit_limit), term: a.account.term, term_days: String(a.account.term_days || 30), note: a.account.note || '' }); setPayId(null); setMsg(''); }} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5]">✏️ {t('admin.edit', 'Modifier')}</button>
                         {a.account.status === 'active'
-                          ? <button disabled={busy} onClick={() => { const reason = prompt(t('cr.suspend_prompt', 'Motif de la suspension (communiqué au client, optionnel) :')); if (reason !== null) post({ action: 'suspend', id, reason }, t('cr.suspended', 'Crédit suspendu.')); }} className="text-xs font-semibold border border-orange-200 text-[#f97316] rounded-lg px-3 py-1.5 hover:bg-orange-50">⏸ {t('cr.suspend', 'Suspendre')}</button>
+                          ? <button disabled={busy} onClick={async () => { const reason = await askText({ text: t('cr.suspend_prompt', 'Motif de la suspension (communiqué au client, optionnel) :') }); if (reason !== null) post({ action: 'suspend', id, reason }, t('cr.suspended', 'Crédit suspendu.')); }} className="text-xs font-semibold border border-orange-200 text-[#f97316] rounded-lg px-3 py-1.5 hover:bg-orange-50">⏸ {t('cr.suspend', 'Suspendre')}</button>
                           : <button disabled={busy} onClick={() => post({ action: 'reactivate', id }, t('cr.reactivated', 'Crédit réactivé.'))} className="text-xs font-semibold border border-green-200 text-green-700 rounded-lg px-3 py-1.5 hover:bg-green-50">▶️ {t('cr.reactivate', 'Réactiver')}</button>}
                         <button disabled={busy} onClick={() => openLedger(id)} className="text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg px-3 py-1.5 hover:bg-gray-50">📜 {t('cr.ledger', 'Journal')}</button>
-                        {a.outstanding === 0 && a.open.length === 0 && <button disabled={busy} onClick={() => { if (confirm(t('cr.delete_confirm', 'Supprimer cette ligne de crédit ?'))) post({ action: 'delete', id }, t('cr.deleted', 'Ligne de crédit supprimée.')); }} className="text-xs font-semibold border border-orange-200 text-[#f97316] rounded-lg px-3 py-1.5 hover:bg-orange-50">🗑 {t('admin.delete', 'Supprimer')}</button>}
+                        {a.outstanding === 0 && a.open.length === 0 && <button disabled={busy} onClick={async () => { if (await ask({ danger: true, text: t('cr.delete_confirm', 'Supprimer cette ligne de crédit ?') })) post({ action: 'delete', id }, t('cr.deleted', 'Ligne de crédit supprimée.')); }} className="text-xs font-semibold border border-orange-200 text-[#f97316] rounded-lg px-3 py-1.5 hover:bg-orange-50">🗑 {t('admin.delete', 'Supprimer')}</button>}
                       </div>
                     )}
 

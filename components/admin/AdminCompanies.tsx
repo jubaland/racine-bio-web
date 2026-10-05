@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { ask, askText } from '../Dialog';
 import { supabase } from '../../lib/supabase';
 import { useLanguage } from '../../context/LanguageContext';
 import { useCan } from '../../context/AdminPermsContext';
@@ -47,7 +48,7 @@ export default function AdminCompanies() {
   useEffect(() => { load(); }, [load]);
 
   const act = async (body: any, confirmMsg?: string) => {
-    if (confirmMsg && !window.confirm(confirmMsg)) return;
+    if (confirmMsg && !(await ask({ text: confirmMsg }))) return;
     setBusy(true); setError('');
     const res = await fetch('/api/admin/companies', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await tokenOf()}` }, body: JSON.stringify(body) });
     const j = await res.json();
@@ -55,7 +56,7 @@ export default function AdminCompanies() {
     if (!res.ok) { setError(j.error || 'Erreur'); return false; }
     await load(); return true;
   };
-  const askNote = (label: string) => window.prompt(label) ?? undefined;
+  const askNote = async (label: string) => (await askText({ text: label })) ?? undefined;
 
   if (!data) return <div className="flex items-center justify-center h-48"><p className="text-gray-400">{error || t('admin.loading', 'Chargement...')}</p></div>;
 
@@ -93,7 +94,7 @@ export default function AdminCompanies() {
                     {canEdit && (
                       <div className="flex flex-wrap gap-2">
                         <button disabled={busy} onClick={() => act({ action: 'approve', company_id: c.id }, `${t('co.confirm_approve', 'Ouvrir le compte entreprise de')} « ${c.name} » ?`)} className="bg-[#526500] text-white text-xs font-semibold px-4 py-2 rounded-xl hover:bg-[#3f4f00] disabled:opacity-50">✅ {t('co.approve', 'Accepter')}</button>
-                        <button disabled={busy} onClick={() => { const n = askNote(t('co.reject_reason', 'Motif du refus (envoyé au demandeur) :')); if (n !== undefined) act({ action: 'reject', company_id: c.id, note: n }); }} className="border border-orange-200 text-[#f97316] text-xs font-semibold px-4 py-2 rounded-xl hover:bg-orange-50 disabled:opacity-50">{t('co.reject', 'Refuser')}</button>
+                        <button disabled={busy} onClick={async () => { const n = await askNote(t('co.reject_reason', 'Motif du refus (envoyé au demandeur) :')); if (n !== undefined) act({ action: 'reject', company_id: c.id, note: n }); }} className="border border-orange-200 text-[#f97316] text-xs font-semibold px-4 py-2 rounded-xl hover:bg-orange-50 disabled:opacity-50">{t('co.reject', 'Refuser')}</button>
                       </div>
                     )}
                   </div>
@@ -114,7 +115,7 @@ export default function AdminCompanies() {
                   {canEdit && (
                     <div className="flex flex-wrap gap-2">
                       <button disabled={busy} onClick={() => act({ action: 'confirm_deposit', id: d.id }, `${t('co.confirm_deposit', 'Confirmer la réception de')} ${fdj(d.amount)} (${d.company_name}) ?`)} className="bg-[#526500] text-white text-xs font-semibold px-4 py-2 rounded-xl hover:bg-[#3f4f00] disabled:opacity-50">✅ {t('co.deposit_ok', 'Paiement reçu')}</button>
-                      <button disabled={busy} onClick={() => { const n = askNote(t('co.reject_reason', 'Motif du refus (envoyé au demandeur) :')); if (n !== undefined) act({ action: 'reject_deposit', id: d.id, note: n }); }} className="border border-orange-200 text-[#f97316] text-xs font-semibold px-4 py-2 rounded-xl hover:bg-orange-50 disabled:opacity-50">{t('co.reject', 'Refuser')}</button>
+                      <button disabled={busy} onClick={async () => { const n = await askNote(t('co.reject_reason', 'Motif du refus (envoyé au demandeur) :')); if (n !== undefined) act({ action: 'reject_deposit', id: d.id, note: n }); }} className="border border-orange-200 text-[#f97316] text-xs font-semibold px-4 py-2 rounded-xl hover:bg-orange-50 disabled:opacity-50">{t('co.reject', 'Refuser')}</button>
                     </div>
                   )}
                 </div>
@@ -150,9 +151,9 @@ export default function AdminCompanies() {
                 {canEdit && (
                   <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-[#f0f4dc]">
                     <button disabled={busy} onClick={() => setAdjust({ id: c.id, amount: '', note: '' })} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5]">💰 {t('co.adjust', 'Créditer / débiter')}</button>
-                    <button disabled={busy} onClick={() => { const v = window.prompt(t('co.min_prompt', 'Recharge minimale pour cette société (Fdj). Vide = réglage général :'), c.min_topup != null ? String(c.min_topup) : ''); if (v !== null) act({ action: 'set_company_min', company_id: c.id, value: v.trim() }); }} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5]">⚙️ {t('co.min_topup_btn', 'Recharge minimale')}</button>
+                    <button disabled={busy} onClick={async () => { const v = await askText({ text: t('co.min_prompt', 'Recharge minimale pour cette société (Fdj). Vide = réglage général :'), initial: c.min_topup != null ? String(c.min_topup) : '' }); if (v !== null) act({ action: 'set_company_min', company_id: c.id, value: v.trim() }); }} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5]">⚙️ {t('co.min_topup_btn', 'Recharge minimale')}</button>
                     {c.status === 'active'
-                      ? <button disabled={busy} onClick={() => { const n = askNote(t('co.suspend_reason', 'Motif de la suspension (envoyé au gérant) :')); if (n !== undefined) act({ action: 'suspend', company_id: c.id, note: n }); }} className="text-xs font-semibold border border-orange-200 text-[#f97316] rounded-lg px-3 py-1.5 hover:bg-orange-50">⏸️ {t('co.suspend', 'Suspendre')}</button>
+                      ? <button disabled={busy} onClick={async () => { const n = await askNote(t('co.suspend_reason', 'Motif de la suspension (envoyé au gérant) :')); if (n !== undefined) act({ action: 'suspend', company_id: c.id, note: n }); }} className="text-xs font-semibold border border-orange-200 text-[#f97316] rounded-lg px-3 py-1.5 hover:bg-orange-50">⏸️ {t('co.suspend', 'Suspendre')}</button>
                       : <button disabled={busy} onClick={() => act({ action: 'reactivate', company_id: c.id })} className="text-xs font-semibold bg-[#526500] text-white rounded-lg px-3 py-1.5 hover:bg-[#3f4f00]">▶️ {c.status === 'rejected' ? t('co.approve', 'Accepter') : t('co.reactivate', 'Réactiver')}</button>}
                   </div>
                 )}

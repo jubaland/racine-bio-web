@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { ask } from '../Dialog';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
 
@@ -57,7 +58,7 @@ export default function MerchantPayouts({ canEdit }: { canEdit: boolean }) {
     if (!payFor) return;
     setError('');
     if (method === 'waafi' && !reference.trim()) { setError(t('pay.ref_required', 'Indiquez la référence Waafi du virement.')); return; }
-    if (!confirm(`${t('pay.confirm', 'Enregistrer un reversement de')} ${fdj(payFor.due)} ${t('pay.confirm_to', 'à')} ${payFor.shop} ?\n\n${t('pay.confirm_note', 'Toutes ses lignes livrées non reversées seront marquées comme réglées. Le marchand sera notifié.')}`)) return;
+    if (!(await ask({ text: `${t('pay.confirm', 'Enregistrer un reversement de')} ${fdj(payFor.due)} ${t('pay.confirm_to', 'à')} ${payFor.shop} ?\n\n${t('pay.confirm_note', 'Toutes ses lignes livrées non reversées seront marquées comme réglées. Le marchand sera notifié.')}` }))) return;
     setBusy(true);
     try {
       const res = await fetch('/api/admin/merchants/payouts', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await token()}` }, body: JSON.stringify({ user_id: payFor.id, method, reference, note }) });

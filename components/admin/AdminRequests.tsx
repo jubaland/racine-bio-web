@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { ask, askText, notice } from '../Dialog';
 import { supabase } from '../../lib/supabase';
 import { useLanguage } from '../../context/LanguageContext';
 import { useCan } from '../../context/AdminPermsContext';
@@ -79,10 +80,10 @@ export default function AdminRequests() {
   const updateStatus = async (id: string, status: string) => {
     let note: string | null = null;
     if (status === 'rejected') {
-      note = prompt(t('admin.request_reject_note', 'Motif du refus (communiqué au demandeur, optionnel) :'));
+      note = await askText({ text: t('admin.request_reject_note', 'Motif du refus (communiqué au demandeur, optionnel) :') });
       if (note === null) return; // annulé
     }
-    if (status === 'approved' && !confirm(t('admin.request_approve_confirm', 'Accepter cette adhésion ? Le compte devient marchand, l\'enseigne est créée et le demandeur est invité à activer son abonnement.'))) return;
+    if (status === 'approved' && !(await ask({ text: t('admin.request_approve_confirm', 'Accepter cette adhésion ? Le compte devient marchand, l\'enseigne est créée et le demandeur est invité à activer son abonnement.') }))) return;
     setUpdating(true);
     if (status === 'approved' || status === 'rejected') {
       // Passe par l'API : pose le rôle marchand sur le compte + enseigne + notifie (cohérent avec le module Marchands)
@@ -91,7 +92,7 @@ export default function AdminRequests() {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tk}` },
         body: JSON.stringify({ action: status === 'approved' ? 'approve_request' : 'reject_request', request_id: id, note: note || undefined }),
       });
-      if (!res.ok) { const j = await res.json().catch(() => ({})); alert('⚠️ ' + (j.error || 'Erreur')); setUpdating(false); return; }
+      if (!res.ok) { const j = await res.json().catch(() => ({})); notice('⚠️ ' + (j.error || 'Erreur')); setUpdating(false); return; }
     } else {
       await supabase.from('producer_requests').update({ status }).eq('id', id);
     }

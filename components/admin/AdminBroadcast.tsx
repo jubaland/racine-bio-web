@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { ask } from '../Dialog';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
 import AutoTranslateButton from './AutoTranslateButton';
@@ -74,7 +75,7 @@ export default function AdminBroadcast() {
 
   const send = async () => {
     if (!title.trim() || busy) return;
-    if (!confirm(sendEmail ? t('admin.bc_confirm_email', 'Diffuser ce message à TOUS les clients (notification + bandeau + e-mail) ?') : t('admin.bc_confirm', 'Diffuser ce message à TOUS les clients (notification + bandeau) ?'))) return;
+    if (!(await ask({ text: sendEmail ? t('admin.bc_confirm_email', 'Diffuser ce message à TOUS les clients (notification + bandeau + e-mail) ?') : t('admin.bc_confirm', 'Diffuser ce message à TOUS les clients (notification + bandeau) ?') }))) return;
     setBusy(true);
     setFeedback(null);
     try {
@@ -98,7 +99,7 @@ export default function AdminBroadcast() {
   };
 
   const stopCurrent = async () => {
-    if (!confirm(t('admin.bc_stop_confirm', 'Retirer le bandeau du site ?'))) return;
+    if (!(await ask({ text: t('admin.bc_stop_confirm', 'Retirer le bandeau du site ?') }))) return;
     try {
       await fetch('/api/admin/broadcast', { method: 'DELETE', headers: await authHeader() });
       fetchHistory();

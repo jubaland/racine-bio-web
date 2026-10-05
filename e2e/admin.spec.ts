@@ -91,6 +91,22 @@ test('admin › Commandes : boutons de quantité et journal des modifications (s
   expect(errors).toEqual([]);
 });
 
+test('admin › dialogues intégrés : confirmation dans la page (annulée, sans effet)', async ({ page }) => {
+  // Les fenêtres du navigateur (confirm/prompt/alert) sont remplacées par un dialogue dans la page :
+  // on vérifie qu'il s'ouvre, s'annule, et ne déclenche rien.
+  await openModule(page, /Annonces/, /Diffuser une annonce/);
+  const stop = page.getByRole('button', { name: /Retirer/ }).first();
+  await stop.waitFor({ state: 'visible', timeout: 20_000 }).catch(() => null);   // l'historique se charge après l'ouverture
+  test.skip(!(await stop.isVisible().catch(() => false)), 'aucun bandeau actif');
+  await stop.click();
+  const dlg = page.getByRole('dialog');
+  await expect(dlg).toBeVisible();
+  await expect(dlg.getByText(/Retirer le bandeau du site/)).toBeVisible();
+  await dlg.getByRole('button', { name: /Annuler/ }).click();
+  await expect(dlg).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Retirer/ }).first()).toBeVisible();   // bandeau toujours là
+});
+
 test('admin › Promotions › Prix promo produits', async ({ page }) => {
   await openModule(page, /Promotions/, /Promotions/);
   await page.getByRole('button', { name: /Prix promo produits/ }).click();

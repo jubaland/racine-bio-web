@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { ask } from '../../../components/Dialog';
 import { supabase } from '../../../lib/supabase';
 import { useLanguage } from '../../../context/LanguageContext';
 import ProducerLayout from '../../../components/producer/ProducerLayout';
@@ -91,8 +92,8 @@ function ProductsContent({ producer }: { producer: any }) {
         (orig.category || '') !== form.category.trim() ||
         (orig.unit || '') !== form.unit.trim()
       );
-      if (sensitiveChanged && !confirm(t('producer.edit_warning',
-        'Vous modifiez le nom, le prix, la description, la photo, la catégorie ou l\'unité d\'un produit publié.\n\nIl repassera « À valider » par Hornafresh et ne sera plus visible sur le site jusqu\'à sa validation.\n\nContinuer ?'))) return;
+      if (sensitiveChanged && !(await ask({ text: t('producer.edit_warning',
+        'Vous modifiez le nom, le prix, la description, la photo, la catégorie ou l\'unité d\'un produit publié.\n\nIl repassera « À valider » par Hornafresh et ne sera plus visible sur le site jusqu\'à sa validation.\n\nContinuer ?') }))) return;
     }
     setSaving(true);
     setError('');

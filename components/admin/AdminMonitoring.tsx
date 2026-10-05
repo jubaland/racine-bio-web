@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { ask } from '../Dialog';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { useCan } from '../../context/AdminPermsContext';
@@ -45,7 +46,7 @@ export default function AdminMonitoring() {
   useEffect(() => { load(tab === 'resolved' ? 'resolved' : 'open'); }, [tab, load]);
 
   const act = async (payload: any, key: string, confirmMsg?: string) => {
-    if (confirmMsg && !confirm(confirmMsg)) return false;
+    if (confirmMsg && !(await ask({ text: confirmMsg }))) return false;
     setBusy(key); setMsg('');
     try {
       const res = await fetch('/api/admin/monitoring', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await token()}` }, body: JSON.stringify(payload) });

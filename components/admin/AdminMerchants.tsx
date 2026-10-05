@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { ask, askText, notice } from '../Dialog';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { useCan } from '../../context/AdminPermsContext';
@@ -67,15 +68,15 @@ export default function AdminMerchants() {
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const act = async (payload: any, key: string, confirmMsg?: string) => {
-    if (confirmMsg && !confirm(confirmMsg)) return false;
+    if (confirmMsg && !(await ask({ text: confirmMsg }))) return false;
     setBusy(key);
     try {
       const res = await fetch('/api/admin/merchants', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await token()}` }, body: JSON.stringify(payload) });
       const j = await res.json();
-      if (!res.ok) { alert('⚠️ ' + (j.error || 'Erreur')); return false; }
+      if (!res.ok) { notice('⚠️ ' + (j.error || 'Erreur')); return false; }
       await fetchAll();
       return true;
-    } catch (e: any) { alert('⚠️ ' + e.message); return false; }
+    } catch (e: any) { notice('⚠️ ' + e.message); return false; }
     finally { setBusy(null); }
   };
 
@@ -115,7 +116,7 @@ export default function AdminMerchants() {
                     </div>
                     {canEdit && <div className="flex gap-2">
                       <button disabled={busy === 'p' + s.id} onClick={() => act({ action: 'confirm_payment', subscription_id: s.id }, 'p' + s.id, t('mer.confirm_pay', 'Confirmer le paiement et activer l\'abonnement ?'))} className="text-xs font-semibold bg-[#a8c800] text-white rounded-lg px-3 py-1.5 hover:bg-[#7d9800] disabled:opacity-50">✅ {t('mer.confirm', 'Confirmer')}</button>
-                      <button disabled={busy === 'p' + s.id} onClick={() => { const note = prompt(t('mer.reject_note', 'Motif (optionnel) :')) ?? null; if (note !== null) act({ action: 'reject_payment', subscription_id: s.id, note }, 'p' + s.id); }} className="text-xs font-semibold border border-red-200 text-red-500 rounded-lg px-3 py-1.5 hover:bg-red-50 disabled:opacity-50">✖ {t('mer.reject', 'Refuser')}</button>
+                      <button disabled={busy === 'p' + s.id} onClick={async () => { const note = await askText({ text: t('mer.reject_note', 'Motif (optionnel) :') }); if (note !== null) act({ action: 'reject_payment', subscription_id: s.id, note }, 'p' + s.id); }} className="text-xs font-semibold border border-red-200 text-red-500 rounded-lg px-3 py-1.5 hover:bg-red-50 disabled:opacity-50">✖ {t('mer.reject', 'Refuser')}</button>
                     </div>}
                   </div>
                 ))}
@@ -139,7 +140,7 @@ export default function AdminMerchants() {
                     {canEdit && <div className="flex flex-col sm:flex-row gap-2 flex-none">
                       <button onClick={() => setTrFor(p.id)} title={t('ptr.title', 'Traductions du produit')} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5]">🌍 {t('ptr.btn', 'Traductions')}</button>
                       <button disabled={busy === 'pr' + p.id} onClick={() => act({ action: 'approve_product', product_id: p.id }, 'pr' + p.id)} className="text-xs font-semibold bg-[#a8c800] text-white rounded-lg px-3 py-1.5 hover:bg-[#7d9800] disabled:opacity-50">✅ {t('mer.approve', 'Valider')}</button>
-                      <button disabled={busy === 'pr' + p.id} onClick={() => { const note = prompt(t('mer.reject_product_note', 'Motif du refus (communiqué au marchand) :')); if (note !== null) act({ action: 'reject_product', product_id: p.id, note }, 'pr' + p.id); }} className="text-xs font-semibold border border-red-200 text-red-500 rounded-lg px-3 py-1.5 hover:bg-red-50 disabled:opacity-50">✖ {t('mer.reject', 'Refuser')}</button>
+                      <button disabled={busy === 'pr' + p.id} onClick={async () => { const note = await askText({ text: t('mer.reject_product_note', 'Motif du refus (communiqué au marchand) :') }); if (note !== null) act({ action: 'reject_product', product_id: p.id, note }, 'pr' + p.id); }} className="text-xs font-semibold border border-red-200 text-red-500 rounded-lg px-3 py-1.5 hover:bg-red-50 disabled:opacity-50">✖ {t('mer.reject', 'Refuser')}</button>
                     </div>}
                   </div>
                 ))}
@@ -187,8 +188,8 @@ export default function AdminMerchants() {
                                 type="button"
                                 title={t('mer.shop_name', 'Enseigne')}
                                 disabled={busy === 'sn' + m.id}
-                                onClick={() => {
-                                  const v = prompt(`${t('mer.shop_name', 'Enseigne')} (${t('mer.shop_name_ph', 'Ex : Boutique Zak')})`, m.farm_name || '');
+                                onClick={async () => {
+                                  const v = await askText({ text: `${t('mer.shop_name', 'Enseigne')}`, placeholder: t('mer.shop_name_ph', 'Ex : Boutique Zak'), initial: m.farm_name || '' });
                                   if (v !== null && v.trim() && v.trim() !== m.farm_name) act({ action: 'set_shop_name', user_id: m.id, shop_name: v.trim() }, 'sn' + m.id);
                                 }}
                                 className="ml-1 text-xs text-gray-400 hover:text-[#7d9800] disabled:opacity-50"
@@ -210,9 +211,9 @@ export default function AdminMerchants() {
                             {m.active && data.delays.extend_days != null && <button disabled={busy === 'x' + m.id} title={t('mer.extend_title', 'Prolonger l\'abonnement')} onClick={() => act({ action: 'extend', user_id: m.id }, 'x' + m.id)} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5]">+{data.delays.extend_days} {t('mer.days_short', 'j')}</button>}
                             {f.chosen !== 'commission' && genRate != null && m.state !== 'suspended' && <button disabled={busy === 'f' + m.id} onClick={() => act({ action: 'set_formula', user_id: m.id, kind: 'commission' }, 'f' + m.id, `${t('mer.to_com_confirm', 'Passer ce marchand en formule commission ? Taux appliqué :')} ${appliedRate} %${m.active ? `\n\n${t('mer.to_com_after', 'Son abonnement payé reste valable jusqu\'à son échéance, sans commission ; la commission s\'applique ensuite.')}` : ''}`)} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5] disabled:opacity-50">🤝 {t('mer.to_com', 'Passer en commission')}</button>}
                             {f.chosen === 'commission' && <button disabled={busy === 'f' + m.id} onClick={() => act({ action: 'set_formula', user_id: m.id, kind: 'subscription' }, 'f' + m.id, t('mer.to_sub_confirm', 'Remettre ce marchand en formule abonnement ? Sans période payée en cours, ses produits ne seront plus visibles.'))} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5] disabled:opacity-50">💳 {t('mer.to_sub', 'Passer en abonnement')}</button>}
-                            <button disabled={busy === 'rt' + m.id} onClick={() => { const v = prompt(`${t('mer.rate_prompt', 'Taux de commission particulier pour ce marchand, en %. Laissez vide pour appliquer le taux général')}${genRate != null ? ` (${genRate} %)` : ''}. ${t('mer.rate_prompt_note', 'S\'applique aux prochaines commandes.')}`, f.custom_rate != null ? String(f.custom_rate) : ''); if (v !== null) act({ action: 'set_commission_rate', user_id: m.id, rate: v.trim().replace(',', '.') }, 'rt' + m.id); }} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5] disabled:opacity-50">％ {t('mer.rate_btn', 'Taux')}</button>
-                            {!m.active && f.kind === 'commission' && m.state === 'active' && <button disabled={busy === 's' + m.id} onClick={() => { const note = prompt(t('mer.suspend_note', 'Motif de suspension (communiqué au marchand) :')); if (note !== null) act({ action: 'suspend', user_id: m.id, note }, 's' + m.id); }} className="text-xs font-semibold border border-red-200 text-red-500 rounded-lg px-3 py-1.5 hover:bg-red-50">⏸ {t('mer.suspend', 'Suspendre')}</button>}
-                            {m.active && <button disabled={busy === 's' + m.id} onClick={() => { const note = prompt(t('mer.suspend_note', 'Motif de suspension (communiqué au marchand) :')); if (note !== null) act({ action: 'suspend', user_id: m.id, note }, 's' + m.id); }} className="text-xs font-semibold border border-red-200 text-red-500 rounded-lg px-3 py-1.5 hover:bg-red-50">⏸ {t('mer.suspend', 'Suspendre')}</button>}
+                            <button disabled={busy === 'rt' + m.id} onClick={async () => { const v = await askText({ text: `${t('mer.rate_prompt', 'Taux de commission particulier pour ce marchand, en %. Laissez vide pour appliquer le taux général')}${genRate != null ? ` (${genRate} %)` : ''}. ${t('mer.rate_prompt_note', 'S\'applique aux prochaines commandes.')}`, initial: f.custom_rate != null ? String(f.custom_rate) : '' }); if (v !== null) act({ action: 'set_commission_rate', user_id: m.id, rate: v.trim().replace(',', '.') }, 'rt' + m.id); }} className="text-xs font-semibold border border-[#d2e095] text-[#526500] rounded-lg px-3 py-1.5 hover:bg-[#ecf4d5] disabled:opacity-50">％ {t('mer.rate_btn', 'Taux')}</button>
+                            {!m.active && f.kind === 'commission' && m.state === 'active' && <button disabled={busy === 's' + m.id} onClick={async () => { const note = await askText({ text: t('mer.suspend_note', 'Motif de suspension (communiqué au marchand) :') }); if (note !== null) act({ action: 'suspend', user_id: m.id, note }, 's' + m.id); }} className="text-xs font-semibold border border-red-200 text-red-500 rounded-lg px-3 py-1.5 hover:bg-red-50">⏸ {t('mer.suspend', 'Suspendre')}</button>}
+                            {m.active && <button disabled={busy === 's' + m.id} onClick={async () => { const note = await askText({ text: t('mer.suspend_note', 'Motif de suspension (communiqué au marchand) :') }); if (note !== null) act({ action: 'suspend', user_id: m.id, note }, 's' + m.id); }} className="text-xs font-semibold border border-red-200 text-red-500 rounded-lg px-3 py-1.5 hover:bg-red-50">⏸ {t('mer.suspend', 'Suspendre')}</button>}
                             {m.state === 'suspended' && <button disabled={busy === 's' + m.id} onClick={() => act({ action: 'reactivate', user_id: m.id }, 's' + m.id)} className="text-xs font-semibold bg-[#a8c800] text-white rounded-lg px-3 py-1.5 hover:bg-[#7d9800]">▶ {t('mer.reactivate', 'Réactiver')}</button>}
                           </div>
                         )}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { ask } from '../Dialog';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
 
@@ -38,7 +39,7 @@ export default function AutoTranslateButton({ source, current, onTranslated, dis
     // Champs déjà traduits : on demande avant de les remplacer
     const filled = LANGS.some(l => Object.keys(fields).some(k => String(current?.[l]?.[k] || '').trim()));
     let replace = false;
-    if (filled) replace = confirm(t('tr.replace_confirm', 'Certaines traductions sont déjà saisies.\n\nOK : les remplacer par la traduction automatique.\nAnnuler : ne remplir que les champs vides.'));
+    if (filled) replace = await ask({ text: t('tr.replace_confirm2', 'Certaines traductions sont déjà saisies.\n\nConfirmer : les remplacer par la traduction automatique.\nAnnuler : ne remplir que les champs vides.') });
     setBusy(true);
     try {
       let { data: { session } } = await supabase.auth.getSession();

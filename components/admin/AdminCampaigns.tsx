@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { ask, askText } from '../Dialog';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { useCan } from '../../context/AdminPermsContext';
@@ -76,7 +77,7 @@ export default function AdminCampaigns() {
     distribution_required: t('ag.err_distribution', 'Choisissez la livraison, le retrait, ou les deux'), invalid_units: t('ag.err_invalid', 'Valeur invalide'),
   };
   const act = async (payload: any, key: string, confirmMsg?: string) => {
-    if (confirmMsg && !confirm(confirmMsg)) return null;
+    if (confirmMsg && !(await ask({ text: confirmMsg }))) return null;
     setBusy(key); setMsg('');
     try {
       const res = await fetch('/api/admin/campaigns', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await token()}` }, body: JSON.stringify(payload) });
@@ -171,7 +172,7 @@ export default function AdminCampaigns() {
                       </div>
                       {canEdit && <div className="flex gap-2">
                         <button disabled={busy === 'p' + o.id} onClick={() => act({ action: 'confirm_payment', order_id: o.id }, 'p' + o.id)} className="text-xs font-semibold bg-[#a8c800] text-white rounded-lg px-3 py-1.5 hover:bg-[#7d9800] disabled:opacity-50">✅ {t('mer.confirm', 'Confirmer')}</button>
-                        <button disabled={busy === 'p' + o.id} onClick={() => { const note = prompt(t('mer.reject_note', 'Motif (optionnel) :')); if (note !== null) act({ action: 'reject_payment', order_id: o.id, note }, 'p' + o.id); }} className="text-xs font-semibold border border-red-200 text-red-500 rounded-lg px-3 py-1.5 hover:bg-red-50 disabled:opacity-50">✖ {t('mer.reject', 'Refuser')}</button>
+                        <button disabled={busy === 'p' + o.id} onClick={async () => { const note = await askText({ text: t('mer.reject_note', 'Motif (optionnel) :') }); if (note !== null) act({ action: 'reject_payment', order_id: o.id, note }, 'p' + o.id); }} className="text-xs font-semibold border border-red-200 text-red-500 rounded-lg px-3 py-1.5 hover:bg-red-50 disabled:opacity-50">✖ {t('mer.reject', 'Refuser')}</button>
                       </div>}
                     </div>
                   ))}
@@ -227,7 +228,7 @@ export default function AdminCampaigns() {
                       {detail.next.filter(n => NEXT_LABEL[n]).map(n => (
                         <button key={n} disabled={busy === n} onClick={() => act({ action: 'set_status', id: c.id, status: n }, n)} className="text-xs font-semibold bg-[#a8c800] text-white rounded-lg px-3 py-1.5 hover:bg-[#7d9800] disabled:opacity-50">{NEXT_LABEL[n]}</button>
                       ))}
-                      {detail.next.includes('cancelled') && <button disabled={busy === 'cancel'} onClick={() => { const note = prompt(t('ag.cancel_note', 'Motif de l\'annulation (communiqué aux clients, qui seront tous remboursés) :')); if (note !== null) act({ action: 'cancel', id: c.id, note }, 'cancel'); }} className="text-xs font-semibold border border-red-200 text-red-500 rounded-lg px-3 py-1.5 hover:bg-red-50 disabled:opacity-50">✖ {t('ag.cancel', 'Annuler et rembourser')}</button>}
+                      {detail.next.includes('cancelled') && <button disabled={busy === 'cancel'} onClick={async () => { const note = await askText({ text: t('ag.cancel_note', 'Motif de l\'annulation (communiqué aux clients, qui seront tous remboursés) :') }); if (note !== null) act({ action: 'cancel', id: c.id, note }, 'cancel'); }} className="text-xs font-semibold border border-red-200 text-red-500 rounded-lg px-3 py-1.5 hover:bg-red-50 disabled:opacity-50">✖ {t('ag.cancel', 'Annuler et rembourser')}</button>}
                     </div>
                   )}
                   {canEdit && detail.next.includes('arrived') && (

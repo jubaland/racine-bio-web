@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { ask, notice } from '../Dialog';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { useCan } from '../../context/AdminPermsContext';
@@ -133,7 +134,7 @@ export default function AdminOrders() {
     order_cancelled: t('admin.disc_e_cancelled', 'Commande annulée.'),
   };
   const grantDiscount = async (order: Order, mode: 'line' | 'global' | 'reset') => {
-    if (mode === 'reset' && !confirm(t('admin.disc_reset_confirm', 'Annuler toutes les remises accordées sur cette commande ?'))) return;
+    if (mode === 'reset' && !(await ask({ danger: true, text: t('admin.disc_reset_confirm', 'Annuler toutes les remises accordées sur cette commande ?') }))) return;
     setDBusy(true); setDMsg('');
     try {
       const tk = (await supabase.auth.getSession()).data.session?.access_token;
@@ -149,7 +150,7 @@ export default function AdminOrders() {
 
   const updateStatus = async (orderId: string, status: string) => {
     // Annulation = stock remis + remboursement enregistré + client prévenu : on confirme avant
-    if (status === 'cancelled' && !confirm(t('admin.confirm_cancel_order', 'Annuler cette commande ? Le stock sera remis à disposition, le remboursement enregistré et le client prévenu.'))) return;
+    if (status === 'cancelled' && !(await ask({ danger: true, text: t('admin.confirm_cancel_order', 'Annuler cette commande ? Le stock sera remis à disposition, le remboursement enregistré et le client prévenu.') }))) return;
     setUpdatingId(orderId);
     const tk = (await supabase.auth.getSession()).data.session?.access_token;
     const res = await fetch('/api/orders', {
@@ -160,7 +161,7 @@ export default function AdminOrders() {
     const j = await res.json().catch(() => ({}));
     if (j.pending_validation) {
       // Gestionnaire : l'annulation n'est pas appliquée, une demande part en validation admin
-      alert('🛑 ' + t('admin.cancel_requested', 'Demande d\'annulation envoyée à l\'administrateur pour validation.'));
+      notice('🛑 ' + t('admin.cancel_requested', 'Demande d\'annulation envoyée à l\'administrateur pour validation.'));
       fetchAll();
     } else {
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
@@ -169,9 +170,9 @@ export default function AdminOrders() {
   };
 
   const resolveCancel = async (req: any, action: 'approve' | 'reject') => {
-    if (!confirm(action === 'approve'
+    if (!(await ask({ danger: action === 'approve', text: action === 'approve'
       ? t('admin.cancel_approve_confirm', 'Valider l\'annulation ? La commande sera annulée et remboursée.')
-      : t('admin.cancel_reject_confirm', 'Refuser cette demande d\'annulation ?'))) return;
+      : t('admin.cancel_reject_confirm', 'Refuser cette demande d\'annulation ?') }))) return;
     setCancelBusyId(req.id);
     try {
       const tk = (await supabase.auth.getSession()).data.session?.access_token;
@@ -186,21 +187,21 @@ export default function AdminOrders() {
           admin_only: t('admin.cancel_admin_only', 'Seul un administrateur peut valider une annulation.'),
           already_resolved: t('admin.req_already', 'Demande déjà traitée.'),
         };
-        alert('⚠️ ' + (map[j.error] || j.error || 'Erreur'));
+        notice('⚠️ ' + (map[j.error] || j.error || 'Erreur'));
         return;
       }
       setCancelReqs(prev => prev.filter(r => r.id !== req.id));
       if (action === 'approve') fetchAll();
     } catch (e: any) {
-      alert('⚠️ ' + e.message);
+      notice('⚠️ ' + e.message);
     } finally {
       setCancelBusyId(null);
     }
   };
 
   const resolveReq = async (req: any, action: 'approve' | 'reject') => {
-    if (action === 'approve' && !confirm(t('admin.req_approve_confirm', 'Approuver cette demande ? La modification et le remboursement seront appliqués.'))) return;
-    if (action === 'reject' && !confirm(t('admin.req_reject_confirm', 'Refuser cette demande ?'))) return;
+    if (action === 'approve' && !(await ask({ text: t('admin.req_approve_confirm', 'Approuver cette demande ? La modification et le remboursement seront appliqués.') }))) return;
+    if (action === 'reject' && !(await ask({ danger: true, text: t('admin.req_reject_confirm', 'Refuser cette demande ?') }))) return;
     setResolvingId(req.id);
     try {
       const tk = (await supabase.auth.getSession()).data.session?.access_token;
@@ -216,13 +217,13 @@ export default function AdminOrders() {
           last_item: t('admin.remove_err_last', 'Dernier article : annulez plutôt la commande entière.'),
           already_resolved: t('admin.req_already', 'Demande déjà traitée.'),
         };
-        alert('⚠️ ' + (map[j.error] || j.error || 'Erreur'));
+        notice('⚠️ ' + (map[j.error] || j.error || 'Erreur'));
         return;
       }
       setChangeReqs(prev => prev.filter(r => r.id !== req.id));
       if (action === 'approve') fetchAll(); // refléter total/articles à jour
     } catch (e: any) {
-      alert('⚠️ ' + e.message);
+      notice('⚠️ ' + e.message);
     } finally {
       setResolvingId(null);
     }

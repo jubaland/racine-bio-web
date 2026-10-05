@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { ask, notice } from '../Dialog';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { useCan } from '../../context/AdminPermsContext';
@@ -47,7 +48,7 @@ export default function AdminRefunds() {
       wallet: t('refunds.confirm_wallet', 'Créditer ce montant sur la cagnotte du client ?'),
       reject: t('refunds.confirm_reject', 'Rejeter ce remboursement (aucun montant ne sera rendu) ?'),
     };
-    if (!confirm(confirms[action])) return;
+    if (!(await ask({ danger: action === 'reject', text: confirms[action] }))) return;
     setBusyId(r.id);
     try {
       const tk = (await supabase.auth.getSession()).data.session?.access_token;
@@ -62,7 +63,7 @@ export default function AdminRefunds() {
           no_account: t('refunds.err_no_account', 'Ce client n\'a pas de compte : impossible de créditer une cagnotte.'),
           already_resolved: t('refunds.err_resolved', 'Remboursement déjà traité.'),
         };
-        alert('⚠️ ' + (map[j.error] || j.error || 'Erreur'));
+        notice('⚠️ ' + (map[j.error] || j.error || 'Erreur'));
         return;
       }
       setRefunds(prev => prev.map(x => x.id === r.id
