@@ -70,6 +70,20 @@ test('admin › Produits › Paniers : formulaire de création (sans enregistrer
   expect(errors).toEqual([]);
 });
 
+test('admin › Commandes : boutons de quantité et journal des modifications (sans enregistrer)', async ({ page }) => {
+  const errors = trackErrors(page);
+  await openModule(page, /Commandes/, /Commandes/);
+  // Journal global (traçabilité) : visible pour l'admin, s'ouvre sans erreur
+  await page.getByRole('button', { name: /Commandes modifiées/ }).click();
+  await expect(page.getByText(/Toutes les modifications de quantités/)).toBeVisible();
+  await expectNoOverflow(page, 'Commandes › journal des modifications');
+  await page.getByRole('button', { name: /Commandes modifiées/ }).click();
+  // Les boutons +1 / −1 existent sur les commandes non annulées (on ne clique pas : base réelle)
+  const plus = page.getByRole('button', { name: /^\+ 1/ }).first();
+  if (await plus.isVisible().catch(() => false)) await expect(plus).toBeEnabled();
+  expect(errors).toEqual([]);
+});
+
 test('admin › Promotions › Prix promo produits', async ({ page }) => {
   await openModule(page, /Promotions/, /Promotions/);
   await page.getByRole('button', { name: /Prix promo produits/ }).click();

@@ -6,6 +6,13 @@ import { supabase } from '../../lib/supabase';
 import { useCan } from '../../context/AdminPermsContext';
 import PrepSlip from './PrepSlip';
 
+interface OrderEdit {
+  id: number; order_id?: string; product_name: string | null; product_unit: string | null;
+  from_qty: number; to_qty: number; amount: number; reason: string | null;
+  by_name: string | null; by_role: string | null; order_status: string | null; created_at: string;
+  orders?: { customer_name: string | null } | null;
+}
+
 interface OrderItem {
   id: string;
   product_id: number;
@@ -31,6 +38,7 @@ interface Order {
   promo_discount?: number | null;             // remise d'un code promo sur les articles
   admin_discount?: number | null;             // remise globale accordée par l'admin
   discount_history?: { at: string; by_name?: string | null; kind: string; name?: string; from?: number; to?: number; amount?: number; note?: string | null }[] | null;
+  order_edits?: OrderEdit[] | null;   // journal des modifications de quantités (traçabilité)
   delivery_option_name: string | null;
   status: string;
   payment_method: string;
@@ -222,17 +230,32 @@ export default function AdminOrders() {
 
   // newQty === 0 → retrait complet ; sinon réduction à newQty
   const modifyItem = async (order: Order, item: OrderItem, newQty: number) => {
-    const removedQty = item.quantity - newQty;
-    const amt = `${(Number(item.price) * removedQty).toLocaleString()} Fdj`;
-    const refundMsg =
-      order.payment_method === 'wallet' ? t('admin.remove_refund_wallet', 'Le montant sera recrédité sur la cagnotte du client.')
-      : order.payment_method === 'cash' ? t('admin.remove_refund_cash', 'Le montant à payer du client sera réduit.')
-      : t('admin.remove_refund_waafi', 'Pensez à rembourser ce montant au client par Waafi.');
+    const increase = newQty > item.quantity;
+    const delta = Math.abs(item.quantity - newQty);
+    const amt = `${(Number(item.price) * delta).toLocaleString()} Fdj`;
     const name = item.product_name || t('admin.this_item', 'cet article');
+    const refundMsg = increase
+      ? (order.payment_method === 'wallet' || order.payment_method === 'company_wallet' ? t('admin.add_charge_wallet', 'Le complément sera débité de la cagnotte.')
+        : order.payment_method === 'credit' ? t('admin.add_charge_credit', 'Le complément sera ajouté au carnet de crédit.')
+        : order.payment_method === 'cash' ? t('admin.add_charge_cash', 'Le montant à payer du client augmente.')
+        : t('admin.add_charge_waafi', 'Pensez à encaisser le complément (Waafi / D-Money).'))
+      : (order.payment_method === 'wallet' || order.payment_method === 'company_wallet' ? t('admin.remove_refund_wallet', 'Le montant sera recrédité sur la cagnotte du client.')
+        : order.payment_method === 'cash' || order.payment_method === 'credit' ? t('admin.remove_refund_cash', 'Le montant à payer du client sera réduit.')
+        : t('admin.remove_refund_waafi', 'Pensez à rembourser ce montant au client par Waafi.'));
     const action = newQty === 0
       ? `${t('admin.remove_item_confirm', 'Retirer')} « ${name} »`
-      : `${t('admin.reduce_qty_confirm', 'Réduire')} « ${name} » → ${newQty} ${item.product_unit || ''}`;
-    if (!confirm(`${action} (−${amt}) ?\n\n${refundMsg}\n${t('admin.remove_item_stock', 'Le stock sera remis à disposition.')}`)) return;
+      : increase
+        ? `${t('admin.increase_qty_confirm', 'Augmenter')} « ${name} » → ${newQty} ${item.product_unit || ''}`
+        : `${t('admin.reduce_qty_confirm', 'Réduire')} « ${name} » → ${newQty} ${item.product_unit || ''}`;
+    const stockMsg = increase ? t('admin.add_item_stock', 'Le stock sera vérifié et réservé.') : t('admin.remove_item_stock', 'Le stock sera remis à disposition.');
+    if (!confirm(`${action} (${increase ? '+' : '−'}${amt}) ?\n\n${refundMsg}\n${stockMsg}`)) return;
+    // Garde-fou : après expédition/livraison, un motif est obligatoire (journal des modifications)
+    let reason: string | null = null;
+    if (!['pending', 'processing'].includes(order.status)) {
+      reason = prompt(t('admin.edit_reason_prompt', 'Commande déjà expédiée/livrée : indiquez le motif de la modification (obligatoire, conservé dans le journal) :'));
+      if (reason === null) return;
+      if (!reason.trim()) { alert('⚠️ ' + t('admin.edit_reason_required', 'Motif obligatoire pour modifier une commande expédiée ou livrée.')); return; }
+    }
 
     setRemovingItemId(item.id);
     try {
@@ -240,13 +263,18 @@ export default function AdminOrders() {
       const res = await fetch('/api/admin/orders/remove-item', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tk}` },
-        body: JSON.stringify({ order_id: order.id, item_id: item.id, new_quantity: newQty }),
+        body: JSON.stringify({ order_id: order.id, item_id: item.id, new_quantity: newQty, reason }),
       });
       const j = await res.json();
       if (!res.ok) {
         const map: Record<string, string> = {
-          order_locked: t('admin.remove_err_locked', 'Commande déjà expédiée/livrée : modification impossible.'),
+          order_cancelled: t('admin.remove_err_cancelled', 'Commande annulée : modification impossible.'),
           last_item: t('admin.remove_err_last', 'Dernier article : annulez plutôt la commande entière.'),
+          reason_required: t('admin.edit_reason_required', 'Motif obligatoire pour modifier une commande expédiée ou livrée.'),
+          stock_insufficient: `${t('admin.edit_err_stock', 'Stock insuffisant.')}${j.available != null ? ` ${t('admin.edit_err_stock_max', 'Maximum possible :')} ${j.available}` : ''}`,
+          wallet_insufficient: t('checkout.wallet_insufficient', 'Solde de cagnotte insuffisant'),
+          company_wallet_insufficient: t('co.e_balance', 'Solde de la cagnotte société insuffisant.'),
+          credit_unavailable: t('admin.edit_err_credit', 'Crédit indisponible (plafond, retard ou compte suspendu).'),
         };
         alert('⚠️ ' + (map[j.error] || j.error || 'Erreur'));
         return;
@@ -260,8 +288,10 @@ export default function AdminOrders() {
               : o.order_items.map(it => it.id === item.id ? { ...it, quantity: newQty } : it),
           }
         : o));
+      fetchAll();   // recharge le journal des modifications de la commande
       if (j.refundMethod === 'manual') {
-        alert(`✅ ${t('admin.remove_done', 'Modification effectuée.')} ${t('admin.remove_refund_waafi_amount', 'À rembourser par Waafi')} : ${Number(j.refundAmount).toLocaleString()} Fdj`);
+        const n = Math.abs(Number(j.refundAmount)).toLocaleString();
+        alert(`✅ ${t('admin.remove_done', 'Modification effectuée.')} ${Number(j.refundAmount) < 0 ? t('admin.add_collect_waafi', 'Complément à encaisser (Waafi / D-Money)') : t('admin.remove_refund_waafi_amount', 'À rembourser par Waafi')} : ${n} Fdj`);
       }
     } catch (e: any) {
       alert('⚠️ ' + e.message);
@@ -275,11 +305,35 @@ export default function AdminOrders() {
     ...STATUSES.map(s => ({ value: s, label: meta(s).label })),
   ];
 
+  // Journal global des commandes modifiées (traçabilité, admin seulement)
+  const [editLog, setEditLog] = useState<OrderEdit[] | null>(null);
+  const [editLogOpen, setEditLogOpen] = useState(false);
+  const toggleEditLog = async () => {
+    if (editLogOpen) { setEditLogOpen(false); return; }
+    setEditLogOpen(true);
+    if (editLog) return;
+    try {
+      const tk = (await supabase.auth.getSession()).data.session?.access_token;
+      const res = await fetch('/api/admin/orders/edits', { headers: { Authorization: `Bearer ${tk}` } });
+      const j = await res.json();
+      setEditLog(res.ok ? (j.edits || []) : []);
+    } catch { setEditLog([]); }
+  };
+  const editLine = (e: OrderEdit) => `${e.product_name || '—'} : ${Number(e.from_qty)} → ${Number(e.to_qty)} ${e.product_unit || ''}`.trim();
+  const editWhen = (d: string) => new Date(d).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
   return (
     <div>
       {/* En-tête + filtres */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <h1 className="text-2xl font-bold text-gray-800">📦 {t('admin.nav_orders', 'Commandes')}</h1>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h1 className="text-2xl font-bold text-gray-800">📦 {t('admin.nav_orders', 'Commandes')}</h1>
+          {isAdmin && (
+            <button onClick={toggleEditLog} className={`text-xs font-semibold rounded-full px-3 py-1.5 border transition ${editLogOpen ? 'bg-[#526500] text-white border-[#526500]' : 'border-[#d2e095] text-[#526500] hover:bg-[#ecf4d5]'}`}>
+              🕘 {t('admin.edits_log', 'Commandes modifiées')}
+            </button>
+          )}
+        </div>
         <div className="flex gap-2 flex-wrap">
           {statusFilters.map(s => (
             <button
@@ -296,6 +350,29 @@ export default function AdminOrders() {
           ))}
         </div>
       </div>
+
+      {/* Journal des commandes modifiées (traçabilité admin : qui, quoi, quand, pourquoi) */}
+      {editLogOpen && isAdmin && (
+        <div className="mb-6 bg-white border-2 border-[#d2e095] rounded-2xl p-4">
+          <p className="font-bold text-gray-800 mb-1">🕘 {t('admin.edits_log', 'Commandes modifiées')}</p>
+          <p className="text-xs text-gray-400 mb-3">{t('admin.edits_log_hint', 'Toutes les modifications de quantités, les plus récentes d\'abord. Les remises accordées ont leur propre journal sur chaque commande.')}</p>
+          {editLog == null ? <p className="text-sm text-gray-400">{t('admin.loading', 'Chargement...')}</p>
+            : editLog.length === 0 ? <p className="text-sm text-gray-400">{t('admin.edits_none', 'Aucune commande modifiée.')}</p>
+            : (
+              <div className="space-y-1.5 max-h-96 overflow-y-auto pr-1">
+                {editLog.map(e => (
+                  <div key={e.id} className="flex flex-wrap items-center justify-between gap-2 bg-[#faf7e8] rounded-xl px-3 py-2 text-xs">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-800">#{String(e.order_id).slice(0, 8).toUpperCase()} · {e.orders?.customer_name || '—'} — {editLine(e)}</p>
+                      <p className="text-gray-500">{editWhen(e.created_at)} · {e.by_name || '—'} ({e.by_role === 'admin' ? t('admin.role_admin', 'admin') : t('admin.role_manager', 'gestionnaire')}) · {t('admin.edits_status', 'statut')} : {meta(e.order_status || '').label}{e.reason ? ` · 📝 ${e.reason}` : ''}</p>
+                    </div>
+                    <span className={`font-bold shrink-0 ${e.amount < 0 ? 'text-[#f97316]' : 'text-[#526500]'}`}>{e.amount < 0 ? '−' : '+'}{Math.abs(e.amount).toLocaleString()} Fdj</span>
+                  </div>
+                ))}
+              </div>
+            )}
+        </div>
+      )}
 
       {/* Demandes d'annulation en attente (validation admin) */}
       {can('orders', 'edit') && cancelReqs.length > 0 && (
@@ -506,8 +583,16 @@ export default function AdminOrders() {
                                 {Number(subtotal).toLocaleString()} Fdj
                               </p>
                             )}
-                            {can('orders', 'edit') && ['pending', 'processing'].includes(order.status) && (
+                            {can('orders', 'edit') && order.status !== 'cancelled' && (
                               <div className="flex items-center justify-end gap-1.5 mt-1">
+                                <button
+                                  onClick={() => modifyItem(order, item, item.quantity + 1)}
+                                  disabled={removingItemId === item.id}
+                                  title={t('admin.increase_qty', 'Augmenter la quantité')}
+                                  className="inline-flex items-center gap-1 text-[11px] font-medium text-[#526500] border border-[#d2e095] rounded-lg px-2 py-1 hover:bg-[#ecf4d5] transition disabled:opacity-50"
+                                >
+                                  + 1 {item.product_unit || ''}
+                                </button>
                                 {item.quantity > 1 && (
                                   <button
                                     onClick={() => modifyItem(order, item, item.quantity - 1)}
@@ -543,6 +628,13 @@ export default function AdminOrders() {
                       <span className="text-gray-500">{t('admin.subtotal', 'Sous-total')}</span>
                       <span className="text-gray-700">{Number(subtotal).toLocaleString()} Fdj</span>
                     </div>
+                    {(order.order_edits || []).length > 0 && (
+                      <div className="text-[11px] text-gray-500 border border-[#e3eebf] bg-white rounded-lg px-2.5 py-1.5 space-y-0.5">
+                        {(order.order_edits || []).slice(-4).map(e => (
+                          <p key={e.id}>✏️ {editWhen(e.created_at)} · {editLine(e)} ({e.amount < 0 ? '−' : '+'}{Math.abs(e.amount).toLocaleString()} Fdj) · {e.by_name || '—'}{e.reason ? ` — ${e.reason}` : ''}</p>
+                        ))}
+                      </div>
+                    )}
                     {Number(order.promo_discount) > 0 && (
                       <div className="flex justify-between text-sm text-[#526500]">
                         <span>🎁 {t('admin.disc_promo', 'Code promo')} {order.promo_code}</span>

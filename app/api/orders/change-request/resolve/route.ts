@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../../lib/supabase-admin';
 import { requirePerm } from '../../../../../lib/admin-auth';
 import { applyItemChange } from '../../../../../lib/order-edit';
+import { roleOf } from '../../../../../lib/permissions';
 import { notifyUser } from '../../../../../lib/notify';
 import { monitored } from '../../../../../lib/monitor';
 
@@ -26,7 +27,10 @@ async function POST_(request: Request) {
 
   if (action === 'approve') {
     // Exécute la modification réelle (stock, total, remboursement, notif, bordereau)
-    const r = await applyItemChange(req.order_id, req.item_id, req.new_quantity);
+    const r = await applyItemChange(req.order_id, req.item_id, req.new_quantity, {
+      reason: 'Demande du client, validée',
+      actor: { id: auth.user?.id ?? null, name: auth.user?.user_metadata?.full_name || auth.user?.email || null, role: roleOf(auth.user?.user_metadata) === 'admin' ? 'admin' : 'manager' },
+    });
     if (!r.ok) {
       // Échec (commande verrouillée, dernier article…) : on laisse la demande en attente
       return NextResponse.json({ error: r.error }, { status: r.status });
