@@ -154,9 +154,13 @@ export default function AdminFinances() {
           {/* KPIs */}
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
             <Kpi emoji="💰" label={t('fin.ca', "Chiffre d'affaires")} value={fdj(k.caProduits)} hint={k.caMarchands > 0 ? `${t('fin.ca_hint', 'Produits, hors livraison')} · 🏪 ${t('fin.ca_merchants2', 'dont ventes marchands')} : ${fdj(k.caMarchands)}${(k.commissions || 0) > 0 ? ` · 🤝 ${t('fin.commissions', 'commissions retenues')} : ${fdj(k.commissions || 0)}` : ''}` : t('fin.ca_hint', 'Produits, hors livraison')} accent />
-            <Kpi emoji="📈" label={t('fin.margin', 'Marge brute')}
-              value={k.marginTotal ? fdj(k.marginTotal) : '—'}
-              hint={k.marginPct != null ? `${k.marginPct} % ${t('fin.margin_rate', 'de marge')}` : t('fin.margin_na', 'coûts manquants')} />
+            <Kpi emoji={k.marginTotal < 0 ? '📉' : '📈'} label={t('fin.margin', 'Marge brute')}
+              value={k.caWithCost > 0 ? fdj(k.marginTotal) : '—'}
+              tone={k.caWithCost > 0 ? (k.marginTotal > 0 ? 'good' : k.marginTotal < 0 ? 'bad' : 'neutral') : 'neutral'}
+              badge={k.marginPct != null ? `${k.marginTotal > 0 ? '▲' : k.marginTotal < 0 ? '▼' : ''} ${k.marginPct} %`.trim() : undefined}
+              hint={k.marginPct != null
+                ? (k.marginTotal < 0 ? `⚠️ ${t('fin.margin_neg', 'Vous vendez sous le coût d\'achat sur cette sélection.')}` : `${k.marginPct} % ${t('fin.margin_rate', 'de marge')}`)
+                : t('fin.margin_na', 'coûts manquants')} />
             <Kpi emoji="🧾" label={t('fin.cost', "Coût d'achat")} value={k.costTotal ? fdj(k.costTotal) : '—'} hint={t('fin.cost_hint', 'Marchandises vendues')} />
             <Kpi emoji="📦" label={statuses.length === 1 && statuses[0] === 'delivered' ? t('fin.orders', 'Commandes livrées') : t('fin.orders2', 'Commandes comptées')} value={String(k.nbOrders)} hint={(k.nbOrdersEntreprises || 0) > 0 ? `🏢 ${t('fin.ca_companies', 'dont comptes entreprise')} : ${k.nbOrdersEntreprises} · ${fdj(k.caEntreprises || 0)}` : undefined} />
             <Kpi emoji="🛒" label={t('fin.basket', 'Panier moyen')} value={fdj(k.panierMoyen)} hint={t('fin.basket_hint', 'Par commande, livraison incluse')} />
@@ -208,7 +212,7 @@ export default function AdminFinances() {
                         <td className="text-right px-3 py-2.5 text-gray-500 whitespace-nowrap">{p.cost ? fdj(p.cost) : '—'}</td>
                         <td className="text-right px-4 py-2.5 whitespace-nowrap">
                           {p.margin != null ? (
-                            <span className="font-semibold text-[#2d6410]">{fdj(p.margin)}{p.marginPct != null && <span className="text-xs text-gray-400 font-normal"> · {p.marginPct}%</span>}</span>
+                            <span className={`font-semibold ${p.margin < 0 ? 'text-red-600' : 'text-[#2d6410]'}`}>{p.margin < 0 ? '▼ ' : ''}{fdj(p.margin)}{p.marginPct != null && <span className={`text-xs font-normal ${p.margin < 0 ? 'text-red-400' : 'text-gray-400'}`}> · {p.marginPct}%</span>}</span>
                           ) : <span className="text-gray-300">—</span>}
                         </td>
                       </tr>
@@ -233,11 +237,21 @@ export default function AdminFinances() {
   );
 }
 
-function Kpi({ emoji, label, value, hint, accent }: { emoji: string; label: string; value: string; hint?: string; accent?: boolean }) {
+function Kpi({ emoji, label, value, hint, accent, tone, badge }: { emoji: string; label: string; value: string; hint?: string; accent?: boolean; tone?: 'good' | 'bad' | 'neutral'; badge?: string }) {
+  // Tonalité financière : vert = positif, rouge = négatif (fond teinté léger + liseré gauche + pastille ▲▼)
+  const tones = {
+    good:    { card: 'bg-green-50 border-green-200 border-l-4 border-l-green-600', value: 'text-green-700', badge: 'bg-green-600 text-white' },
+    bad:     { card: 'bg-red-50 border-red-200 border-l-4 border-l-red-600',       value: 'text-red-600',   badge: 'bg-red-600 text-white' },
+    neutral: { card: 'bg-white border-[#d2e095]',                                   value: 'text-gray-500',  badge: 'bg-gray-200 text-gray-600' },
+  } as const;
+  const tn = tone ? tones[tone] : null;
   return (
-    <div className={`rounded-2xl p-4 border-2 shadow-sm ${accent ? 'bg-[#526500] border-[#526500] text-white' : 'bg-white border-[#d2e095]'}`}>
-      <p className={`text-xs ${accent ? 'text-[#c8e050]' : 'text-gray-400'}`}>{emoji} {label}</p>
-      <p className={`text-xl font-extrabold mt-1 leading-tight ${accent ? 'text-white' : 'text-[#2d6410]'}`}>{value}</p>
+    <div className={`rounded-2xl p-4 border-2 shadow-sm ${accent ? 'bg-[#526500] border-[#526500] text-white' : tn ? tn.card : 'bg-white border-[#d2e095]'}`}>
+      <p className={`text-xs flex items-center justify-between gap-2 ${accent ? 'text-[#c8e050]' : tone ? 'text-gray-500' : 'text-gray-400'}`}>
+        <span>{emoji} {label}</span>
+        {badge && tn && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${tn.badge}`}>{badge}</span>}
+      </p>
+      <p className={`text-xl font-extrabold mt-1 leading-tight ${accent ? 'text-white' : tn ? tn.value : 'text-[#2d6410]'}`}>{value}</p>
       {hint && <p className={`text-[11px] mt-0.5 ${accent ? 'text-white/60' : 'text-gray-400'}`}>{hint}</p>}
     </div>
   );
