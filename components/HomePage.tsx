@@ -8,6 +8,7 @@ import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
 import Header from './Header';
 import CartDrawer from './CartDrawer';
+import InstallAppButton from './InstallAppButton';
 import CardLike from './CardLike';
 import BundleMosaic from './BundleMosaic';
 import WhatsAppButton from './WhatsAppButton';
@@ -875,6 +876,7 @@ export default function HomePage({ products, categories, promos, producers, sett
             <Link href="/entreprises" className="text-sm text-[#7d9800] hover:underline">
               🏢 {t('co.brand', 'Entreprises')}
             </Link>
+            <InstallAppButton />
             <Link href="/about" className="text-sm text-[#7d9800] hover:underline">
               {t('learnMore', 'Qui sommes-nous ?')}
             </Link>

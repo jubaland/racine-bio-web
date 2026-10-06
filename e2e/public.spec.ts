@@ -93,6 +93,15 @@ test('fiche produit → panier → checkout (4 étapes, sans confirmer)', async 
   expect(errors).toEqual([]);
 });
 
+test("installer l'app : lien du pied de page → instructions (sans installer)", async ({ page }) => {
+  await page.goto('/'); await settle(page);
+  // Navigateur de test : pas d'invitation native → le lien ouvre les instructions
+  await page.getByRole('button', { name: /Installer l'app/ }).first().click();
+  await expect(page.getByRole('heading', { name: /Installer l'application/ })).toBeVisible();
+  await page.getByRole('button', { name: /Compris/ }).click();
+  await expect(page.getByRole('heading', { name: /Installer l'application/ })).toHaveCount(0);
+});
+
 test('devenir marchand : les formules viennent des réglages', async ({ page, request }) => {
   const offer = await (await request.get('/api/merchant-offer')).json();
   await page.addInitScript(() => localStorage.setItem('hf_install_dismissed', '1'));

@@ -13,6 +13,7 @@ import { useCart, forgetCart } from '../../context/CartContext';
 import Header from '../../components/Header';
 import CartDrawer from '../../components/CartDrawer';
 import CreditPanel, { type CreditView } from '../../components/CreditPanel';
+import InstallAppButton from '../../components/InstallAppButton';
 import ReorderDialog from '../../components/ReorderDialog';
 
 interface OrderItem {
@@ -1249,6 +1250,9 @@ export default function ProfilePage() {
         {/* ===== Réglages ===== */}
         {tab === 'settings' && (
         <>
+        {/* Installer l'application (masqué si déjà dans l'app) */}
+        <div className="mb-6"><InstallAppButton variant="card" /></div>
+
         {/* Espace producteur */}
         <div className="bg-gradient-to-r from-[#ecf4d5] to-[#e8f5d0] rounded-3xl p-6 border border-[#d2e095] shadow-sm mb-6">
           <div className="flex items-center justify-between">

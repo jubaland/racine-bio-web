@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useLanguage } from '../context/LanguageContext';
+import { InstallHelpModal, triggerInstall } from './InstallAppButton';
 
 // Invitation « Installer l'app » : déclenche l'installation native (Chrome/Android)
 // ou affiche les instructions manuelles (iOS / quand la bannière native est en
@@ -11,6 +12,8 @@ import { useLanguage } from '../context/LanguageContext';
 // après quelques secondes, jamais pendant une commande, une connexion ou dans les espaces de gestion.
 const QUIET_PATHS = ['/checkout', '/login', '/reset-password', '/auth', '/admin', '/producer'];
 const APPEAR_DELAY_MS = 8000;
+// La croix met la pastille en sommeil (elle revient ensuite) ; seule l'installation la masque pour de bon.
+const SNOOZE_DAYS = 14;
 
 export default function InstallAppPrompt() {
   const { ui } = useLanguage();
@@ -27,7 +30,9 @@ export default function InstallAppPrompt() {
       window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as any).standalone === true;
     if (standalone) return;                                   // déjà installée
-    if (localStorage.getItem('hf_install_dismissed') === '1') return;
+    if (localStorage.getItem('hf_install_dismissed') === '1') return;   // app installée sur cet appareil
+    const snoozedAt = Number(localStorage.getItem('hf_install_snooze') || 0);
+    if (snoozedAt && Date.now() - snoozedAt < SNOOZE_DAYS * 86400000) return;   // croix cliquée récemment
 
     // Bannière réservée au mobile (appareil tactile / petit écran)
     const isMobile =
@@ -52,7 +57,7 @@ export default function InstallAppPrompt() {
 
   if (!show || quiet) return null;
 
-  const dismiss = () => { setShow(false); localStorage.setItem('hf_install_dismissed', '1'); };
+  const dismiss = () => { setShow(false); localStorage.setItem('hf_install_snooze', String(Date.now())); };
 
   const install = async () => {
     if (deferred) {
@@ -61,8 +66,7 @@ export default function InstallAppPrompt() {
       setDeferred(null);
       if (outcome === 'accepted') setShow(false);
     } else {
-      const isIOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
-      setHelp(isIOS ? 'ios' : 'android');
+      setHelp(await triggerInstall());
     }
   };
 
@@ -78,27 +82,8 @@ export default function InstallAppPrompt() {
         <button onClick={dismiss} aria-label={t('install.close', 'Fermer')} className="flex-none w-7 h-7 rounded-full text-white/60 hover:text-white hover:bg-white/10 text-sm leading-none">✕</button>
       </div>
 
-      {/* Instructions d'installation (modal clair) */}
-      {help && (
-        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4" onClick={() => setHelp('')}>
-          <div className="bg-white rounded-3xl p-6 max-w-xs w-full text-center text-gray-800" onClick={e => e.stopPropagation()}>
-            <p className="text-4xl mb-2">📲</p>
-            <h3 className="font-bold text-lg mb-4">{t('install.howto_title', "Installer l'application")}</h3>
-            {help === 'ios' ? (
-              <ol className="text-sm text-gray-600 text-left space-y-3 mb-5">
-                <li><span className="font-bold text-[#526500]">1.</span> {t('install.ios_step1', 'Appuyez sur le bouton Partager')} <span className="inline-block align-middle">⎋</span> {t('install.ios_step1b', '(en bas de Safari).')}</li>
-                <li><span className="font-bold text-[#526500]">2.</span> {t('install.ios_step2', "Faites défiler et choisissez « Sur l'écran d'accueil ».")}</li>
-                <li><span className="font-bold text-[#526500]">3.</span> {t('install.ios_step3', 'Appuyez sur « Ajouter ».')}</li>
-              </ol>
-            ) : (
-              <p className="text-sm text-gray-600 mb-5">{t('install.android_help', 'Ouvrez le menu ⋮ du navigateur, puis « Installer l\'application ».')}</p>
-            )}
-            <button onClick={() => setHelp('')} className="w-full bg-[#a8c800] text-white py-2.5 rounded-xl font-semibold hover:bg-[#7d9800] transition">
-              {t('install.got_it', 'Compris')}
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Instructions d'installation (modal partagé) */}
+      {help && <InstallHelpModal help={help} onClose={() => setHelp('')} />}
     </div>
   );
 }
