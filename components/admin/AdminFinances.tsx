@@ -161,10 +161,24 @@ export default function AdminFinances() {
               hint={k.marginPct != null
                 ? (k.marginTotal < 0 ? `⚠️ ${t('fin.margin_neg', 'Vous vendez sous le coût d\'achat sur cette sélection.')}` : `${k.marginPct} % ${t('fin.margin_rate', 'de marge')}`)
                 : t('fin.margin_na', 'coûts manquants')} />
+            {(() => {
+              // Marge NETTE : ce qui reste réellement après coûts d'achat ET remises accordées
+              const net = (k.marginAfterDiscounts != null ? k.marginAfterDiscounts : k.marginTotal - (k.discountsTotal || 0));
+              const netPct = k.caWithCost > 0 ? Math.round(net / k.caWithCost * 1000) / 10 : null;
+              return (
+                <Kpi emoji="💎" label={t('fin.margin_net', 'Marge nette')}
+                  value={k.caWithCost > 0 ? fdj(net) : '—'}
+                  tone={k.caWithCost > 0 ? (net > 0 ? 'good' : net < 0 ? 'bad' : 'neutral') : 'neutral'}
+                  badge={netPct != null ? `${net > 0 ? '▲' : net < 0 ? '▼' : ''} ${netPct} %`.trim() : undefined}
+                  hint={net < 0
+                    ? `⚠️ ${t('fin.margin_net_neg', 'Coûts et remises dépassent les ventes sur cette sélection.')}`
+                    : `${t('fin.margin_net_hint', 'Marge brute − remises accordées')}${(k.discountsTotal || 0) > 0 ? ` (−${fdj(k.discountsTotal || 0)})` : ''}`} />
+              );
+            })()}
             <Kpi emoji="🧾" label={t('fin.cost', "Coût d'achat")} value={k.costTotal ? fdj(k.costTotal) : '—'} hint={t('fin.cost_hint', 'Marchandises vendues')} />
             <Kpi emoji="📦" label={statuses.length === 1 && statuses[0] === 'delivered' ? t('fin.orders', 'Commandes livrées') : t('fin.orders2', 'Commandes comptées')} value={String(k.nbOrders)} hint={(k.nbOrdersEntreprises || 0) > 0 ? `🏢 ${t('fin.ca_companies', 'dont comptes entreprise')} : ${k.nbOrdersEntreprises} · ${fdj(k.caEntreprises || 0)}` : undefined} />
             <Kpi emoji="🛒" label={t('fin.basket', 'Panier moyen')} value={fdj(k.panierMoyen)} hint={t('fin.basket_hint', 'Par commande, livraison incluse')} />
-            {(k.discountsTotal || 0) > 0 && <Kpi emoji="💸" label={t('fin.discounts', 'Remises accordées')} value={fdj(k.discountsTotal || 0)} hint={`${t('fin.discounts_hint', 'Codes promo et remises admin · marge nette')} : ${fdj(k.marginAfterDiscounts || 0)}`} />}
+            {(k.discountsTotal || 0) > 0 && <Kpi emoji="💸" label={t('fin.discounts', 'Remises accordées')} value={fdj(k.discountsTotal || 0)} hint={t('fin.discounts_hint2', 'Codes promo et remises admin, déjà déduites de la marge nette')} />}
             {(k.creditOutstanding || 0) > 0 && <Kpi emoji="💳" label={t('fin.credit', 'Encours crédit clients')} value={fdj(k.creditOutstanding || 0)} hint={(k.creditOverdue || 0) > 0 ? `⚠️ ${fdj(k.creditOverdue || 0)} ${t('fin.credit_overdue', 'en retard')}` : t('fin.credit_hint', 'Vendu, pas encore encaissé')} />}
             <Kpi emoji="🚚" label={t('fin.delivery', 'Frais de livraison')} value={fdj(k.deliveryCollected)} hint={(k.deliveryOffered || 0) > 0 ? `${t('fin.delivery_hint', 'Encaissés')} · 🎁 ${fdj(k.deliveryOffered || 0)} ${t('fin.delivery_offered', 'offerts (codes, seuil, parrainage)')}` : t('fin.delivery_hint', 'Encaissés')} />
           </div>
