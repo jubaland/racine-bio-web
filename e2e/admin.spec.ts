@@ -192,6 +192,22 @@ test('admin › Entreprises : onglets et réglage de la recharge minimale', asyn
   await expect(page.getByRole('heading', { name: /Recharge minimale des sociétés/ })).toBeVisible();
 });
 
+test('admin › Finances : indicateurs par statut (lecture seule)', async ({ page }) => {
+  const errors = trackErrors(page);
+  await openModule(page, /Finances/, /Finances/);
+  await expect(page.getByText(/Statuts comptés/)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/Commandes livrées/).first()).toBeVisible();
+  // Cocher « Annulée » : les indicateurs se rechargent en vue d'analyse
+  await page.getByRole('checkbox', { name: /Annulée/ }).check();
+  await expect(page.getByText(/Commandes comptées/).first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/seules les commandes livrées sont du chiffre réellement encaissé/)).toBeVisible();
+  await expectNoOverflow(page, 'Finances › statuts');
+  // Retour à la vue par défaut
+  await page.getByRole('checkbox', { name: /Annulée/ }).uncheck();
+  await expect(page.getByText(/Commandes livrées/).first()).toBeVisible({ timeout: 30_000 });
+  expect(errors).toEqual([]);
+});
+
 test('admin › Fidélité : réglages de la carte (sans enregistrer)', async ({ page }) => {
   await openModule(page, /Fidélité/, /Fidélité/);
   await expect(page.getByRole('heading', { name: /Réglages de la carte/ })).toBeVisible();

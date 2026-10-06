@@ -4,14 +4,18 @@ import { commissionOf } from '../../../../lib/merchant-formula';
 import { requirePerm } from '../../../../lib/admin-auth';
 import { monitored } from '../../../../lib/monitor';
 
-// GET /api/admin/finances?period=month|30d|year|all
-// Indicateurs financiers basés sur les commandes LIVRÉES.
+// GET /api/admin/finances?period=month|30d|year|all&statuses=delivered,pending,…
+// Indicateurs financiers par statut de commande (défaut : livrées). « Annulée » n'est comptée
+// que si elle est cochée explicitement : c'est une vue d'analyse, pas du chiffre encaissé.
 async function GET_(request: Request) {
   const auth = await requirePerm(request, ['finances'], 'view');
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const url = new URL(request.url);
   const period = url.searchParams.get('period') || 'all';
+  const ALL_STATUSES = ['pending', 'processing', 'shipping', 'delivered', 'cancelled'];
+  const statuses = (url.searchParams.get('statuses') || 'delivered').split(',').map(s => s.trim()).filter(s => ALL_STATUSES.includes(s));
+  if (!statuses.length) statuses.push('delivered');
 
   // Borne de date (UTC) selon la période
   const now = new Date();
@@ -20,11 +24,11 @@ async function GET_(request: Request) {
   else if (period === '30d') from = new Date(now.getTime() - 30 * 86400000);
   else if (period === 'year') from = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
 
-  // 1) Commandes livrées sur la période
+  // 1) Commandes des statuts demandés sur la période
   let q = supabaseAdmin
     .from('orders')
     .select('id, total, delivery_fee, delivery_discount, promo_discount, admin_discount, created_at, company_id')
-    .eq('status', 'delivered');
+    .in('status', statuses);
   if (from) q = q.gte('created_at', from.toISOString());
   const { data: orders, error: ordErr } = await q;
   if (ordErr) return NextResponse.json({ error: ordErr.message }, { status: 500 });
@@ -118,6 +122,7 @@ async function GET_(request: Request) {
 
   return NextResponse.json({
     period,
+    statuses,
     kpis: {
       caProduits,                                            // CA produits (hors livraison), ventes marchands incluses
       caMarchands,                                           // ventes des produits marchands (brut)

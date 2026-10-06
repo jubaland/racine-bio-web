@@ -33,6 +33,18 @@ export default function AdminFinances() {
   const t = (k: string, f: string) => ui[k] || f;
 
   const [period, setPeriod] = useState<'month' | '30d' | 'year' | 'all'>('month');
+  // Statuts comptés (défaut : livrées). « Annulée » sert à mesurer le manque à gagner.
+  const STATUS_OPTS: { id: string; label: string }[] = [
+    { id: 'pending', label: t('fin.st_pending', 'En attente') },
+    { id: 'processing', label: t('fin.st_processing', 'En préparation') },
+    { id: 'shipping', label: t('fin.st_shipping', 'Expédiée') },
+    { id: 'delivered', label: t('fin.st_delivered', 'Livrée') },
+    { id: 'cancelled', label: t('fin.st_cancelled', 'Annulée') },
+  ];
+  const [statuses, setStatuses] = useState<string[]>(['delivered']);
+  const toggleStatus = (id: string) => setStatuses(prev => prev.includes(id)
+    ? (prev.length > 1 ? prev.filter(x => x !== id) : prev)   // au moins un statut coché
+    : [...prev, id]);
   const [data, setData] = useState<Data | null>(null);
   const [loading, setLoading] = useState(true);
   const [reportProduct, setReportProduct] = useState<number | null>(null);
@@ -62,14 +74,14 @@ export default function AdminFinances() {
       if (!session || (session.expires_at && session.expires_at * 1000 < Date.now() + 60000)) {
         session = (await supabase.auth.refreshSession()).data.session;
       }
-      const res = await fetch(`/api/admin/finances?period=${period}`, {
+      const res = await fetch(`/api/admin/finances?period=${period}&statuses=${statuses.join(',')}`, {
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
       const json = await res.json();
       if (res.ok) setData(json);
     } catch { /* ignore */ }
     setLoading(false);
-  }, [period]);
+  }, [period, statuses]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -92,7 +104,19 @@ export default function AdminFinances() {
         </div>
       </div>
 
-      <p className="text-xs text-gray-400 mb-4">{t('fin.scope', 'Basé sur les commandes livrées.')}</p>
+      {/* Statuts comptés : les indicateurs suivent les cases cochées */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mb-4 bg-white border border-[#d2e095] rounded-2xl px-3 py-2">
+        <span className="text-xs text-gray-500 font-medium">{t('fin.statuses', 'Statuts comptés')} :</span>
+        {STATUS_OPTS.map(s => (
+          <label key={s.id} className="flex items-center gap-1.5 text-xs text-gray-700 cursor-pointer">
+            <input type="checkbox" checked={statuses.includes(s.id)} onChange={() => toggleStatus(s.id)} className="accent-[#a8c800]" />
+            {s.label}
+          </label>
+        ))}
+        {statuses.length === 1 && statuses[0] === 'delivered'
+          ? <span className="text-[11px] text-gray-400">{t('fin.scope', 'Basé sur les commandes livrées.')}</span>
+          : <span className="text-[11px] text-[#b45309]">⚠️ {t('fin.scope_custom', 'Vue d\'analyse : seules les commandes livrées sont du chiffre réellement encaissé.')}</span>}
+      </div>
 
       {loading ? (
         <p className="text-center text-gray-400 py-16">⏳</p>
@@ -107,7 +131,7 @@ export default function AdminFinances() {
               value={k.marginTotal ? fdj(k.marginTotal) : '—'}
               hint={k.marginPct != null ? `${k.marginPct} % ${t('fin.margin_rate', 'de marge')}` : t('fin.margin_na', 'coûts manquants')} />
             <Kpi emoji="🧾" label={t('fin.cost', "Coût d'achat")} value={k.costTotal ? fdj(k.costTotal) : '—'} hint={t('fin.cost_hint', 'Marchandises vendues')} />
-            <Kpi emoji="📦" label={t('fin.orders', 'Commandes livrées')} value={String(k.nbOrders)} hint={(k.nbOrdersEntreprises || 0) > 0 ? `🏢 ${t('fin.ca_companies', 'dont comptes entreprise')} : ${k.nbOrdersEntreprises} · ${fdj(k.caEntreprises || 0)}` : undefined} />
+            <Kpi emoji="📦" label={statuses.length === 1 && statuses[0] === 'delivered' ? t('fin.orders', 'Commandes livrées') : t('fin.orders2', 'Commandes comptées')} value={String(k.nbOrders)} hint={(k.nbOrdersEntreprises || 0) > 0 ? `🏢 ${t('fin.ca_companies', 'dont comptes entreprise')} : ${k.nbOrdersEntreprises} · ${fdj(k.caEntreprises || 0)}` : undefined} />
             <Kpi emoji="🛒" label={t('fin.basket', 'Panier moyen')} value={fdj(k.panierMoyen)} hint={t('fin.basket_hint', 'Par commande, livraison incluse')} />
             {(k.discountsTotal || 0) > 0 && <Kpi emoji="💸" label={t('fin.discounts', 'Remises accordées')} value={fdj(k.discountsTotal || 0)} hint={`${t('fin.discounts_hint', 'Codes promo et remises admin · marge nette')} : ${fdj(k.marginAfterDiscounts || 0)}`} />}
             {(k.creditOutstanding || 0) > 0 && <Kpi emoji="💳" label={t('fin.credit', 'Encours crédit clients')} value={fdj(k.creditOutstanding || 0)} hint={(k.creditOverdue || 0) > 0 ? `⚠️ ${fdj(k.creditOverdue || 0)} ${t('fin.credit_overdue', 'en retard')}` : t('fin.credit_hint', 'Vendu, pas encore encaissé')} />}
