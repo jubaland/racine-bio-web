@@ -4,7 +4,8 @@ import { commissionOf } from '../../../../lib/merchant-formula';
 import { requirePerm } from '../../../../lib/admin-auth';
 import { monitored } from '../../../../lib/monitor';
 
-// GET /api/admin/finances?period=month|30d|year|all&statuses=delivered,pending,…
+// GET /api/admin/finances?period=month|30d|year|all&statuses=…&from=AAAA-MM-JJ&to=AAAA-MM-JJ
+// from/to (dates incluses) priment sur period : analyse sur une plage libre.
 // Indicateurs financiers par statut de commande (défaut : livrées). « Annulée » n'est comptée
 // que si elle est cochée explicitement : c'est une vue d'analyse, pas du chiffre encaissé.
 async function GET_(request: Request) {
@@ -17,10 +18,17 @@ async function GET_(request: Request) {
   const statuses = (url.searchParams.get('statuses') || 'delivered').split(',').map(s => s.trim()).filter(s => ALL_STATUSES.includes(s));
   if (!statuses.length) statuses.push('delivered');
 
-  // Borne de date (UTC) selon la période
+  // Borne de date (UTC) selon la période — ou plage personnalisée from/to (jours inclus)
   const now = new Date();
   let from: Date | null = null;
-  if (period === 'month') from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  let to: Date | null = null;
+  const day = /^\d{4}-\d{2}-\d{2}$/;
+  const customFrom = url.searchParams.get('from') || '';
+  const customTo = url.searchParams.get('to') || '';
+  if (day.test(customFrom) && day.test(customTo) && customFrom <= customTo) {
+    from = new Date(customFrom + 'T00:00:00Z');
+    to = new Date(customTo + 'T23:59:59.999Z');
+  } else if (period === 'month') from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   else if (period === '30d') from = new Date(now.getTime() - 30 * 86400000);
   else if (period === 'year') from = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
 
@@ -30,6 +38,7 @@ async function GET_(request: Request) {
     .select('id, total, delivery_fee, delivery_discount, promo_discount, admin_discount, created_at, company_id')
     .in('status', statuses);
   if (from) q = q.gte('created_at', from.toISOString());
+  if (to) q = q.lte('created_at', to.toISOString());
   const { data: orders, error: ordErr } = await q;
   if (ordErr) return NextResponse.json({ error: ordErr.message }, { status: 500 });
 
@@ -123,6 +132,7 @@ async function GET_(request: Request) {
   return NextResponse.json({
     period,
     statuses,
+    range: { from: from ? from.toISOString().slice(0, 10) : null, to: to ? to.toISOString().slice(0, 10) : null },
     kpis: {
       caProduits,                                            // CA produits (hors livraison), ventes marchands incluses
       caMarchands,                                           // ventes des produits marchands (brut)

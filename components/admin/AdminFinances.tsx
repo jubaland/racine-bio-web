@@ -32,7 +32,12 @@ export default function AdminFinances() {
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
 
-  const [period, setPeriod] = useState<'month' | '30d' | 'year' | 'all'>('month');
+  const [period, setPeriod] = useState<'month' | '30d' | 'year' | 'all' | 'custom'>('month');
+  // Plage personnalisée (dates incluses) — pré-remplie sur le mois en cours
+  const iso0 = (d: Date) => d.toISOString().slice(0, 10);
+  const [customFrom, setCustomFrom] = useState(() => iso0(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
+  const [customTo, setCustomTo] = useState(() => iso0(new Date()));
+  const customValid = !!customFrom && !!customTo && customFrom <= customTo;
   // Statuts comptés (défaut : livrées). « Annulée » sert à mesurer le manque à gagner.
   const STATUS_OPTS: { id: string; label: string }[] = [
     { id: 'pending', label: t('fin.st_pending', 'En attente') },
@@ -54,6 +59,7 @@ export default function AdminFinances() {
     const now = new Date();
     const iso = (d: Date) => d.toISOString().slice(0, 10);
     const today = iso(now);
+    if (period === 'custom') return { from: customFrom, to: customTo };
     if (period === 'month') return { from: iso(new Date(now.getFullYear(), now.getMonth(), 1)), to: today };
     if (period === '30d') return { from: iso(new Date(now.getTime() - 30 * 86400000)), to: today };
     if (period === 'year') return { from: iso(new Date(now.getFullYear(), 0, 1)), to: today };
@@ -65,6 +71,7 @@ export default function AdminFinances() {
     { id: '30d',   label: t('fin.period_30d', '30 jours') },
     { id: 'year',  label: t('fin.period_year', 'Cette année') },
     { id: 'all',   label: t('fin.period_all', 'Tout') },
+    { id: 'custom', label: `📅 ${t('fin.period_custom', 'Dates…')}` },
   ];
 
   const fetchData = useCallback(async () => {
@@ -74,16 +81,20 @@ export default function AdminFinances() {
       if (!session || (session.expires_at && session.expires_at * 1000 < Date.now() + 60000)) {
         session = (await supabase.auth.refreshSession()).data.session;
       }
-      const res = await fetch(`/api/admin/finances?period=${period}&statuses=${statuses.join(',')}`, {
+      const custom = period === 'custom' ? `&from=${customFrom}&to=${customTo}` : '';
+      const res = await fetch(`/api/admin/finances?period=${period}&statuses=${statuses.join(',')}${custom}`, {
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
       const json = await res.json();
       if (res.ok) setData(json);
     } catch { /* ignore */ }
     setLoading(false);
-  }, [period, statuses]);
+  }, [period, statuses, customFrom, customTo]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    if (period === 'custom' && !customValid) return;   // plage incomplète ou inversée : on attend
+    fetchData();
+  }, [fetchData, period, customValid]);
 
   const k = data?.kpis;
 
@@ -103,6 +114,22 @@ export default function AdminFinances() {
           ))}
         </div>
       </div>
+
+      {/* Plage de dates personnalisée (dates incluses) */}
+      {period === 'custom' && (
+        <div className="flex flex-wrap items-center gap-2 mb-3 bg-white border border-[#d2e095] rounded-2xl px-3 py-2">
+          <label className="text-xs text-gray-600 font-medium flex items-center gap-1.5">{t('fin.from', 'Du')}
+            <input type="date" value={customFrom} max={customTo || undefined} onChange={e => setCustomFrom(e.target.value)}
+              className="border border-[#d2e095] rounded-lg px-2 py-1.5 text-xs bg-[#faf7e8] focus:outline-none focus:border-[#a8c800]" />
+          </label>
+          <label className="text-xs text-gray-600 font-medium flex items-center gap-1.5">{t('fin.to', 'au')}
+            <input type="date" value={customTo} min={customFrom || undefined} onChange={e => setCustomTo(e.target.value)}
+              className="border border-[#d2e095] rounded-lg px-2 py-1.5 text-xs bg-[#faf7e8] focus:outline-none focus:border-[#a8c800]" />
+          </label>
+          <span className="text-[11px] text-gray-400">{t('fin.range_hint', 'Dates incluses.')}</span>
+          {!customValid && <span className="text-[11px] text-[#f97316]">⚠️ {t('fin.range_err', 'Choisissez deux dates, la première avant la seconde.')}</span>}
+        </div>
+      )}
 
       {/* Statuts comptés : les indicateurs suivent les cases cochées */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mb-4 bg-white border border-[#d2e095] rounded-2xl px-3 py-2">

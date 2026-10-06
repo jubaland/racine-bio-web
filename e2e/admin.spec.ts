@@ -202,6 +202,14 @@ test('admin › Finances : indicateurs par statut (lecture seule)', async ({ pag
   await expect(page.getByText(/Commandes comptées/).first()).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText(/seules les commandes livrées sont du chiffre réellement encaissé/)).toBeVisible();
   await expectNoOverflow(page, 'Finances › statuts');
+  // Plage de dates personnalisée : un seul jour → rechargement sans erreur
+  await page.getByRole('button', { name: /Dates…/ }).click();
+  const today = new Date().toISOString().slice(0, 10);
+  await page.getByLabel(/^Du/).fill(today);
+  await page.getByLabel(/^au/).fill(today);
+  await expect(page.getByText(/Dates incluses/)).toBeVisible();
+  await expect(page.getByText(/Chiffre d'affaires/).first()).toBeVisible({ timeout: 30_000 });
+  await expectNoOverflow(page, 'Finances › dates personnalisées');
   // Retour à la vue par défaut
   await page.getByRole('checkbox', { name: /Annulée/ }).uncheck();
   await expect(page.getByText(/Commandes livrées/).first()).toBeVisible({ timeout: 30_000 });
