@@ -29,6 +29,9 @@ async function GET_(request: Request) {
 
   const onlyCompany = params.get('company') ? Number(params.get('company')) : undefined; // ?company=<id> : restreint aux sociétés (tests)
 
+  // 6b. Anti-rafale : purge des compteurs expirés (silencieuse)
+  if (!dry) { try { const { purgeRateLimits } = await import('../../../../lib/rate-limit'); await purgeRateLimits(); } catch { /* ignore */ } }
+
   // 6. Crédit client : rappel avant échéance, relevé, retard, suspension (lib/credit.ts)
   const runCredit = async (day: string, onlyAccount?: number) => {
     try { const { creditDaily } = await import('../../../../lib/credit'); return await creditDaily(day, { onlyAccount, dry }); }

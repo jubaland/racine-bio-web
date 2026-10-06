@@ -158,6 +158,7 @@ export default function CheckoutPage() {
       exhausted: t('checkout.promo_e_exhausted', 'Ce code a atteint son nombre maximal d\'utilisations.'),
       per_user_limit: t('checkout.promo_e_per_user', 'Vous avez déjà utilisé ce code.'),
       login_required: t('checkout.promo_e_login', 'Connectez-vous pour utiliser ce code.'),
+      rate_limited: t('checkout.rate_limited', 'Trop d\'essais. Réessayez dans quelques minutes.'),
     };
     const referral: Record<string, string> = {
       own_code: t('checkout.ref_e_own', 'Vous ne pouvez pas utiliser votre propre code.'),
@@ -440,6 +441,7 @@ export default function CheckoutPage() {
           site_required: t('co.e_site_required', 'Choisissez un site de livraison.'),
           identity_mismatch: t('checkout.e_session', 'Votre session a expiré : reconnectez-vous puis réessayez.'),
           delivery_option_invalid: t('checkout.e_delivery_option', 'Ce mode de livraison n\'est plus proposé. Rechargez la page et choisissez-en un autre.'),
+          rate_limited: t('checkout.rate_limited', 'Trop d\'essais. Réessayez dans quelques minutes.'),
           credit_unavailable: ({ limit: t('checkout.credit_e_limit', 'Plafond de crédit dépassé pour cette commande.'), overdue: t('checkout.credit_e_overdue', 'Un règlement est en retard : le crédit est bloqué jusqu\'à régularisation.'), suspended: t('checkout.credit_e_suspended', 'Votre crédit est suspendu.'), disabled: t('checkout.credit_e_disabled', 'Le paiement à crédit n\'est pas disponible.'), no_account: t('checkout.credit_e_none', 'Vous n\'avez pas de ligne de crédit.') } as Record<string, string>)[json.reason] || t('checkout.credit_e_generic', 'Paiement à crédit impossible.'),
         };
         setOrderError(MSG[json.error] || t('checkout.e_generic', 'La commande n\'a pas pu être enregistrée. Réessayez dans un instant.'));

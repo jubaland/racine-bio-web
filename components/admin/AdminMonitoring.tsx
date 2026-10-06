@@ -10,7 +10,7 @@ import { useCan } from '../../context/AdminPermsContext';
 // regroupées par erreur identique, avec résolution et réglages des alertes.
 
 type Err = { id: number; source: 'server' | 'cron' | 'client'; route: string | null; method: string | null; status: number | null; message: string; stack: string | null; context: Record<string, any> | null; count: number; first_seen: string; last_seen: string; resolved_at: string | null; user_id: string | null };
-type Settings = { alert_enabled: boolean; alert_email: boolean; alert_client: boolean; client_enabled: boolean; alert_cooldown_min: number | null; retention_days: number | null };
+type Settings = { alert_enabled: boolean; alert_email: boolean; alert_client: boolean; client_enabled: boolean; alert_cooldown_min: number | null; retention_days: number | null; code_attempts_15min?: number | null; guest_orders_hour?: number | null };
 type Data = { state: 'open' | 'resolved'; errors: Err[]; counts: { open: number; resolved: number; last_24h: number }; settings: Settings };
 
 const when = (d: string) => new Date(d).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -39,7 +39,7 @@ export default function AdminMonitoring() {
     try {
       const res = await fetch(`/api/admin/monitoring?state=${state}`, { headers: { Authorization: `Bearer ${await token()}` } });
       const j = await res.json();
-      if (res.ok) { setData(j); setForm({ ...j.settings, alert_cooldown_min: j.settings.alert_cooldown_min ?? '', retention_days: j.settings.retention_days ?? '' }); }
+      if (res.ok) { setData(j); setForm({ ...j.settings, code_attempts_15min: j.settings.code_attempts_15min ?? '', guest_orders_hour: j.settings.guest_orders_hour ?? '', alert_cooldown_min: j.settings.alert_cooldown_min ?? '', retention_days: j.settings.retention_days ?? '' }); }
     } catch { /* ignore */ }
     setLoading(false);
   }, []);
@@ -94,6 +94,14 @@ export default function AdminMonitoring() {
             <label className="text-xs text-gray-600">{t('mon.set_cooldown', 'Délai entre deux alertes pour la même erreur (minutes)')}
               <input type="number" inputMode="numeric" min={1} step={1} disabled={!canEdit} value={form.alert_cooldown_min ?? ''} onChange={e => setForm({ ...form, alert_cooldown_min: e.target.value })} placeholder={t('mon.minutes_ph', 'Ex : nombre de minutes')} className="block w-full border border-[#d2e095] rounded-xl px-3 py-2 text-sm mt-1" />
               <span className="block text-[11px] text-gray-400 mt-1">{t('mon.set_cooldown_hint', 'Vide : une seule alerte par erreur.')}</span>
+            </label>
+            <label className="text-xs text-gray-600">{t('mon.set_rl_code', 'Anti-rafale : essais de codes par adresse (15 min)')}
+              <input type="number" inputMode="numeric" min={1} step={1} disabled={!canEdit} value={form.code_attempts_15min ?? ''} onChange={e => setForm({ ...form, code_attempts_15min: e.target.value })} placeholder={t('mon.set_rl_ph', 'Ex : 20')} className="mt-1 w-full border border-[#d2e095] rounded-xl px-3 py-2 text-sm bg-[#faf7e8] focus:outline-none focus:border-[#a8c800]" />
+              <span className="block text-[11px] text-gray-400 mt-1">{t('mon.set_rl_code_hint', 'Codes promo et parrainage au paiement. Vide : protection désactivée.')}</span>
+            </label>
+            <label className="text-xs text-gray-600">{t('mon.set_rl_orders', 'Anti-rafale : commandes invité par adresse (1 h)')}
+              <input type="number" inputMode="numeric" min={1} step={1} disabled={!canEdit} value={form.guest_orders_hour ?? ''} onChange={e => setForm({ ...form, guest_orders_hour: e.target.value })} placeholder={t('mon.set_rl_ph2', 'Ex : 10')} className="mt-1 w-full border border-[#d2e095] rounded-xl px-3 py-2 text-sm bg-[#faf7e8] focus:outline-none focus:border-[#a8c800]" />
+              <span className="block text-[11px] text-gray-400 mt-1">{t('mon.set_rl_orders_hint', 'Visiteurs sans compte uniquement. Vide : protection désactivée.')}</span>
             </label>
             <label className="text-xs text-gray-600">{t('mon.set_retention', 'Conservation du journal (jours)')}
               <input type="number" inputMode="numeric" min={1} step={1} disabled={!canEdit} value={form.retention_days ?? ''} onChange={e => setForm({ ...form, retention_days: e.target.value })} placeholder={t('mer.duration_ph', 'Ex : nombre de jours')} className="block w-full border border-[#d2e095] rounded-xl px-3 py-2 text-sm mt-1" />

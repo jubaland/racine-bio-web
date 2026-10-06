@@ -24,6 +24,12 @@ async function POST_(request: Request) {
     // Une commande rattachée à un compte doit être passée par ce compte (jeton), sinon n'importe qui
     // pourrait commander — et débiter une cagnotte — au nom d'un autre.
     if (rawOrder.user_id && (!caller || caller.id !== rawOrder.user_id)) return NextResponse.json({ error: 'identity_mismatch' }, { status: 401 });
+    // Anti-rafale : commandes de visiteurs sans compte limitées par adresse (réglage admin › Surveillance)
+    if (!caller) {
+      const { limitGuestOrders } = await import('../../../lib/rate-limit');
+      const rl = await limitGuestOrders(request);
+      if (!rl.allowed) return NextResponse.json({ error: 'rate_limited', retry_after: rl.retryAfter }, { status: 429 });
+    }
     const order: any = {
       user_id: rawOrder.user_id ? caller!.id : null,
       total: Number(rawOrder.total) || 0,

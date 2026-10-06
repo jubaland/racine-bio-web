@@ -12,8 +12,8 @@ import { supabaseAdmin } from './supabase-admin';
 // Réglages : app_settings monitor.* (admin › Surveillance).
 
 export type ErrorSource = 'server' | 'cron' | 'client';
-export type MonitorSettings = { alert_enabled: boolean; alert_email: boolean; alert_cooldown_min: number | null; alert_client: boolean; client_enabled: boolean; retention_days: number | null };
-export const MONITOR_KEYS = ['alert_enabled', 'alert_email', 'alert_cooldown_min', 'alert_client', 'client_enabled', 'retention_days'] as const;
+export type MonitorSettings = { code_attempts_15min: number | null; guest_orders_hour: number | null; alert_enabled: boolean; alert_email: boolean; alert_cooldown_min: number | null; alert_client: boolean; client_enabled: boolean; retention_days: number | null };
+export const MONITOR_KEYS = ['alert_enabled', 'alert_email', 'alert_cooldown_min', 'alert_client', 'client_enabled', 'retention_days', 'code_attempts_15min', 'guest_orders_hour'] as const;
 const FLAGS = new Set(['alert_enabled', 'alert_email', 'alert_client', 'client_enabled']);
 
 export async function monitorSettings(): Promise<MonitorSettings> {
@@ -22,6 +22,7 @@ export async function monitorSettings(): Promise<MonitorSettings> {
   return {
     alert_enabled: v.alert_enabled === 1, alert_email: v.alert_email === 1, alert_client: v.alert_client === 1, client_enabled: v.client_enabled === 1,
     alert_cooldown_min: v.alert_cooldown_min ?? null, retention_days: v.retention_days ?? null,
+    code_attempts_15min: v.code_attempts_15min ?? null, guest_orders_hour: v.guest_orders_hour ?? null,
   };
 }
 export async function saveMonitorSettings(patch: Partial<Record<typeof MONITOR_KEYS[number], boolean | number | null>>) {

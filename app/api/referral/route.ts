@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { supabaseAdmin } from '../../../lib/supabase-admin';
 import { monitored } from '../../../lib/monitor';
+import { limitCodeChecks } from '../../../lib/rate-limit';
 
 const CHARSET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -71,6 +72,9 @@ async function POST_(request: NextRequest) {
   try {
     const { code, user_id } = await request.json();
     if (!code) return NextResponse.json({ valid: false, error: 'Code requis' });
+    // Anti-rafale : budget commun avec /api/promo (réglage admin › Surveillance)
+    const rl = await limitCodeChecks(request);
+    if (!rl.allowed) return NextResponse.json({ valid: false, error: 'rate_limited', retry_after: rl.retryAfter }, { status: 429 });
 
     const { data } = await supabaseAdmin
       .from('referral_codes')

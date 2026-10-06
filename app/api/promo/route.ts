@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { userFromRequest } from '../../../lib/company';
 import { deliveryRules, findPromo, checkPromo, checkReferral, eligibleSubtotal, cleanCode, cleanPhone } from '../../../lib/promo-codes';
 import { monitored } from '../../../lib/monitor';
+import { limitCodeChecks } from '../../../lib/rate-limit';
 
 // GET — règles publiques de livraison (seuil automatique de livraison offerte) pour l'affichage
 async function GET_() {
@@ -14,6 +15,9 @@ async function POST_(request: Request) {
   const body = await request.json().catch(() => ({}));
   const code = cleanCode(body.code);
   if (code.length < 3) return NextResponse.json({ valid: false, reason: 'unknown' });
+  // Anti-rafale : on ne devine pas un code en boucle (réglage admin › Surveillance)
+  const rl = await limitCodeChecks(request);
+  if (!rl.allowed) return NextResponse.json({ valid: false, reason: 'rate_limited', retry_after: rl.retryAfter }, { status: 429 });
   const caller = await userFromRequest(request);
   const who = { userId: caller?.id || null, phone: cleanPhone(body.phone) };
 

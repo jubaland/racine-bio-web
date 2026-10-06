@@ -67,7 +67,7 @@ async function POST_(request: Request) {
   if (action === 'save_settings') {
     const patch: Record<string, boolean | number | null> = {};
     for (const k of ['alert_enabled', 'alert_email', 'alert_client', 'client_enabled']) if (k in body) patch[k] = !!body[k];
-    for (const [k, max] of [['alert_cooldown_min', MAX_MIN], ['retention_days', MAX_DAYS]] as const) {
+    for (const [k, max] of [['alert_cooldown_min', MAX_MIN], ['retention_days', MAX_DAYS], ['code_attempts_15min', 10000], ['guest_orders_hour', 10000]] as const) {
       if (!(k in body)) continue;
       const raw = body[k];
       if (raw === '' || raw == null) { patch[k] = null; continue; }      // vide : pas de délai / pas de purge
