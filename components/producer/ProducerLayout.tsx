@@ -114,7 +114,7 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
     sub.state === 'active' && sub.kind === 'commission'
       ? { cls: 'bg-green-50 border-green-200 text-green-800', text: `🤝 ${t('producer.com_active', 'Formule commission active : vos produits validés sont visibles.')}` }
     : sub.state === 'suspended' && sub.kind === 'commission'
-      ? { cls: 'bg-red-50 border-red-200 text-red-700', text: `⏸️ ${t('producer.com_suspended', 'Boutique suspendue — vos produits ne sont pas visibles. Contactez-nous au 77 43 26 15.')}` }
+      ? { cls: 'bg-red-50 border-red-200 text-red-700', text: `⏸️ ${t('producer.com_suspended', 'Boutique suspendue — vos produits ne sont pas visibles. Contactez-nous au 77 09 21 46.')}` }
     : sub.state === 'active' && toCommission
       ? { cls: 'bg-green-50 border-green-200 text-green-800', text: `✅ ${t('producer.sub_active', 'Abonnement actif jusqu\'au')} ${dateFr(sub.ends_at)} · 🤝 ${t('producer.com_scheduled', 'passage à la commission ensuite')}` }
     : sub.state === 'active' && soon
@@ -124,7 +124,7 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
     : sub.state === 'pending'
       ? { cls: 'bg-amber-50 border-amber-200 text-amber-800', text: `⏳ ${t('producer.sub_pending', 'Paiement en attente de confirmation par Hornafresh.')}` }
     : sub.state === 'suspended'
-      ? { cls: 'bg-red-50 border-red-200 text-red-700', text: `⏸️ ${t('producer.sub_suspended', 'Abonnement suspendu — vos produits ne sont pas visibles. Contactez-nous au 77 43 26 15.')}` }
+      ? { cls: 'bg-red-50 border-red-200 text-red-700', text: `⏸️ ${t('producer.sub_suspended', 'Abonnement suspendu — vos produits ne sont pas visibles. Contactez-nous au 77 09 21 46.')}` }
       : { cls: 'bg-red-50 border-red-200 text-red-700', text: `🔒 ${t('producer.formula_none', 'Aucune formule active — vos produits ne sont pas visibles sur le site. Choisissez votre formule pour les rendre visibles.')}` };
   // Lien d'action vers « Mon abonnement » dès que l'abonnement n'est pas simplement actif (sauf sur la page elle-même)
   const bannerLink = pathname !== '/producer/subscription' && sub.state !== 'active'

@@ -121,7 +121,7 @@ function SubscriptionContent() {
     ? { emoji: '🤝', cls: 'from-green-50 to-white border-green-200', title: t('producer.com_hero', 'Formule commission active'),
         sub: `${rate != null ? `${rate} % ` : ''}${t('producer.com_hero_sub', 'retenus sur vos ventes livrées · rien à payer d\'avance')}${data.formula.since ? ` · ${t('producer.com_since', 'depuis le')} ${dateFr(data.formula.since)}` : ''}` }
     : data.state === 'suspended' && onCommission
-    ? { emoji: '⏸️', cls: 'from-red-50 to-white border-red-200', title: t('producer.com_suspended_title', 'Boutique suspendue'), sub: t('producer.sub_suspended_hint', 'Contactez Hornafresh au 77 43 26 15 pour le réactiver.') }
+    ? { emoji: '⏸️', cls: 'from-red-50 to-white border-red-200', title: t('producer.com_suspended_title', 'Boutique suspendue'), sub: t('producer.sub_suspended_hint', 'Contactez Hornafresh au 77 09 21 46 pour le réactiver.') }
     : data.state === 'active'
     ? { emoji: '✅', cls: 'from-green-50 to-white border-green-200', title: `${t('producer.sub_active', 'Abonnement actif jusqu\'au')} ${dateFr(data.active!.ends_at)}`,
         sub: `${data.days_left} ${t('producer.sub_days_left', 'jour(s) restant(s)')}${data.active?.plan_name ? ` · ${data.active.plan_name}` : ''}` }
@@ -129,7 +129,7 @@ function SubscriptionContent() {
     ? { emoji: '⏳', cls: 'from-amber-50 to-white border-amber-200', title: t('producer.sub_pending', 'Paiement en attente de confirmation par Hornafresh.'),
         sub: `${fdj(data.pending!.amount)} · ${data.pending!.payment_method === 'cash' ? t('producer.sub_method_cash', 'Espèces') : 'Waafi'}${data.pending!.payment_reference ? ` · ${t('producer.sub_ref', 'Réf.')} ${data.pending!.payment_reference}` : ''} · ${dateFr(data.pending!.created_at)}` }
     : data.state === 'suspended'
-    ? { emoji: '⏸️', cls: 'from-red-50 to-white border-red-200', title: t('producer.sub_suspended_title', 'Abonnement suspendu'), sub: t('producer.sub_suspended_hint', 'Contactez Hornafresh au 77 43 26 15 pour le réactiver.') }
+    ? { emoji: '⏸️', cls: 'from-red-50 to-white border-red-200', title: t('producer.sub_suspended_title', 'Abonnement suspendu'), sub: t('producer.sub_suspended_hint', 'Contactez Hornafresh au 77 09 21 46 pour le réactiver.') }
     : data.state === 'expired'
     ? { emoji: '🔒', cls: 'from-red-50 to-white border-red-200', title: t('producer.sub_expired_title', 'Abonnement expiré'), sub: t('producer.sub_expired_hint', 'Vos produits ne sont plus visibles. Renouvelez ci-dessous.') }
     : { emoji: '🔒', cls: 'from-red-50 to-white border-red-200', title: t('producer.formula_none_title', 'Aucune formule active'), sub: t('producer.formula_none_hint', 'Choisissez votre formule ci-dessous pour rendre vos produits visibles sur Hornafresh.') };
@@ -279,7 +279,7 @@ function SubscriptionContent() {
             </div>
           ) : (
             <div className="bg-[#faf7e8] border border-[#d2e095] rounded-2xl px-5 py-4 mb-4">
-              <p className="text-sm text-gray-600">{t('producer.sub_cash_instructions', 'Remettez le montant en espèces à l\'équipe Hornafresh (77 43 26 15). Vous pouvez indiquer une note ci-dessous (date, personne).')}</p>
+              <p className="text-sm text-gray-600">{t('producer.sub_cash_instructions', 'Remettez le montant en espèces à l\'équipe Hornafresh (77 09 21 46). Vous pouvez indiquer une note ci-dessous (date, personne).')}</p>
               <input value={reference} onChange={e => setReference(e.target.value)} maxLength={80}
                 placeholder={t('producer.sub_note_ph', 'Ex : remis le 24/09 à Salah')}
                 className="w-full border border-[#d2e095] rounded-xl px-4 py-2.5 text-sm bg-white mt-3 focus:outline-none focus:border-[#a8c800]" />

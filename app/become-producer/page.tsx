@@ -232,7 +232,7 @@ export default function BecomeMerchantPage() {
                 <p className="font-semibold">🚫 {t('join.rejected_title', 'Votre précédente demande n\'a pas été retenue')}{request.created_at ? ` (${new Date(request.created_at).toLocaleDateString('fr-FR')})` : ''}</p>
                 {request.admin_note && <p className="mt-1">{t('join.rejected_reason', 'Motif')} : {request.admin_note}</p>}
               </div>
-              <p className="text-sm text-gray-500 mb-4">{t('join.rejected_hint', 'Vous pouvez déposer une nouvelle demande en tenant compte du motif, ou nous appeler au 77 43 26 15.')}</p>
+              <p className="text-sm text-gray-500 mb-4">{t('join.rejected_hint', 'Vous pouvez déposer une nouvelle demande en tenant compte du motif, ou nous appeler au 77 09 21 46.')}</p>
               <button onClick={() => setReapply(true)} className="bg-[#a8c800] text-white px-6 py-3 rounded-full font-semibold hover:bg-[#7d9800] transition">📤 {t('join.reapply', 'Déposer une nouvelle demande')}</button>
             </div>
           ) : (

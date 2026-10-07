@@ -57,7 +57,7 @@ async function POST_(request: Request) {
       await notifyUser(req.requested_by, {
         title: `🚫 Annulation refusée — #${shortId}`,
         body: byCustomer
-          ? 'Votre demande d\'annulation n\'a pas pu être acceptée : la commande est maintenue. Contactez-nous au 77 43 26 15 pour toute question.'
+          ? 'Votre demande d\'annulation n\'a pas pu être acceptée : la commande est maintenue. Contactez-nous au 77 09 21 46 pour toute question.'
           : 'Votre demande d\'annulation n\'a pas été validée. La commande reste active.',
         url: target,
         i18n: { key: byCustomer ? 'cancel.rejected_customer' : 'cancel.rejected', params: { id: shortId } },

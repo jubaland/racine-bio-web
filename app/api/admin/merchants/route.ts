@@ -142,7 +142,7 @@ async function POST_(request: Request) {
       if (!sub || sub.status !== 'pending_payment') return NextResponse.json({ error: 'already_resolved' }, { status: 409 });
       if (action === 'reject_payment') {
         await supabaseAdmin.from('merchant_subscriptions').update({ status: 'rejected', notes: note || null }).eq('id', subscription_id);
-        await notifyMerchant(sub.user_id, '❌ Paiement non confirmé', `Nous n'avons pas pu confirmer votre paiement${note ? ` : ${note}` : ''}. Contactez-nous au 77 43 26 15.`, 'Hornafresh — paiement non confirmé', undefined, { key: 'm.payment_rejected', params: { note: noteP(note) } });
+        await notifyMerchant(sub.user_id, '❌ Paiement non confirmé', `Nous n'avons pas pu confirmer votre paiement${note ? ` : ${note}` : ''}. Contactez-nous au 77 09 21 46.`, 'Hornafresh — paiement non confirmé', undefined, { key: 'm.payment_rejected', params: { note: noteP(note) } });
         return NextResponse.json({ ok: true });
       }
       const duration = Number(sub.merchant_plans?.duration_days);
@@ -168,14 +168,14 @@ async function POST_(request: Request) {
         if (!frows?.length) return NextResponse.json({ error: 'nothing_to_change' }, { status: 409 });
         await notifyMerchant(user_id,
           action === 'suspend' ? '⏸️ Boutique suspendue' : '▶️ Boutique réactivée',
-          action === 'suspend' ? `Votre boutique est suspendue${note ? ` : ${note}` : ''}. Vos produits ne sont plus visibles. Contactez-nous au 77 43 26 15.` : 'Votre boutique est de nouveau active : vos produits validés sont visibles.',
+          action === 'suspend' ? `Votre boutique est suspendue${note ? ` : ${note}` : ''}. Vos produits ne sont plus visibles. Contactez-nous au 77 09 21 46.` : 'Votre boutique est de nouveau active : vos produits validés sont visibles.',
           action === 'suspend' ? 'Hornafresh — boutique suspendue' : 'Hornafresh — boutique réactivée', undefined,
           { key: action === 'suspend' ? 'm.shop_suspended' : 'm.shop_reactivated', params: { note: noteP(note) } });
         return NextResponse.json({ ok: true });
       }
       await notifyMerchant(user_id,
         action === 'suspend' ? '⏸️ Abonnement suspendu' : '▶️ Abonnement réactivé',
-        action === 'suspend' ? `Votre abonnement est suspendu${note ? ` : ${note}` : ''}. Vos produits ne sont plus visibles. Contactez-nous au 77 43 26 15.` : 'Votre abonnement est de nouveau actif : vos produits validés sont visibles.',
+        action === 'suspend' ? `Votre abonnement est suspendu${note ? ` : ${note}` : ''}. Vos produits ne sont plus visibles. Contactez-nous au 77 09 21 46.` : 'Votre abonnement est de nouveau actif : vos produits validés sont visibles.',
         action === 'suspend' ? 'Hornafresh — abonnement suspendu' : 'Hornafresh — abonnement réactivé', undefined,
         { key: action === 'suspend' ? 'm.sub_suspended' : 'm.sub_reactivated', params: { note: noteP(note) } });
       return NextResponse.json({ ok: true });
@@ -321,7 +321,7 @@ async function POST_(request: Request) {
             'Bienvenue chez Hornafresh — votre espace marchand', '/producer/subscription', { key: 'm.join_accepted', params: { shop: req.farm_name } });
         } else {
           await notifyMerchant(user.id, 'Adhésion non retenue',
-            `Votre demande pour « ${req.farm_name} » n'a pas été retenue pour le moment.${note ? ` Motif : ${note}.` : ''} Vous pouvez déposer une nouvelle demande ou nous appeler au 77 43 26 15.`,
+            `Votre demande pour « ${req.farm_name} » n'a pas été retenue pour le moment.${note ? ` Motif : ${note}.` : ''} Vous pouvez déposer une nouvelle demande ou nous appeler au 77 09 21 46.`,
             'Hornafresh — votre demande d\'adhésion', '/become-producer',
             { key: 'm.join_rejected', params: { shop: req.farm_name, reason: note ? { key: 'm.reason', params: { note: String(note) }, fr: ` Motif : ${note}.` } : null } });
         }

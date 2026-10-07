@@ -14,6 +14,7 @@ import Header from '../../components/Header';
 import CartDrawer from '../../components/CartDrawer';
 import CreditPanel, { type CreditView } from '../../components/CreditPanel';
 import InstallAppButton from '../../components/InstallAppButton';
+import { WAAFI_MERCHANT_NUMBER, WAAFI_ACCOUNT_HOLDER } from '../../lib/payments';
 import ReorderDialog from '../../components/ReorderDialog';
 
 interface OrderItem {
@@ -1417,8 +1418,8 @@ export default function ProfilePage() {
 
             <div className="bg-[#e8f5e0] border border-[#a8c800] rounded-2xl p-4 mb-4 text-center">
               <p className="text-xs text-gray-500">{t('profile.deposit_waafi', 'Numéro Waafi marchand')}</p>
-              <p className="text-2xl font-bold text-[#526500] tracking-widest">77432615</p>
-              <p className="text-xs text-gray-400 mt-0.5">Hornafresh — Djibouti</p>
+              <p className="text-2xl font-bold text-[#526500] tracking-widest">{WAAFI_MERCHANT_NUMBER}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{WAAFI_ACCOUNT_HOLDER}</p>
             </div>
 
             <label className="text-sm font-medium text-gray-600 mb-1 block">{t('profile.deposit_amount', 'Montant envoyé (Fdj)')}</label>

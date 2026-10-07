@@ -22,7 +22,7 @@ export const HORNAFRESH_WHATSAPP = '25377092146';   // +253 77 09 21 46 (changé
 /** Lien vers le WhatsApp Hornafresh (service client). */
 export const hornafreshWa = (text?: string) => waLink(HORNAFRESH_WHATSAPP, text);
 
-/** Format d'affichage local « 77 43 26 15 » pour un numéro Djibouti, sinon +international. */
+/** Format d'affichage local « 77 09 21 46 » pour un numéro Djibouti, sinon +international. */
 export function displayPhone(intlPhone: string): string {
   if (intlPhone.startsWith('253') && intlPhone.length === 11) return intlPhone.slice(3).replace(/(\d{2})(?=\d)/g, '$1 ');
   return '+' + intlPhone;

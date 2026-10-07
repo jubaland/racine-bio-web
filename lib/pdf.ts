@@ -1,4 +1,5 @@
 import { PDFDocument, StandardFonts, rgb, PDFFont } from 'pdf-lib';
+import { HORNAFRESH_PHONE } from './payments';
 
 const GREEN = rgb(0.32, 0.40, 0);
 const GRAY = rgb(0.42, 0.45, 0.50);
@@ -204,7 +205,7 @@ export async function buildReceiptPdf(order: any, items: any[]): Promise<Buffer>
 
   gap(24);
   line('Merci pour votre confiance !', { f: bold, size: 12, color: GREEN });
-  line('Hornafresh - Djibouti - 77432615', { size: 9, color: GRAY });
+  line(`Hornafresh - Djibouti - ${HORNAFRESH_PHONE.replace(/\s+/g, '')}`, { size: 9, color: GRAY });
 
   const bytes = await doc.save();
   return Buffer.from(bytes);

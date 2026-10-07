@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb, PDFFont } from 'pdf-lib';
 import type { OpenCharge } from './credit';
+import { HORNAFRESH_PHONE } from './payments';
 
 // Relevé de crédit (A4) : commandes à régler, total dû, plafond. Police standard : accents OK, emoji retirés.
 const GREEN = rgb(0.32, 0.40, 0), GRAY = rgb(0.42, 0.45, 0.50), DARK = rgb(0.12, 0.15, 0.20);
@@ -40,6 +41,6 @@ export async function buildCreditStatementPdf(p: { holder: string; day: string; 
   y -= 16;
   line('Reglement en especes, par Waafi ou D-Money aupres d\'Hornafresh.', { size: 10, color: GRAY });
   line('Merci pour votre confiance !', { f: bold, size: 12, color: GREEN });
-  line('Hornafresh - Djibouti - 77432615', { size: 9, color: GRAY });
+  line(`Hornafresh - Djibouti - ${HORNAFRESH_PHONE.replace(/\s+/g, '')}`, { size: 9, color: GRAY });
   return Buffer.from(await doc.save());
 }
