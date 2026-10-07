@@ -1,4 +1,3 @@
-import { HORNAFRESH_PHONE } from './payments';
 
 // WhatsApp « cliquer pour discuter » (liens wa.me) — gratuit, sans API : c'est toujours le client
 // qui ouvre la conversation. Fonctions pures, utilisables côté client et serveur.
@@ -18,7 +17,7 @@ export function waLink(intlPhone: string, text?: string): string {
   return `https://wa.me/${intlPhone}${text ? `?text=${encodeURIComponent(text)}` : ''}`;
 }
 
-export const HORNAFRESH_WHATSAPP = toIntlPhone(HORNAFRESH_PHONE) as string; // 25377432615
+export const HORNAFRESH_WHATSAPP = '25377092146';   // +253 77 09 21 46 (changé le 07/10/2026)
 
 /** Lien vers le WhatsApp Hornafresh (service client). */
 export const hornafreshWa = (text?: string) => waLink(HORNAFRESH_WHATSAPP, text);
