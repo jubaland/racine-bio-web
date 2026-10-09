@@ -880,6 +880,9 @@ export default function HomePage({ products, categories, promos, producers, sett
             <Link href="/about" className="text-sm text-[#7d9800] hover:underline">
               {t('learnMore', 'Qui sommes-nous ?')}
             </Link>
+            <Link href="/confidentialite" className="text-sm text-[#7d9800] hover:underline">
+              {t('privacy.title', 'Politique de confidentialité')}
+            </Link>
             <p className="text-sm text-gray-400">© 2026 Hornafresh. {t('rights', 'Tous droits réservés.')}</p>
           </div>
         </div>

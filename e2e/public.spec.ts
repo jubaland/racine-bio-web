@@ -102,6 +102,20 @@ test("installer l'app : lien du pied de page → instructions (sans installer)",
   await expect(page.getByRole('heading', { name: /Installer l'application/ })).toHaveCount(0);
 });
 
+test('confidentialité : page publique, section suppression et lien du pied de page', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('hf_install_dismissed', '1'));
+  await page.goto('/confidentialite'); await settle(page);
+  await expect(page.getByRole('heading', { name: /Politique de confidentialité/ })).toBeVisible();
+  // Exigence Google Play : la section « Supprimer votre compte » est accessible par l'ancre #suppression
+  await expect(page.locator('#suppression')).toContainText(/Supprimer votre compte/);
+  await expect(page.getByText(/77 09 21 46/).first()).toBeVisible();
+  await expectNoOverflow(page, '/confidentialite');
+  // Lien depuis l'accueil
+  await page.goto('/'); await settle(page);
+  await page.getByRole('link', { name: /Politique de confidentialité/ }).click();
+  await expect(page).toHaveURL(/\/confidentialite$/);
+});
+
 test('devenir marchand : les formules viennent des réglages', async ({ page, request }) => {
   const offer = await (await request.get('/api/merchant-offer')).json();
   await page.addInitScript(() => localStorage.setItem('hf_install_dismissed', '1'));

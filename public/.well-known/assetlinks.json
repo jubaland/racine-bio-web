@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.hornafresh.app",
+      "sha256_cert_fingerprints": [
+        "66:2B:0C:87:0B:3A:4D:B8:A5:11:2F:47:C4:98:1B:06:42:33:42:DB:48:F1:B8:F5:46:F8:C1:65:C8:21:9C:DC"
+      ]
+    }
+  }
+]
