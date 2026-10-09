@@ -295,7 +295,7 @@ export async function sendStatusUpdate(order: any, customerEmail: string, lang?:
     <p style="color:#374151;font-size:14px;line-height:1.6;">${message}</p>
 
     <p style="color:#6b7280;font-size:13px;margin-top:24px;">
-      ${m('contact_us', 'Pour toute question, contactez-nous au {phone}.', { phone: '<strong>${CONTACT_PHONE}</strong>' })}
+      ${m('contact_us', 'Pour toute question, contactez-nous au {phone}.', { phone: `<strong>${CONTACT_PHONE}</strong>` })}
     </p>
   `, M);
 
@@ -490,7 +490,7 @@ export async function sendSubscriptionPaused(email: string, needed: number, bala
     <p style="color:#374151;font-size:14px;line-height:1.6;">
       ${m('paused_text', 'Rechargez votre cagnotte auprès de notre équipe (Waafi / espèces) pour reprendre vos livraisons automatiques. Votre commande modèle est conservée et reprendra dès le rechargement.')}
     </p>
-    <p style="color:#6b7280;font-size:13px;margin-top:24px;">${m('topup_contact', 'Pour recharger, contactez-nous au {phone}.', { phone: '<strong>${CONTACT_PHONE}</strong>' })}</p>
+    <p style="color:#6b7280;font-size:13px;margin-top:24px;">${m('topup_contact', 'Pour recharger, contactez-nous au {phone}.', { phone: `<strong>${CONTACT_PHONE}</strong>` })}</p>
   `, M);
   await deliver({ from: FROM, to: email, subject: `⏸️ ${m('subject_paused', 'Cagnotte à recharger — Hornafresh')}`, html });
 }
@@ -516,7 +516,7 @@ export async function sendSubscriptionReminder(email: string, p: { label: string
     </div>
     ${note ? `<p style="color:#6b7280;font-size:13px;">${note}</p>` : ''}
     <p style="color:#374151;font-size:14px;line-height:1.6;">${m('remind_missing_text', 'Rechargez votre cagnotte depuis votre espace (Waafi ou espèces) : dès validation, la livraison partira normalement. Sans recharge, la commande modèle sera mise en pause et reprendra automatiquement au prochain rechargement.')}</p>
-    <p style="color:#6b7280;font-size:13px;margin-top:24px;">${m('question_contact', 'Une question ? Contactez-nous au {phone}.', { phone: '<strong>${CONTACT_PHONE}</strong>' })}</p>
+    <p style="color:#6b7280;font-size:13px;margin-top:24px;">${m('question_contact', 'Une question ? Contactez-nous au {phone}.', { phone: `<strong>${CONTACT_PHONE}</strong>` })}</p>
   `, M);
   await deliver({ from: FROM, to: email, subject: p.empty ? `⚠️ ${m('subject_remind_empty', 'Livraison de demain : panier indisponible — Hornafresh')}` : `⏳ ${m('subject_remind_missing', 'Il manque {amount} pour votre livraison de demain — Hornafresh', { amount: fdjFr(p.missing) })}`, html });
 }
@@ -548,7 +548,7 @@ export async function sendSubscriptionExpired(email: string, freqLabel: string, 
     <p style="color:#374151;font-size:14px;line-height:1.6;">
       ${m('expired_text', 'Pour reprendre vos livraisons automatiques, il vous suffit de renouveler votre commande modèle depuis votre espace : elle repartira pour une nouvelle année.')}
     </p>
-    <p style="color:#6b7280;font-size:13px;margin-top:24px;">${m('question_contact', 'Une question ? Contactez-nous au {phone}.', { phone: '<strong>${CONTACT_PHONE}</strong>' })}</p>
+    <p style="color:#6b7280;font-size:13px;margin-top:24px;">${m('question_contact', 'Une question ? Contactez-nous au {phone}.', { phone: `<strong>${CONTACT_PHONE}</strong>` })}</p>
   `, M);
   await deliver({ from: FROM, to: email, subject: `⏳ ${m('subject_expired', 'Renouvelez votre commande modèle — Hornafresh')}`, html });
 }
@@ -657,7 +657,7 @@ export async function sendCreditStatement(to: string, p: { holder: string; lines
     <table style="width:100%;border-collapse:collapse;">${rows}</table>
     ${p.outstanding > p.total ? `<p style="margin:12px 0 0;color:#6b7280;font-size:13px;">${m('credit_outstanding_total', 'Encours total, échéances suivantes comprises : {amount}', { amount: fdjFr(p.outstanding) })}</p>` : ''}
     <p style="color:#374151;font-size:14px;line-height:1.6;margin-top:20px;">${m('credit_how_to_pay', 'Règlement en espèces, par Waafi ou D-Money auprès d\'Hornafresh. Le reçu vous sera envoyé dès réception.')}</p>
-    <p style="color:#6b7280;font-size:13px;margin-top:20px;">${m('contact_us', 'Pour toute question, contactez-nous au {phone}.', { phone: '<strong>${CONTACT_PHONE}</strong>' })}</p>
+    <p style="color:#6b7280;font-size:13px;margin-top:20px;">${m('contact_us', 'Pour toute question, contactez-nous au {phone}.', { phone: `<strong>${CONTACT_PHONE}</strong>` })}</p>
   `, M);
   await deliver({
     from: FROM, to, subject: `🧾 ${m('credit_statement_subject', 'Relevé de crédit Hornafresh — {amount} à régler avant le {date}', { amount: fdjFr(p.total), date: dueStr })}`, html,
