@@ -1,4 +1,5 @@
-// Test non destructif de la création de commande par copie (phase 45, mode « pour le compte de »).
+// Test non destructif de la création de commande par copie (phase 45, mode « pour le compte de »),
+// y compris articles ajoutés hors commande d'origine, code promo (limites sur le client) et remise.
 // Serveur local requis (port 3000). Migration phase45_duplicate.sql requise (created_by, copied_from).
 // Comptes, produit, commandes et carnet temporaires supprimés ; préparateurs désactivés pendant le test.
 //   node scripts/phase45_test_duplicate.mjs
@@ -71,8 +72,8 @@ try {
   ok(r.status === 403, 'copie refusée sans droit commandes/edit', `${r.status} ${JSON.stringify(r.j).slice(0, 80)}`);
   r = await api('/api/orders', C.token, { ...dupBody(), on_behalf: false, order: { ...dupBody().order, user_id: M.id } });
   ok(r.status === 401 && r.j.error === 'identity_mismatch', 'hors copie : identité toujours verrouillée');
-  r = await api('/api/orders', M.token, { ...dupBody(), promo_code: 'X' });
-  ok(r.status === 400 && r.j.error === 'on_behalf_unsupported', 'copie : code promo refusé');
+  r = await api('/api/orders', M.token, { ...dupBody(), promo_code: 'CODEINTROUVABLE99' });
+  ok(r.status === 409 && r.j.error === 'promo_invalid', 'copie : code promo inconnu rejeté proprement', r.status + ' ' + JSON.stringify(r.j).slice(0, 60));
   r = await api('/api/orders', M.token, dupBody({ user_id: null, payment_method: 'credit' }));
   ok(r.status === 400 && r.j.error === 'credit_requires_account', 'copie : carnet sans compte refusé');
 
@@ -114,6 +115,41 @@ try {
   const { data: entries } = await admin.from('credit_entries').select('account_id, amount, order_id').eq('order_id', r.j.order?.id ?? -1);
   ok(entries?.length === 1 && entries[0].account_id === acct.id, 'dette inscrite sur le carnet du CLIENT (pas du gestionnaire)', JSON.stringify(entries));
 
+  // ── Article ajouté hors commande d'origine ───────────────────────────────
+  console.log("\n— Article ajouté (hors commande d'origine) —");
+  const { data: P2 } = await admin.from('products').insert({ name: 'TEST Copie produit 2', price: 200, cost_price: 100, unit: 'botte', stock_qty: 30, farm: 'Test', category: 'legumes', product_type: 'conventionnel', origin_country: 'DJ', region: 'Test', status: 'published', is_local: false, in_stock: true, description: 'TEST COPIE 2 — à supprimer', bg_color: '#ecf4d5' }).select('id').single();
+  state.products.push(P2.id);
+  r = await api('/api/orders', M.token, dupBody({}, [
+    { product_id: P.id, quantity: 2, price: 1, product_name: 'TEST Copie produit', product_unit: 'kg' },
+    { product_id: P2.id, quantity: 3, price: 1, product_name: 'TEST Copie produit 2', product_unit: 'botte' },
+  ]));
+  ok(r.status === 200 && r.j.order?.id, 'copie avec article ajouté acceptée', JSON.stringify(r.j).slice(0, 120));
+  const { data: mixLines } = await admin.from('order_items').select('product_id, price').eq('order_id', r.j.order?.id ?? -1).order('product_id');
+  ok(mixLines?.length === 2 && Number(mixLines.find(l => l.product_id === P2.id)?.price) === 200, 'deux lignes, prix serveur du nouvel article', JSON.stringify(mixLines));
+
+  // ── Code promo appliqué pour le client ───────────────────────────────────
+  console.log('\n— Code promo (livraison offerte) —');
+  const CODE = `T45L${String(stamp).slice(-6)}`;
+  const adminToken = await tokenFor('wilsandj@hotmail.com');
+  r = await api('/api/admin/promo-codes', adminToken, { action: 'save', code: CODE, max_uses_per_user: 1 });
+  ok(r.status === 200, 'code promo de test créé', JSON.stringify(r.j).slice(0, 80));
+  r = await api('/api/orders', M.token, { ...dupBody(), promo_code: CODE });
+  const pOrder = r.j.order || {};
+  ok(r.status === 200 && Number(pOrder.delivery_fee) === 0 && pOrder.delivery_discount_source === 'promo', 'copie : livraison offerte par le code', JSON.stringify({ fee: pOrder.delivery_fee, src: pOrder.delivery_discount_source }));
+  const { data: reds } = await admin.from('promo_redemptions').select('user_id, order_id').eq('order_id', pOrder.id ?? -1);
+  ok(reds?.length === 1 && reds[0].user_id === C.id, 'utilisation comptée sur le CLIENT (pas le gestionnaire)', JSON.stringify(reds));
+  r = await api('/api/orders', M.token, { ...dupBody(), promo_code: CODE });
+  ok(r.status === 409 && r.j.error === 'promo_invalid', 'limite par client respectée (2e usage refusé)');
+  r = await api('/api/orders', M.token, { ...dupBody(), ref_code: CODE });
+  ok(r.status === 400 && r.j.error === 'on_behalf_unsupported', 'parrainage toujours refusé en copie');
+
+  // ── Remise globale juste après création (outil remise existant) ──────────
+  console.log('\n— Remise accordée à la création —');
+  r = await api('/api/admin/orders/discount', M.token, { order_id: pOrder.id, mode: 'global', amount: 150, note: 'Geste copie test' });
+  ok(r.status === 200, 'remise globale appliquée par le gestionnaire', JSON.stringify(r.j).slice(0, 80));
+  const { data: discRow } = await admin.from('orders').select('admin_discount, discount_history').eq('id', pOrder.id).single();
+  ok(Number(discRow?.admin_discount) === 150 && (discRow?.discount_history || []).some(h => h.note === 'Geste copie test'), 'remise historisée sur la commande', JSON.stringify(discRow).slice(0, 120));
+
   // ── Stock replafonné proprement ──────────────────────────────────────────
   console.log('\n— Stock insuffisant —');
   r = await api('/api/orders', M.token, dupBody({}, [{ product_id: P.id, quantity: 500, price: 1, product_name: 'TEST Copie produit', product_unit: 'kg' }]));
@@ -124,6 +160,8 @@ try {
   console.log('\n— Nettoyage —');
   for (const id of state.orders) { await admin.from('credit_entries').delete().eq('order_id', id); await admin.from('order_items').delete().eq('order_id', id); await admin.from('orders').delete().eq('id', id); }
   for (const id of state.accounts) { await admin.from('credit_entries').delete().eq('account_id', id); await admin.from('credit_accounts').delete().eq('id', id); }
+  const { data: tcodes } = await admin.from('promo_codes').select('id').like('code', 'T45L%');
+  if (tcodes?.length) { await admin.from('promo_redemptions').delete().in('promo_id', tcodes.map(c => c.id)); await admin.from('promo_codes').delete().in('id', tcodes.map(c => c.id)); }
   for (const id of state.products) await admin.from('products').delete().eq('id', id);
   for (const id of state.users) { await admin.from('wallet_transactions').delete().eq('user_id', id); await admin.from('wallets').delete().eq('user_id', id); await admin.from('profiles').delete().eq('id', id); await admin.auth.admin.deleteUser(id); }
   if (state.preparers.length) await admin.from('preparers').update({ is_active: true }).in('id', state.preparers);

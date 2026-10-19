@@ -22,8 +22,9 @@ async function POST_(request: Request) {
     const PAYMENTS = ['waafi', 'cash', 'wallet', 'company_wallet', 'dmoney', 'credit'];
     if (!PAYMENTS.includes(rawOrder.payment_method)) return NextResponse.json({ error: 'payment_invalid' }, { status: 400 });
     // ── Commande créée par l'équipe pour un client (copie de commande) : droit « commandes/edit »
-    //    requis. Pas de code promo ni de circuit société dans ce mode : la remise se ré-accorde au
-    //    cas par cas avec l'outil de remise admin. Traçée via created_by / copied_from.
+    //    requis. Code promo accepté (limites comptées sur l'identité du CLIENT) ; en revanche pas
+    //    de circuit société ni de parrainage (le crédit parrainage appartient à un compte précis).
+    //    Traçée via created_by / copied_from.
     const onBehalf = body.on_behalf === true;
     let onBehalfBy: string | null = null;
     if (onBehalf) {
@@ -31,7 +32,7 @@ async function POST_(request: Request) {
       const perm = await requirePerm(request, 'orders', 'edit');
       if (!perm.ok) return NextResponse.json({ error: perm.error }, { status: perm.status });
       onBehalfBy = perm.user.id;
-      if (companyInput || rawOrder.payment_method === 'company_wallet' || body.promo_code || ref_code || use_referral_credit) {
+      if (companyInput || rawOrder.payment_method === 'company_wallet' || ref_code || use_referral_credit) {
         return NextResponse.json({ error: 'on_behalf_unsupported' }, { status: 400 });
       }
       if (rawOrder.payment_method === 'credit' && !rawOrder.user_id) {
