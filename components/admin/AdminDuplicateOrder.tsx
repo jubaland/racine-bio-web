@@ -100,6 +100,12 @@ export default function AdminDuplicateOrder({ order, deliveryOpts, onClose, onCr
   const subtotal = kept.reduce((s, r) => s + r.price * (qty[r.product_id] || 0), 0);
   const opt = deliveryOpts.find(o => String(o.id) === form.option_id) || null;
   const disc = Math.max(0, parseInt(discAmount, 10) || 0);
+  // Total estimé affiché en direct (le serveur reste seul juge des frais : seuil « offerte », code…)
+  const promoCut = code?.benefit?.kind === 'percent' ? Math.round(subtotal * (Number(code.benefit.value) || 0) / 100)
+    : code?.benefit?.kind === 'amount' ? Math.min(Number(code.benefit.value) || 0, subtotal)
+    : 0;
+  const freeDelivery = code?.benefit?.kind === 'free_delivery';
+  const estTotal = Math.max(0, subtotal - promoCut - disc) + (freeDelivery ? 0 : (opt?.price || 0));
 
   const checkCode = async () => {
     const c = codeInput.trim().toUpperCase();
@@ -189,7 +195,16 @@ export default function AdminDuplicateOrder({ order, deliveryOpts, onClose, onCr
             method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tk}` },
             body: JSON.stringify({ order_id: j.order.id, mode: 'global', amount: disc, note: discNote.trim() }),
           });
-          if (!dr.ok) discountWarn = ' — ' + t('dup.disc_failed', 'remise non appliquée : utilisez l\'outil remise sur la commande');
+          if (!dr.ok) {
+            let detail = '';
+            try {
+              const dj = await dr.json();
+              detail = dj.error === 'amount_too_high' ? t('admin.disc_e_too_high', 'La remise dépasse le montant des articles.')
+                : dj.error === 'note_required' ? t('admin.disc_e_note', 'Indiquez le motif de la remise.')
+                : String(dj.error || '');
+            } catch {}
+            discountWarn = ' — ' + t('dup.disc_failed', 'remise non appliquée : utilisez l\'outil remise sur la commande') + (detail ? ` (${detail})` : '');
+          }
         } catch { discountWarn = ' — ' + t('dup.disc_failed', 'remise non appliquée : utilisez l\'outil remise sur la commande'); }
       }
       notice((discountWarn ? '⚠️ ' : '✅ ') + t('dup.done', 'Commande créée pour le client') + ` — #${j.order?.id ?? ''}` + discountWarn);
@@ -344,10 +359,18 @@ export default function AdminDuplicateOrder({ order, deliveryOpts, onClose, onCr
                   <span className="text-gray-500">{t('admin.subtotal', 'Sous-total')} ({kept.length} {t('dup.items', 'article(s)')})</span>
                   <span className="font-semibold text-gray-800">{fdj(subtotal)}</span>
                 </div>
-                {code && <div className="flex justify-between text-xs text-[#526500]"><span>🎁 {code.code}</span><span>{codeLabel(code.benefit)}</span></div>}
+                {code && <div className="flex justify-between text-xs text-[#526500]"><span>🎁 {code.code}</span><span>{promoCut > 0 ? `−${fdj(promoCut)}` : codeLabel(code.benefit)}</span></div>}
                 {disc > 0 && <div className="flex justify-between text-xs text-[#526500]"><span>💸 {t('admin.disc_granted', 'Remise accordée')}</span><span>−{fdj(disc)}</span></div>}
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>🚚 {opt ? opt.name : '—'}</span>
+                  <span>{freeDelivery ? t('dup.code_free_delivery', 'livraison offerte') : opt ? `+${fdj(opt.price)}` : '—'}</span>
+                </div>
+                <div className="flex justify-between text-sm border-t border-[#d2e095] pt-1.5">
+                  <span className="font-semibold text-gray-700">{t('dup.est_total', 'Total estimé')}</span>
+                  <span className="font-bold text-[#526500]">{fdj(estTotal)}</span>
+                </div>
                 <p className="text-[11px] text-gray-400">
-                  🚚 {opt ? `${opt.name} — ${fdj(opt.price)}` : '—'} · {t('dup.fee_note', 'frais recalculés à la création (livraison offerte si seuil atteint)')}
+                  {t('dup.fee_note', 'frais recalculés à la création (livraison offerte si seuil atteint)')}
                 </p>
                 <button onClick={create} disabled={busy || !kept.length}
                   className="w-full bg-[#526500] text-white rounded-xl py-2.5 text-sm font-semibold disabled:opacity-50">
