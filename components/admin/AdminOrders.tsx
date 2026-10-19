@@ -6,6 +6,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { useCan } from '../../context/AdminPermsContext';
 import PrepSlip from './PrepSlip';
+import AdminDuplicateOrder from './AdminDuplicateOrder';
 
 interface OrderEdit {
   id: number; kind?: string; order_id?: string; product_name: string | null; product_unit: string | null;
@@ -49,6 +50,8 @@ interface Order {
   customer_name: string;
   special_instructions: string | null;
   created_at: string;
+  created_by?: string | null;   // membre de l'équipe ayant créé la commande pour le client
+  copied_from?: number | null;  // commande d'origine d'une création par copie
   order_items: OrderItem[];
 }
 
@@ -73,6 +76,7 @@ export default function AdminOrders() {
   const [resolvingId, setResolvingId] = useState<number | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [slipOrder, setSlipOrder] = useState<Order | null>(null);
+  const [dupOrder, setDupOrder] = useState<Order | null>(null);   // commande source d'une création par copie
 
   const { ui } = useLanguage();
   const t = (k: string, f: string) => ui[k] || f;
@@ -532,6 +536,11 @@ export default function AdminOrders() {
                       <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${m.cls}`}>
                         {m.label}
                       </span>
+                      {order.copied_from && (
+                        <span className="text-[10px] text-gray-500 bg-gray-100 border border-gray-200 rounded-full px-2 py-0.5" title={t('dup.copied_title', 'Créée par le gestionnaire par copie d\'une commande passée')}>
+                          🔁 {t('dup.copied_from', 'copie de')} #{order.copied_from}
+                        </span>
+                      )}
                     </div>
                     <p className="font-bold text-gray-800">{order.customer_name || '—'}</p>
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-500">
@@ -576,6 +585,15 @@ export default function AdminOrders() {
                       >
                         🖨️ {t('admin.prep_slip', 'Bordereau')}
                       </button>
+                      {can('orders', 'edit') && (
+                        <button
+                          onClick={() => setDupOrder(order)}
+                          className="text-xs font-medium text-[#526500] border border-[#d2e095] rounded-lg px-2 py-1 hover:bg-[#ecf4d5] transition whitespace-nowrap"
+                          title={t('dup.btn_title', 'Créer une nouvelle commande pour ce client à partir de celle-ci')}
+                        >
+                          🔁 {t('dup.btn', 'Créer par copie')}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -837,6 +855,7 @@ export default function AdminOrders() {
         </div>
       )}
       {slipOrder && <PrepSlip order={slipOrder} onClose={() => setSlipOrder(null)} />}
+      {dupOrder && <AdminDuplicateOrder order={dupOrder} deliveryOpts={deliveryOpts} onClose={() => setDupOrder(null)} onCreated={() => { setDupOrder(null); fetchAll(); }} />}
     </div>
   );
 }

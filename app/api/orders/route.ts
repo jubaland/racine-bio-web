@@ -21,9 +21,26 @@ async function POST_(request: Request) {
     const caller = await userFromRequest(request);
     const PAYMENTS = ['waafi', 'cash', 'wallet', 'company_wallet', 'dmoney', 'credit'];
     if (!PAYMENTS.includes(rawOrder.payment_method)) return NextResponse.json({ error: 'payment_invalid' }, { status: 400 });
+    // ── Commande créée par l'équipe pour un client (copie de commande) : droit « commandes/edit »
+    //    requis. Pas de code promo ni de circuit société dans ce mode : la remise se ré-accorde au
+    //    cas par cas avec l'outil de remise admin. Traçée via created_by / copied_from.
+    const onBehalf = body.on_behalf === true;
+    let onBehalfBy: string | null = null;
+    if (onBehalf) {
+      const { requirePerm } = await import('../../../lib/admin-auth');
+      const perm = await requirePerm(request, 'orders', 'edit');
+      if (!perm.ok) return NextResponse.json({ error: perm.error }, { status: perm.status });
+      onBehalfBy = perm.user.id;
+      if (companyInput || rawOrder.payment_method === 'company_wallet' || body.promo_code || ref_code || use_referral_credit) {
+        return NextResponse.json({ error: 'on_behalf_unsupported' }, { status: 400 });
+      }
+      if (rawOrder.payment_method === 'credit' && !rawOrder.user_id) {
+        return NextResponse.json({ error: 'credit_requires_account' }, { status: 400 });
+      }
+    }
     // Une commande rattachée à un compte doit être passée par ce compte (jeton), sinon n'importe qui
     // pourrait commander — et débiter une cagnotte — au nom d'un autre.
-    if (rawOrder.user_id && (!caller || caller.id !== rawOrder.user_id)) return NextResponse.json({ error: 'identity_mismatch' }, { status: 401 });
+    if (rawOrder.user_id && !onBehalf && (!caller || caller.id !== rawOrder.user_id)) return NextResponse.json({ error: 'identity_mismatch' }, { status: 401 });
     // Anti-rafale : commandes de visiteurs sans compte limitées par adresse (réglage admin › Surveillance)
     if (!caller) {
       const { limitGuestOrders } = await import('../../../lib/rate-limit');
@@ -31,7 +48,9 @@ async function POST_(request: Request) {
       if (!rl.allowed) return NextResponse.json({ error: 'rate_limited', retry_after: rl.retryAfter }, { status: 429 });
     }
     const order: any = {
-      user_id: rawOrder.user_id ? caller!.id : null,
+      user_id: rawOrder.user_id ? (onBehalf ? rawOrder.user_id : caller!.id) : null,
+      // Colonnes de traçabilité présentes uniquement en mode copie (phase 45)
+      ...(onBehalf ? { created_by: onBehalfBy, copied_from: Number(body.copied_from) || null } : {}),
       total: Number(rawOrder.total) || 0,
       delivery_fee: Number(rawOrder.delivery_fee) || 0,
       delivery_option_name: rawOrder.delivery_option_name ?? null,
@@ -197,7 +216,8 @@ async function POST_(request: Request) {
     if (order.payment_method === 'credit') {
       if (!caller) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
       const { accountOfUser, accountOfCompany, checkCharge } = await import('../../../lib/credit');
-      creditAccount = company ? await accountOfCompany(company.id) : await accountOfUser(caller.id);
+      // Mode « pour le compte de » : c'est le carnet du CLIENT qui est engagé, pas celui de l'équipe
+      creditAccount = company ? await accountOfCompany(company.id) : await accountOfUser(onBehalf ? order.user_id : caller.id);
       const chk = await checkCharge(creditAccount, Number(order.total));
       if (!chk.ok) return NextResponse.json({ error: 'credit_unavailable', reason: chk.reason, available: chk.available ?? null }, { status: 409 });
       creditDue = chk.due_at;
@@ -489,7 +509,7 @@ async function GET_(request: Request) {
   const { data, error } = await supabaseAdmin
     .from('orders')
     .select(`
-      id, user_id, total, delivery_fee, delivery_fee_base, delivery_discount, delivery_discount_source, promo_code, promo_discount, admin_discount, discount_history, delivery_option_name, status, payment_method, phone, email, address, customer_name, special_instructions, created_at,
+      id, user_id, total, delivery_fee, delivery_fee_base, delivery_discount, delivery_discount_source, promo_code, promo_discount, admin_discount, discount_history, delivery_option_name, status, payment_method, phone, email, address, customer_name, special_instructions, created_at, created_by, copied_from,
       order_items (
         id, product_id, quantity, price, discount,
         product_name, product_image_url, product_unit, product_farm, bundle_contents

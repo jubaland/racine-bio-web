@@ -91,6 +91,22 @@ test('admin › Commandes : boutons de quantité et journal des modifications (s
   expect(errors).toEqual([]);
 });
 
+test('admin › Commandes : dialogue « Créer par copie » (ouvert puis annulé, sans créer)', async ({ page }) => {
+  const errors = trackErrors(page);
+  await openModule(page, /Commandes/, /Commandes/);
+  const btn = page.getByRole('button', { name: /Créer par copie/ }).first();
+  if (await btn.isVisible().catch(() => false)) {
+    await btn.click();
+    // Lignes de la commande aux prix du jour + choix livraison/paiement, rien n'est créé
+    await expect(page.getByRole('dialog', { name: /Créer une commande par copie/ })).toBeVisible();
+    await expect(page.getByText(/frais recalculés à la création/)).toBeVisible();
+    await expectNoOverflow(page, 'Commandes › créer par copie');
+    await page.getByRole('button', { name: /Fermer/ }).click();
+    await expect(page.getByRole('dialog', { name: /Créer une commande par copie/ })).toHaveCount(0);
+  }
+  expect(errors).toEqual([]);
+});
+
 test('admin › dialogues intégrés : confirmation dans la page (annulée, sans effet)', async ({ page }) => {
   // Les fenêtres du navigateur (confirm/prompt/alert) sont remplacées par un dialogue dans la page :
   // on vérifie qu'il s'ouvre, s'annule, et ne déclenche rien.
