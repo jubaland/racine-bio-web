@@ -80,6 +80,11 @@ test('fiche produit → panier → checkout (4 étapes, sans confirmer)', async 
   await page.getByPlaceholder(/R4K7NP/).fill('ZZZZ99INCONNU');
   await page.getByRole('button', { name: /Appliquer/ }).click();
   await expect(page.getByText(/Code invalide/)).toBeVisible();
+  // Aucun mode présélectionné : « Continuer » verrouillé tant qu'un paiement n'est pas choisi
+  await expect(page.getByRole('button', { name: /^Continuer/ }).last()).toBeDisabled();
+  await expect(page.getByText(/Choisissez un mode de paiement/)).toBeVisible();
+  await page.getByRole('button', { name: /Espèces/ }).click();
+  await expect(page.getByRole('button', { name: /^Continuer/ }).last()).toBeEnabled();
   await expectNoOverflow(page, 'checkout étape 3');
   await page.screenshot({ path: test.info().outputPath('checkout-paiement.png'), fullPage: true });
 

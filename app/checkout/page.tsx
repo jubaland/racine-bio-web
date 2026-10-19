@@ -79,7 +79,8 @@ export default function CheckoutPage() {
   // Validation : passe à true quand l'utilisateur tente de continuer avec des
   // champs obligatoires manquants → affiche les messages d'erreur sous les champs.
   const [showErrors, setShowErrors] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('waafi');
+  // Aucun mode présélectionné : choix conscient, et l'écran mobile montre toutes les options
+  const [paymentMethod, setPaymentMethod] = useState('');
   const [phoneDigits, setPhoneDigits] = useState('');
   const [phoneFocused, setPhoneFocused] = useState(false);
   const phoneDisplay = phoneFocused
@@ -183,7 +184,7 @@ export default function CheckoutPage() {
       const site = (companyCtx?.sites || []).find((x: any) => x.id === siteId) || (companyCtx?.sites || []).find((x: any) => x.is_default) || companyCtx?.sites?.[0];
       if (site) chooseSite(site);
     } else {
-      setPaymentMethod('waafi'); setSiteId(null); setSelectedAddressId(null); setName(''); setPhoneDigits(''); setAddress(''); setAddressesLoaded(false);
+      setPaymentMethod(''); setSiteId(null); setSelectedAddressId(null); setName(''); setPhoneDigits(''); setAddress(''); setAddressesLoaded(false);
     }
   };
 
@@ -1039,24 +1040,24 @@ export default function CheckoutPage() {
                 💳 {t('checkout.payment_title', 'Mode de paiement')}
               </h2>
 
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {PAYMENT_METHODS.map(method => (
                   <button
                     key={method.id}
                     onClick={() => setPaymentMethod(method.id)}
-                    className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition text-left ${
+                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl border-2 transition text-left ${
                       paymentMethod === method.id
                         ? 'border-[#a8c800] bg-[#ecf4d5]'
                         : 'border-[#d2e095] bg-white hover:bg-[#faf7e8]'
                     }`}
                   >
-                    <span className="text-3xl">{method.emoji}</span>
-                    <div>
-                      <p className="font-semibold text-gray-800">{method.label}</p>
-                      <p className="text-xs text-gray-400">{method.desc}</p>
+                    <span className="text-xl flex-shrink-0">{method.emoji}</span>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-800 text-sm">{method.label}</p>
+                      <p className="text-[11px] text-gray-400 truncate">{method.desc}</p>
                     </div>
                     {paymentMethod === method.id && (
-                      <span className="ml-auto text-[#a8c800] text-xl flex-shrink-0">✓</span>
+                      <span className="ml-auto text-[#a8c800] text-lg flex-shrink-0">✓</span>
                     )}
                   </button>
                 ))}
@@ -1217,11 +1218,17 @@ export default function CheckoutPage() {
               </button>
               <button
                 onClick={() => setStep(4)}
-                className="flex-1 bg-[#a8c800] text-white py-4 rounded-2xl font-semibold hover:bg-[#7d9800] transition"
+                disabled={!paymentMethod}
+                className="flex-1 bg-[#a8c800] text-white py-4 rounded-2xl font-semibold hover:bg-[#7d9800] transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {t('checkout.continue_confirm', 'Continuer →')}
               </button>
             </div>
+            {!paymentMethod && (
+              <p className="text-center text-xs text-gray-400 mt-2">
+                {t('checkout.pick_payment', 'Choisissez un mode de paiement pour continuer.')}
+              </p>
+            )}
           </div>
         )}
 
