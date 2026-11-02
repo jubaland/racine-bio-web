@@ -51,7 +51,7 @@ function baseLayout(content: string, M?: Mailer) {
       <div style="max-width:600px;margin:32px auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #dde8b0;">
         <!-- Header -->
         <div style="background:#526500;padding:24px 32px;text-align:center;">
-          <p style="margin:0;font-size:28px;">🌿</p>
+          <img src="https://www.hornafresh.com/logo-mark.png" alt="Hornafresh" width="48" height="48" style="display:block;margin:0 auto;border:0;" />
           <h1 style="margin:8px 0 0;color:#ffffff;font-size:22px;font-weight:bold;letter-spacing:1px;">Hornafresh</h1>
           <p style="margin:4px 0 0;color:#c5d87a;font-size:12px;">${tagline}</p>
         </div>
