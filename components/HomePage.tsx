@@ -862,12 +862,12 @@ export default function HomePage({ products, categories, promos, producers, sett
       {/* Footer */}
       <footer className="bg-white border-t border-[#d2e095] py-6 md:py-8 px-4 md:px-6">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 md:gap-4">
-          <div className="flex flex-col md:flex-row items-center gap-1 md:gap-2 text-center md:text-left">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col md:flex-row md:flex-wrap items-center gap-1 md:gap-x-2 text-center md:text-left">
+            <div className="flex items-center gap-2 flex-none">
               <img src="/logo-mark.png" alt="" className="w-7 h-7 flex-none" />
-              <span className="font-bold text-[#526500]">Hornafresh</span>
+              <span className="font-bold text-[#526500] whitespace-nowrap">Hornafresh</span>
             </div>
-            <span className="text-gray-400 text-sm">
+            <span className="text-gray-400 text-sm leading-snug">
               <span className="hidden md:inline">— </span>{t('footer', 'Le marché premium, frais, bio, local et régional de Djibouti')}
             </span>
           </div>
