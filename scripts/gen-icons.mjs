@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 /**
- * Génère les icônes PWA de Hornafresh dans public/ à partir d'un SVG de marque.
+ * Génère les icônes PWA de Hornafresh dans public/ à partir du logo de marque.
  *   node scripts/gen-icons.mjs
- * Remplace simplement le SVG ci-dessous (ou les PNG générés) par ton vrai logo
- * quand tu l'auras, puis relance.
+ * Logo actuel (nov. 2026, piste E) : médaillon soleil orange avec feuille
+ * d'acacia (penne à folioles) incrustée en vert foncé — identité « Afrique de l'Est ».
+ * ⚠ Ancien logo (feuille simple) sauvegardé dans
+ *   C:\Users\bongo\hornafresh-android\ancien-logo\ (PNG + gen-icons.mjs d'origine) :
+ *   pour revenir en arrière, relancer ce script-là.
  */
 import sharp from 'sharp';
 import { fileURLToPath } from 'node:url';
@@ -12,8 +15,43 @@ import { dirname, join } from 'node:path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const out = (f) => join(__dirname, '..', 'public', f);
 
-// Logo Hornafresh — dégradé du hero (vert -> orange crépusculaire) + feuille
-// lime + mot « Hornafresh ». Composition centrée (zone sûre maskable).
+// ——— Feuille d'acacia : tige en courbe quadratique, folioles en paires ———
+const P0 = [182, 345], P1 = [225, 205], P2 = [345, 122];
+const q = (t) => {
+  const u = 1 - t;
+  const x = u * u * P0[0] + 2 * u * t * P1[0] + t * t * P2[0];
+  const y = u * u * P0[1] + 2 * u * t * P1[1] + t * t * P2[1];
+  const dx = 2 * u * (P1[0] - P0[0]) + 2 * t * (P2[0] - P1[0]);
+  const dy = 2 * u * (P1[1] - P0[1]) + 2 * t * (P2[1] - P1[1]);
+  return { x, y, a: Math.atan2(dy, dx) * 180 / Math.PI };
+};
+export const leafGroup = (fill) => {
+  let leaflets = '';
+  for (let i = 0; i < 8; i++) {
+    const t = 0.14 + i * 0.105;
+    const { x, y, a } = q(t);
+    const s = 1 - i * 0.055;               // folioles qui rapetissent vers la pointe
+    const rx = 30 * s, ry = 12.5 * s, off = rx * 0.82;
+    for (const side of [1, -1]) {
+      const ang = a + side * 58;
+      const rad = ang * Math.PI / 180;
+      const cx = (x + Math.cos(rad) * off).toFixed(1);
+      const cy = (y + Math.sin(rad) * off).toFixed(1);
+      leaflets += `<ellipse cx="${cx}" cy="${cy}" rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" transform="rotate(${ang.toFixed(1)} ${cx} ${cy})" fill="${fill}"/>`;
+    }
+  }
+  const tip = q(0.99);
+  return `
+    <path d="M${P0[0]} ${P0[1]} Q ${P1[0]} ${P1[1]} ${P2[0]} ${P2[1]}" stroke="${fill}" stroke-width="11" stroke-linecap="round" fill="none"/>
+    ${leaflets}
+    <ellipse cx="${(tip.x + 10).toFixed(1)}" cy="${(tip.y - 7).toFixed(1)}" rx="17" ry="9" transform="rotate(${tip.a.toFixed(1)} ${(tip.x + 10).toFixed(1)} ${(tip.y - 7).toFixed(1)})" fill="${fill}"/>`;
+};
+
+// ——— Motif officiel (piste E) : médaillon soleil + feuille incrustée ———
+export const MOTIF = `
+  <circle cx="256" cy="208" r="136" fill="#f2b23d"/>
+  <g transform="translate(39 42) scale(0.82)">${leafGroup('#2d6410')}</g>`;
+
 const leaf = (bg) => `
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
   <defs>
@@ -24,15 +62,8 @@ const leaf = (bg) => `
     </linearGradient>
   </defs>
   ${bg}
-  <path d="M256 135 C 298 170, 318 215, 314 258 C 310 290, 286 312, 256 316 C 226 312, 202 290, 198 258 C 194 215, 214 170, 256 135 Z" fill="#c8e050"/>
-  <g stroke="#2d6410" stroke-width="9" stroke-linecap="round" fill="none">
-    <path d="M256 158 L256 305"/>
-    <path d="M256 222 L298 200"/>
-    <path d="M256 222 L214 200"/>
-    <path d="M256 266 L300 246"/>
-    <path d="M256 266 L212 246"/>
-  </g>
-  <text x="256" y="382" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="54" letter-spacing="-1" fill="#ffffff">Hornafresh</text>
+  ${MOTIF}
+  <text x="256" y="430" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="54" letter-spacing="-1" fill="#ffffff">Hornafresh</text>
 </svg>`;
 
 const rounded = leaf('<rect width="512" height="512" rx="112" fill="url(#g)"/>');
@@ -49,4 +80,7 @@ for (const j of jobs) {
   await sharp(Buffer.from(j.svg)).resize(j.size, j.size).png().toFile(out(j.file));
   console.log(`✓ public/${j.file} (${j.size}x${j.size})`);
 }
+// Favicon moderne (app router : app/icon.png prime sur favicon.ico)
+await sharp(Buffer.from(rounded)).resize(64, 64).png().toFile(join(__dirname, '..', 'app', 'icon.png'));
+console.log('✓ app/icon.png (64x64)');
 console.log('Icônes générées.');
