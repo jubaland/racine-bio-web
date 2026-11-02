@@ -138,7 +138,7 @@ export default function ProducerLayout({ children }: ProducerLayoutProps) {
       <header className="bg-white border-b border-[#d2e095] sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
-            <span className="text-3xl">🌿</span>
+            <img src="/logo-mark.png" alt="Hornafresh" className="w-9 h-9 flex-none" />
             <div>
               <h1 className="text-xl font-bold text-[#526500]">Hornafresh</h1>
               <p className="text-xs text-[#a8c800] font-semibold">{t('producer.space_label', 'Espace Marchand')}</p>

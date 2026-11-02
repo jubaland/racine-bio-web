@@ -128,7 +128,7 @@ export default function LoginPage() {
       {/* Panneau gauche — branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#1c3a05] via-[#2d6410] to-[#7a5800] flex-col justify-between p-12 text-white">
         <Link href="/" className="flex items-center gap-3">
-          <span className="text-4xl">🌿</span>
+          <img src="/logo-mark.png" alt="Hornafresh" className="w-10 h-10 flex-none" />
           <div>
             <p className="text-xl font-bold">Hornafresh</p>
             <p className="text-xs text-white/60">{t('footer', 'Le marché premium, frais, bio, local et régional de Djibouti')}</p>
@@ -169,7 +169,7 @@ export default function LoginPage() {
 
         {/* Logo mobile */}
         <div className="lg:hidden text-center mb-8">
-          <span className="text-5xl">🌿</span>
+          <img src="/logo-mark.png" alt="Hornafresh" className="w-12 h-12 mx-auto" />
           <h1 className="text-xl font-bold text-[#526500] mt-2">Hornafresh</h1>
           <p className="text-xs text-gray-400">{t('footer', 'Le marché premium, frais, bio, local et régional de Djibouti')}</p>
         </div>

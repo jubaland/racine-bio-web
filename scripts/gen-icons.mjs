@@ -80,6 +80,10 @@ for (const j of jobs) {
   await sharp(Buffer.from(j.svg)).resize(j.size, j.size).png().toFile(out(j.file));
   console.log(`✓ public/${j.file} (${j.size}x${j.size})`);
 }
+// Marque seule (médaillon sans texte, fond transparent) pour Header/Footer/login
+const mark = `<svg xmlns="http://www.w3.org/2000/svg" width="304" height="304" viewBox="104 56 304 304">${MOTIF}</svg>`;
+await sharp(Buffer.from(mark)).resize(256, 256).png().toFile(out('logo-mark.png'));
+console.log('✓ public/logo-mark.png (256x256)');
 // Favicon moderne (app router : app/icon.png prime sur favicon.ico)
 await sharp(Buffer.from(rounded)).resize(64, 64).png().toFile(join(__dirname, '..', 'app', 'icon.png'));
 console.log('✓ app/icon.png (64x64)');

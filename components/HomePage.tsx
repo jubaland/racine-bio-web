@@ -864,7 +864,7 @@ export default function HomePage({ products, categories, promos, producers, sett
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 md:gap-4">
           <div className="flex flex-col md:flex-row items-center gap-1 md:gap-2 text-center md:text-left">
             <div className="flex items-center gap-2">
-              <span className="text-2xl">🌿</span>
+              <img src="/logo-mark.png" alt="" className="w-7 h-7 flex-none" />
               <span className="font-bold text-[#526500]">Hornafresh</span>
             </div>
             <span className="text-gray-400 text-sm">

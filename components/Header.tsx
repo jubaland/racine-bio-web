@@ -69,7 +69,7 @@ export default function Header({ onCartOpen }: { onCartOpen: () => void }) {
           )}
           {!showBack && (
             <Link href="/" className="flex items-center gap-2 min-w-0">
-              <span className="text-3xl">🌿</span>
+              <img src="/logo-mark.png" alt="Hornafresh" className="w-9 h-9 flex-none" />
               <div className="hidden md:block">
                 <h1 className="text-xl font-bold text-[#526500] leading-tight">Hornafresh</h1>
                 <p className="text-xs text-gray-400">{t('footer', 'Le marché premium, frais, bio, local et régional de Djibouti')}</p>
